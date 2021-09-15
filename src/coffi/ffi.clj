@@ -21,7 +21,7 @@
   `scope`, except in extenuating circumstances."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
-    [type obj segment scope]
+    [obj type segment scope]
     type))
 
 (defmulti deserialize
@@ -107,8 +107,8 @@
 
 (defn serialize
   "Serializes the `obj` into a newly-allocated [[MemorySegment]]."
-  ([type obj] (serialize type obj (ResourceScope/newImplicitScope)))
-  ([type obj scope] (serialize* type obj (alloc-instance type scope) scope)))
+  ([obj type] (serialize obj type (ResourceScope/newImplicitScope)))
+  ([obj type scope] (serialize* obj type (alloc-instance type scope) scope)))
 
 (comment
   ;;; Prospective syntax for ffi
