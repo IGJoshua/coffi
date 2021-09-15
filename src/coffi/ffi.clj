@@ -3,6 +3,8 @@
   (:import
    (java.lang.invoke VarHandle)
    (jdk.incubator.foreign
+    CLinker
+    FunctionDescriptor
     MemoryAccess
     MemoryAddress
     MemoryHandles
@@ -10,7 +12,7 @@
     MemoryLayout$PathElement
     MemoryLayouts
     MemorySegment
-    FunctionDescriptor)))
+    ResourceScope)))
 
 (defmulti serialize*
   "Writes a serialized version of the `obj` to the given `segment`.
