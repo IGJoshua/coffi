@@ -245,7 +245,7 @@
     "someFunc" [::pointer] ::int
     []
     (let [out-int (alloc-instance ::int)
-          success? (zero? (some-func (.address out-int)))]
+          success? (zero? (some-func (address-of out-int)))]
       (if success?
         (deserialize ::int out-int)
         (throw (ex-info (getErrorString) {})))))
