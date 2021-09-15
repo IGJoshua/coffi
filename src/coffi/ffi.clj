@@ -198,6 +198,37 @@
   []
   (ResourceScope/newSharedScope))
 
+(defn address-of
+  "Gets the address of a given segment.
+
+  This value can be used as an argument to functions which take a pointer."
+  [segment]
+  (.address ^MemorySegment segment))
+
+(defn slice-global
+  "Gets a slice of the global address space.
+
+  Because this fetches from the global segment, it has no associated scope, and
+  therefore the reference created here cannot prevent the value from being
+  freed. Be careful to ensure that you are not retaining an object incorrectly."
+  [address size]
+  (.asSlice (MemorySegment/globalNativeSegment)
+            ^MemoryAddress address ^long size))
+
+(defn slice
+  "Get a slice over the `segment` with the given `offset`."
+  ([segment offset]
+   (.asSlice ^MemorySegment segment ^long offset))
+  ([segment offset size]
+   (.asSlice ^MemorySegment segment ^long offset ^long size)))
+
+(defn slice-at
+  "Get a slice over the `segment` starting at the `address`."
+  ([segment address]
+   (.asSlice ^MemorySegment segment ^MemoryAddress address))
+  ([segment address size]
+   (.asSlice ^MemorySegment segment ^MemoryAddress address ^long size)))
+
 (comment
   ;;; Prospective syntax for ffi
 
