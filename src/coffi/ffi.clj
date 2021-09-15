@@ -103,3 +103,45 @@
   "Serializes the `obj` into a newly-allocated [[MemorySegment]]."
   ([type obj] (serialize type obj (ResourceScope/newImplicitScope)))
   ([type obj scope] (serialize* type obj (alloc-instance type scope) scope)))
+
+(comment
+  ;;; Prospective syntax for ffi
+
+  ;; This function has no out params, and no extra marshalling work, so it has no
+  ;; body
+  (defcfun strlen
+    "Counts the number of bytes in a C String."
+    "strlen" [::ffi/c-string] ::ffi/integer)
+  ​
+  ;; This function has an output parameter and requires some clojure code to
+  ;; translate the values from the c fn to something sensible in clojure.
+  (defcfun some-func
+    "Gets some output value"
+    "someFunc" [::ffi/pointer] ::ffi/integer
+    []
+    (let [out-int (ffi/alloc-instance ::ffi/integer)
+          success? (zero? (some-func out-int))]
+      (if success?
+        (ffi/deserialize ::ffi/integer out-int)
+        (throw (ex-info (getErrorString) {})))))
+  ​
+  ;; This function probably wouldn't actually get wrapped, since the cost of
+  ;; marshalling is greater than the speed boost of using an in-place sort. That
+  ;; said, this is a nice sample of what more complex marshalling looks like.
+  (defcfun qsort
+    "Quicksort implementation"
+    "qsort"
+    [::ffi/pointer ::ffi/long ::ffi/long (fn [::ffi/pointer ::ffi/pointer] ::ffi/integer)]
+    ::ffi/void
+    [type comparator list]
+    (let [copied-list (ffi/alloc (* (count list) (ffi/size-of type)))
+          _ (for [segment (ffi/seq-of type copied-list)]
+              (ffi/serialize type segment))
+          comp-fn (fn [addr1 addr2]
+                    (let [obj1 (ffi/deserialize type (ffi/slice-global addr1 (ffi/size-of type)))
+                          obj2 (ffi/deserialize type (ffi/slice-global addr2 (ffi/size-of type)))]
+                      (comparator obj1 obj2)))]
+      (qsort copied-list (count list) (ffi/size-of type) comp-fn)
+      (for [segment (ffi/seq-of type copied-list)]
+        (ffi/deserialize type segment))))
+  )
