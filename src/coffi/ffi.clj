@@ -67,6 +67,42 @@
     [segment type]
     type))
 
+(defmethod deserialize ::byte
+  [segment _type]
+  (MemoryAccess/getByte segment))
+
+(defmethod deserialize ::short
+  [segment _type]
+  (MemoryAccess/getShort segment))
+
+(defmethod deserialize ::int
+  [segment _type]
+  (MemoryAccess/getInt segment))
+
+(defmethod deserialize ::long
+  [segment _type]
+  (MemoryAccess/getLong segment))
+
+(defmethod deserialize ::long-long
+  [segment _type]
+  (MemoryAccess/getLong segment))
+
+(defmethod deserialize ::char
+  [segment _type]
+  (MemoryAccess/getChar segment))
+
+(defmethod deserialize ::float
+  [segment _type]
+  (MemoryAccess/getFloat segment))
+
+(defmethod deserialize ::double
+  [segment _type]
+  (MemoryAccess/getDouble segment))
+
+(defmethod deserialize ::pointer
+  [segment _type]
+  (MemoryAccess/getAddress segment))
+
 (defmulti size-of
   "The size in bytes of the given `type`."
   (fn [type] type))
