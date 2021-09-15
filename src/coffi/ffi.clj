@@ -24,6 +24,42 @@
     [obj type segment scope]
     type))
 
+(defmethod serialize* ::byte
+  [obj _type segment _scope]
+  (MemoryAccess/setByte segment (byte obj)))
+
+(defmethod serialize* ::short
+  [obj _type segment _scope]
+  (MemoryAccess/setShort segment (short obj)))
+
+(defmethod serialize* ::int
+  [obj _type segment _scope]
+  (MemoryAccess/setInt segment (int obj)))
+
+(defmethod serialize* ::long
+  [obj _type segment _scope]
+  (MemoryAccess/setLong segment (long obj)))
+
+(defmethod serialize* ::long-long
+  [obj _type segment _scope]
+  (MemoryAccess/setLong segment (long obj)))
+
+(defmethod serialize* ::char
+  [obj _type segment _scope]
+  (MemoryAccess/setChar segment (char obj)))
+
+(defmethod serialize* ::float
+  [obj _type segment _scope]
+  (MemoryAccess/setFloat segment (float obj)))
+
+(defmethod serialize* ::double
+  [obj _type segment _scope]
+  (MemoryAccess/setDouble segment (double obj)))
+
+(defmethod serialize* ::pointer
+  [obj _type segment _scope]
+  (MemoryAccess/setAddress segment obj))
+
 (defmulti deserialize
   "Deserializes the given object into a Clojure data structure."
   (fn
