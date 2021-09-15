@@ -110,6 +110,22 @@
   ([obj type] (serialize obj type (ResourceScope/newImplicitScope)))
   ([obj type scope] (serialize* obj type (alloc-instance type scope) scope)))
 
+(defn stack-scope
+  "Constructs a new scope for use only in this thread.
+
+  The memory allocated within this scope is cheap to allocate, like a native
+  stack."
+  []
+  (ResourceScope/newConfinedScope))
+
+(defn shared-scope
+  "Constructs a new shared scope.
+
+  This scope can be shared across threads and memory allocated in it will only
+  be cleaned up once every thread accessing the scope closes it."
+  []
+  (ResourceScope/newSharedScope))
+
 (comment
   ;;; Prospective syntax for ffi
 
