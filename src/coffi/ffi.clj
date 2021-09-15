@@ -170,12 +170,12 @@
 (defn alloc
   "Allocates `size` bytes."
   ([size] (alloc size (ResourceScope/newImplicitScope)))
-  ([size scope] (MemorySegment/allocateNative size scope)))
+  ([size scope] (MemorySegment/allocateNative ^long size ^ResourceScope scope)))
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
   ([type] (alloc-instance type (ResourceScope/newImplicitScope)))
-  ([type scope] (MemorySegment/allocateNative (size-of type) scope)))
+  ([type scope] (MemorySegment/allocateNative ^long (size-of type) ^ResourceScope scope)))
 
 (defn serialize
   "Serializes the `obj` into a newly-allocated [[MemorySegment]]."
