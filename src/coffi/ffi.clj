@@ -61,10 +61,10 @@
   (MemoryAccess/setAddress segment obj))
 
 (defmulti deserialize
-  "Deserializes the given object into a Clojure data structure."
+  "Deserializes the given segment into a Clojure data structure."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
-    [type obj]
+    [segment type]
     type))
 
 (defmulti size-of
