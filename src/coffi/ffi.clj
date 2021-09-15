@@ -244,11 +244,12 @@
     "Gets some output value"
     "someFunc" [::pointer] ::int
     []
-    (let [out-int (alloc-instance ::int)
-          success? (zero? (some-func (address-of out-int)))]
-      (if success?
-        (deserialize ::int out-int)
-        (throw (ex-info (getErrorString) {})))))
+    (with-open [scope (stack-scope)]
+      (let [out-int (alloc-instance ::int scope)
+            success? (zero? (some-func (address-of out-int)))]
+        (if success?
+          (deserialize ::int out-int)
+          (throw (ex-info (getErrorString) {}))))))
 
   ;; This function probably wouldn't actually get wrapped, since the cost of
   ;; marshalling is greater than the speed boost of using an in-place sort. That
@@ -259,14 +260,14 @@
     [::pointer ::long ::long (fn [::pointer ::pointer] ::int)]
     ::void
     [type comparator list]
-    (let [copied-list (alloc (* (count list) (size-of type)))
-          _ (for [segment (seq-of type copied-list)]
-              (serialize type segment))
-          comp-fn (fn [addr1 addr2]
-                    (let [obj1 (deserialize type (slice-global addr1 (size-of type)))
-                          obj2 (deserialize type (slice-global addr2 (size-of type)))]
-                      (comparator obj1 obj2)))]
-      (qsort copied-list (count list) (size-of type) comp-fn)
-      (for [segment (seq-of type copied-list)]
-        (deserialize type segment))))
+    (with-open [scope (stack-scope)]
+      (let [copied-list (alloc (* (count list) (size-of type)) scope)
+            _ (dorun (map #(serialize* %1 type %2 scope) list (seq-of type copied-list)))
+            comp-fn (fn [addr1 addr2]
+                      (let [obj1 (deserialize type (slice-global addr1 (size-of type)))
+                            obj2 (deserialize type (slice-global addr2 (size-of type)))]
+                        (comparator obj1 obj2)))]
+        (qsort copied-list (count list) (size-of type) comp-fn)
+        (for [segment (seq-of type copied-list)]
+          (deserialize type segment)))))
   )
