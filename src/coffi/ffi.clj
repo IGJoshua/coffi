@@ -113,18 +113,18 @@
   ;; body
   (defcfun strlen
     "Counts the number of bytes in a C String."
-    "strlen" [::ffi/c-string] ::ffi/integer)
+    "strlen" [::c-string] ::integer)
   ​
   ;; This function has an output parameter and requires some clojure code to
   ;; translate the values from the c fn to something sensible in clojure.
   (defcfun some-func
     "Gets some output value"
-    "someFunc" [::ffi/pointer] ::ffi/integer
+    "someFunc" [::pointer] ::integer
     []
-    (let [out-int (ffi/alloc-instance ::ffi/integer)
+    (let [out-int (alloc-instance ::integer)
           success? (zero? (some-func out-int))]
       (if success?
-        (ffi/deserialize ::ffi/integer out-int)
+        (deserialize ::integer out-int)
         (throw (ex-info (getErrorString) {})))))
   ​
   ;; This function probably wouldn't actually get wrapped, since the cost of
@@ -133,17 +133,17 @@
   (defcfun qsort
     "Quicksort implementation"
     "qsort"
-    [::ffi/pointer ::ffi/long ::ffi/long (fn [::ffi/pointer ::ffi/pointer] ::ffi/integer)]
-    ::ffi/void
+    [::pointer ::long ::long (fn [::pointer ::pointer] ::integer)]
+    ::void
     [type comparator list]
-    (let [copied-list (ffi/alloc (* (count list) (ffi/size-of type)))
-          _ (for [segment (ffi/seq-of type copied-list)]
-              (ffi/serialize type segment))
+    (let [copied-list (alloc (* (count list) (size-of type)))
+          _ (for [segment (seq-of type copied-list)]
+              (serialize type segment))
           comp-fn (fn [addr1 addr2]
-                    (let [obj1 (ffi/deserialize type (ffi/slice-global addr1 (ffi/size-of type)))
-                          obj2 (ffi/deserialize type (ffi/slice-global addr2 (ffi/size-of type)))]
+                    (let [obj1 (deserialize type (slice-global addr1 (size-of type)))
+                          obj2 (deserialize type (slice-global addr2 (size-of type)))]
                       (comparator obj1 obj2)))]
-      (qsort copied-list (count list) (ffi/size-of type) comp-fn)
-      (for [segment (ffi/seq-of type copied-list)]
-        (ffi/deserialize type segment))))
+      (qsort copied-list (count list) (size-of type) comp-fn)
+      (for [segment (seq-of type copied-list)]
+        (deserialize type segment))))
   )
