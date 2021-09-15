@@ -108,39 +108,39 @@
   (fn [type] type))
 
 (defmethod size-of ::byte
-  [_]
+  [_type]
   Byte/SIZE)
 
 (defmethod size-of ::short
-  [_]
+  [_type]
   Short/SIZE)
 
 (defmethod size-of ::int
-  [_]
+  [_type]
   Integer/SIZE)
 
 (defmethod size-of ::long
-  [_]
+  [_type]
   Long/SIZE)
 
 (defmethod size-of ::long-long
-  [_]
+  [_type]
   Long/SIZE)
 
 (defmethod size-of ::char
-  [_]
+  [_type]
   Byte/SIZE)
 
 (defmethod size-of ::float
-  [_]
+  [_type]
   Float/SIZE)
 
 (defmethod size-of ::double
-  [_]
+  [_type]
   Double/SIZE)
 
 (defmethod size-of ::pointer
-  [_]
+  [_type]
   (.byteSize MemoryLayouts/ADDRESS))
 
 (def c-layout
