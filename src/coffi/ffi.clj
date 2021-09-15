@@ -43,7 +43,7 @@
   [_]
   Short/SIZE)
 
-(defmethod size-of ::integer
+(defmethod size-of ::int
   [_]
   Integer/SIZE)
 
@@ -75,7 +75,7 @@
   "Map of primitive type names to the [[CLinker]] types for a method handle."
   {::byte CLinker/C_CHAR
    ::short CLinker/C_SHORT
-   ::integer CLinker/C_INT
+   ::int CLinker/C_INT
    ::long CLinker/C_LONG
    ::long-long CLinker/C_LONG_LONG
    ::char CLinker/C_CHAR
@@ -87,7 +87,7 @@
   "Map of primitive type names to the Java types for a method handle."
   {::byte Byte/TYPE
    ::short Short/TYPE
-   ::integer Integer/TYPE
+   ::int Integer/TYPE
    ::long Long/TYPE
    ::long-long Long/TYPE
    ::char Byte/TYPE
@@ -117,27 +117,27 @@
   ;; body
   (defcfun strlen
     "Counts the number of bytes in a C String."
-    "strlen" [::c-string] ::integer)
-  ​
+    "strlen" [::c-string] ::int)
+
   ;; This function has an output parameter and requires some clojure code to
   ;; translate the values from the c fn to something sensible in clojure.
   (defcfun some-func
     "Gets some output value"
-    "someFunc" [::pointer] ::integer
+    "someFunc" [::pointer] ::int
     []
-    (let [out-int (alloc-instance ::integer)
-          success? (zero? (some-func out-int))]
+    (let [out-int (alloc-instance ::int)
+          success? (zero? (some-func (.address out-int)))]
       (if success?
-        (deserialize ::integer out-int)
+        (deserialize ::int out-int)
         (throw (ex-info (getErrorString) {})))))
-  ​
+
   ;; This function probably wouldn't actually get wrapped, since the cost of
   ;; marshalling is greater than the speed boost of using an in-place sort. That
   ;; said, this is a nice sample of what more complex marshalling looks like.
   (defcfun qsort
     "Quicksort implementation"
     "qsort"
-    [::pointer ::long ::long (fn [::pointer ::pointer] ::integer)]
+    [::pointer ::long ::long (fn [::pointer ::pointer] ::int)]
     ::void
     [type comparator list]
     (let [copied-list (alloc (* (count list) (size-of type)))
