@@ -19,12 +19,16 @@
 
   Any new allocations made during the serialization should be tied to the given
   `scope`, except in extenuating circumstances."
-  (fn [type obj segment scope]
+  (fn
+    #_{:clj-kondo/ignore [:unused-binding]}
+    [type obj segment scope]
     type))
 
 (defmulti deserialize
   "Deserializes the given object into a Clojure data structure."
-  (fn [type obj]
+  (fn
+    #_{:clj-kondo/ignore [:unused-binding]}
+    [type obj]
     type))
 
 (defmulti size-of
@@ -32,39 +36,39 @@
   (fn [type] type))
 
 (defmethod size-of ::byte
-  [type]
+  [_]
   Byte/SIZE)
 
 (defmethod size-of ::short
-  [type]
+  [_]
   Short/SIZE)
 
 (defmethod size-of ::integer
-  [type]
+  [_]
   Integer/SIZE)
 
 (defmethod size-of ::long
-  [type]
+  [_]
   Long/SIZE)
 
 (defmethod size-of ::long-long
-  [type]
+  [_]
   Long/SIZE)
 
 (defmethod size-of ::char
-  [type]
+  [_]
   Byte/SIZE)
 
 (defmethod size-of ::float
-  [type]
+  [_]
   Float/SIZE)
 
 (defmethod size-of ::double
-  [type]
+  [_]
   Double/SIZE)
 
 (defmethod size-of ::pointer
-  [type]
+  [_]
   (.byteSize MemoryLayouts/ADDRESS))
 
 (def c-layout
