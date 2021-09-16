@@ -93,7 +93,7 @@
    (.asSlice ^MemorySegment segment ^long offset ^long size)))
 
 (defn slice-into
-  "Get a slice over the `segment` starting at the `address`."
+  "Get a slice into the `segment` starting at the `address`."
   ([address segment]
    (.asSlice ^MemorySegment segment ^MemoryAddress address))
   ([address segment size]
