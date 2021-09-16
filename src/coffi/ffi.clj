@@ -416,7 +416,7 @@
 (defn- find-symbol
   "Gets the [[MemoryAddress]] of a symbol from the loaded libraries."
   [sym]
-  (.. (CLinker/systemLookup) (lookup sym) (get)))
+  (.. (CLinker/systemLookup) (lookup sym) (orElse nil)))
 
 (defn- method-type
   "Gets the [[MethodType]] for a set of `args` and `ret` types."
