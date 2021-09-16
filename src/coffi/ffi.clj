@@ -143,6 +143,13 @@
    ::double CLinker/C_DOUBLE
    ::pointer CLinker/C_POINTER})
 
+(defn- type-dispatch
+  "Gets a type dispatch value from a (potentially composite) type."
+  [type]
+  (cond
+    (qualified-keyword? type) type
+    (list? type) (keyword (first type))))
+
 (defmulti c-layout
   "Gets the layout object for a given `type`.
 
@@ -150,7 +157,7 @@
   layout (see [[c-prim-layout]]).
 
   Otherwise, it should return a [[GroupLayout]] for the given type."
-  (fn [type] type))
+  type-dispatch)
 
 (defmethod c-layout :default
   [type]
@@ -168,7 +175,7 @@
   deserialization.
 
   Returns nil for any type which does not have a primitive representation."
-  (fn [type] type))
+  type-dispatch)
 
 (defmethod primitive-type :default
   [type]
@@ -193,7 +200,7 @@
 
 (defmulti java-layout
   "Gets the Java class to an argument of this type for a method handle."
-  (fn [type] type))
+  type-dispatch)
 
 (defmethod java-layout :default
   [type]
@@ -226,7 +233,7 @@
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [obj type scope]
-    type))
+    (type-dispatch type)))
 
 (defmethod serialize* :default
   [obj type _scope]
@@ -250,7 +257,7 @@
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [obj type segment scope]
-    type))
+    (type-dispatch type)))
 
 (defmethod serialize* ::c-string
   [obj _type scope]
@@ -319,7 +326,7 @@
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [segment type]
-    type))
+    (type-dispatch type)))
 
 (defmethod deserialize-from ::byte
   [segment _type]
@@ -365,7 +372,7 @@
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [obj type]
-    type))
+    (type-dispatch type)))
 
 (defmethod deserialize* :default
   [obj _type]
