@@ -551,21 +551,31 @@
   [& args]
   (let [args (s/conform ::defcfn-args args)
         scope (gensym "scope")
-        arg-syms (repeatedly (count (:native-arglist args)) #(gensym "arg"))]
+        arg-syms (repeatedly (count (:native-arglist args)) #(gensym "arg"))
+        arg-types (repeatedly (count (:native-arglist args)) #(gensym "arg-type"))
+        ret-type (gensym "ret-type")
+        invoke (gensym "invoke")]
     `(let [args-types# ~(:native-arglist args)
-           ret-type# ~(:return-type args)
-           downcall# (downcall-handle
-                      (find-symbol ~(name (:symbol args)))
-                      (method-type args-types# ret-type#)
-                      (function-descriptor args-types# ret-type#))
-           invoke# (downcall-fn downcall# args-types# ret-type#)
-           ~(:name args) (fn [~@arg-syms]
-                           (with-open [~scope (stack-scope)]
-                             (let [[~@arg-syms] (map #(serialize %1 %2 ~scope)
-                                                     [~@arg-syms]
-                                                     args-types#)]
-                               (deserialize (invoke# ~@arg-syms)
-                                            ret-type#))))
+           [~@arg-types] args-types#
+           ~ret-type ~(:return-type args)
+           ~invoke (-> (find-symbol ~(name (:symbol args)))
+                       (downcall-handle
+                        (method-type args-types# ~ret-type)
+                        (function-descriptor args-types# ~ret-type))
+                       (downcall-fn args-types# ~ret-type))
+           ~(:name args) ~(if (and (every? #(= % (primitive-type %))
+                                           (:native-arglist args))
+                                   (= (:return-type args)
+                                      (primitive-type (:return-type args))))
+                            invoke
+                            `(fn [~@arg-syms]
+                               (with-open [~scope (stack-scope)]
+                                 (deserialize (~invoke
+                                               ~@(map
+                                                  (fn [sym type]
+                                                    `(serialize ~sym ~type ~scope))
+                                                  arg-syms arg-types))
+                                              ~ret-type))))
            fun# ~(if (:fn-tail args)
                    `(fn ~(-> args :fn-tail :arglist)
                       ~@(-> args :fn-tail :body))
