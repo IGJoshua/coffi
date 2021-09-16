@@ -148,7 +148,7 @@
   [type]
   (cond
     (qualified-keyword? type) type
-    (list? type) (keyword (first type))))
+    (sequential? type) (keyword (first type))))
 
 (defmulti c-layout
   "Gets the layout object for a given `type`.
@@ -223,6 +223,8 @@
   ([type] (alloc-instance type (connected-scope)))
   ([type scope] (MemorySegment/allocateNative ^long (size-of type) ^ResourceScope scope)))
 
+(declare serialize serialize-into)
+
 (defmulti serialize*
   "Constructs a serialized version of the `obj` and returns it.
 
@@ -242,6 +244,10 @@
     (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
                     {:type type
                      :object obj}))))
+
+(defmethod serialize* ::pointer
+  [obj type scope]
+  (alloc-instance (serialize obj (second type) scope)))
 
 (defmulti serialize-into
   "Writes a serialized version of the `obj` to the given `segment`.
