@@ -235,7 +235,11 @@
 
 (defmethod serialize* ::pointer
   [obj type scope]
-  (alloc-instance (serialize obj (second type) scope)))
+  (if (sequential? type)
+    (let [segment (alloc-instance (second type) scope)]
+      (serialize-into obj (second type) segment scope)
+      (address-of segment))
+    obj))
 
 (defmulti serialize-into
   "Writes a serialized version of the `obj` to the given `segment`.
@@ -310,6 +314,8 @@
      (let [segment (alloc-instance type scope)]
        (serialize-into obj type segment scope)))))
 
+(declare deserialize)
+
 (defmulti deserialize-from
   "Deserializes the given segment into a Clojure data structure."
   (fn
@@ -350,8 +356,11 @@
   (MemoryAccess/getDouble segment))
 
 (defmethod deserialize-from ::pointer
-  [segment _type]
-  (MemoryAccess/getAddress segment))
+  [segment type]
+  (if (sequential? type)
+    (deserialize (slice-global (MemoryAccess/getAddress segment) (size-of (second type)))
+                 (second type))
+    (MemoryAccess/getAddress segment)))
 
 (defmulti deserialize*
   "Deserializes a primitive object into a Clojure data structure.
@@ -366,6 +375,13 @@
 (defmethod deserialize* :default
   [obj _type]
   obj)
+
+(defmethod deserialize* ::pointer
+  [addr type]
+  (if (sequential? type)
+    (deserialize (slice-global addr (size-of (second type)))
+                 (second type))
+    addr))
 
 (defn deserialize
   "Deserializes an arbitrary type.
