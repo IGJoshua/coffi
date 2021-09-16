@@ -467,10 +467,16 @@
                       (find-symbol ~(name (:symbol args)))
                       (method-type args-types# ret-type#)
                       (function-descriptor args-types# ret-type#))
-           ~(:name args) (fn [& args#]
+           ~(:name args) (fn [~@arg-syms]
                            (with-open [~scope (stack-scope)]
-                             (let [[~@arg-syms] (map #(serialize ))]
-                               (.invoke downcall# ~@arg-syms))))
+                             (let [args# (map #(serialize %1 %2 ~scope)
+                                              [~@arg-syms]
+                                              args-types#)]
+                               ;; TODO(Joshua): Rewrite this to use jgpc42/insn
+                               ;; to generate bytecode for a proper invoke for
+                               ;; an instant performance boost
+                               (deserialize (.invokeWithArguments downcall# (object-array args#))
+                                            ret-type#))))
            fun# ~(if (:fn-tail args)
                    `(fn ~(-> args :fn-tail :arglist)
                       ~@(-> args :fn-tail :body))
