@@ -265,12 +265,11 @@
 
 (defmethod serialize-into :default
   [obj type segment scope]
-  (let [new-type (c-layout type)]
-    (if (qualified-keyword? new-type)
-      (serialize-into (serialize* obj type scope) new-type segment scope)
-      (throw (ex-info "Attempted to serialize an object to a type that has not been overriden."
-                      {:type type
-                       :object obj})))))
+  (if-some [prim-layout (primitive-type type)]
+    (serialize-into (serialize* obj type scope) prim-layout segment scope)
+    (throw (ex-info "Attempted to serialize an object to a type that has not been overriden."
+                    {:type type
+                     :object obj}))))
 
 (defmethod serialize-into ::byte
   [obj _type segment _scope]
