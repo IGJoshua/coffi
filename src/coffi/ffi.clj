@@ -123,17 +123,6 @@
   [scope action]
   (.addCloseAction ^ResourceScope scope action))
 
-#_(defn seq-of
-  "Constructs a lazy sequence of `type` elements deserialized from `segment`."
-  [type segment]
-  (let [size (size-of type)]
-    (letfn [(rec [segment]
-              (lazy-seq
-               (when (>= (.byteSize ^MemorySegment segment) size)
-                 (cons (deserialize-from type segment)
-                       (rec (slice segment size))))))]
-      (rec segment))))
-
 (def primitive-types
   "A set of keywords representing all the primitive types which may be passed to
   or returned from native functions."
@@ -405,6 +394,16 @@
        deserialize-from)
      obj type)))
 
+#_(defn seq-of
+    "Constructs a lazy sequence of `type` elements deserialized from `segment`."
+    [type segment]
+    (let [size (size-of type)]
+      (letfn [(rec [segment]
+                (lazy-seq
+                 (when (>= (.byteSize ^MemorySegment segment) size)
+                   (cons (deserialize-from type segment)
+                         (rec (slice segment size))))))]
+        (rec segment))))
 
 (defn load-system-library
   "Loads the library named `libname` from the system's load path."
