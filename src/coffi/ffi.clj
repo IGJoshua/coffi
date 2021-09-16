@@ -536,6 +536,7 @@
 (s/def ::defcfn-args
   (s/cat :name simple-symbol?
          :doc (s/? string?)
+         :attr-map (s/? map?)
          :symbol (s/nonconforming
                   (s/or :string string?
                         :symbol simple-symbol?))
@@ -546,7 +547,8 @@
                           :body (s/* any?)))))
 
 (defmacro defcfn
-  {:arglists '([name docstring? symbol arg-types ret-type arglist & body])}
+  {:arglists '([name docstring? attr-map? symbol arg-types ret-type]
+               [name docstring? attr-map? symbol arg-types ret-type arglist & body])}
   [& args]
   (let [args (s/conform ::defcfn-args args)
         scope (gensym "scope")
@@ -570,16 +572,17 @@
                       ~@(-> args :fn-tail :body))
                    (:name args))]
        (def
-         ~(vary-meta (:name args)
-                     update :arglists
-                     (fn [old-list]
-                       (list
-                        'quote
-                        (or old-list
-                            (list
-                             (or (-> args :fn-tail :arglist)
-                                 (mapv (comp symbol name)
-                                       (:native-arglist args))))))))
+         ~(with-meta (:name args)
+            (merge (update (meta (:name args)) :arglists
+                           (fn [old-list]
+                             (list
+                              'quote
+                              (or old-list
+                                  (list
+                                   (or (-> args :fn-tail :arglist)
+                                       (mapv (comp symbol name)
+                                             (:native-arglist args))))))))
+                   (:attr-map args)))
          ~@(list (:doc args))
          fun#))))
 
