@@ -131,37 +131,12 @@
     ::float ::double
     ::pointer ::void})
 
-(def c-prim-layout
-  "Map of primitive type names to the [[CLinker]] types for a method handle."
-  {::byte CLinker/C_CHAR
-   ::short CLinker/C_SHORT
-   ::int CLinker/C_INT
-   ::long CLinker/C_LONG
-   ::long-long CLinker/C_LONG_LONG
-   ::char CLinker/C_CHAR
-   ::float CLinker/C_FLOAT
-   ::double CLinker/C_DOUBLE
-   ::pointer CLinker/C_POINTER})
-
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
   [type]
   (cond
     (qualified-keyword? type) type
     (sequential? type) (keyword (first type))))
-
-(defmulti c-layout
-  "Gets the layout object for a given `type`.
-
-  If a type is primitive it will return the appropriate primitive
-  layout (see [[c-prim-layout]]).
-
-  Otherwise, it should return a [[GroupLayout]] for the given type."
-  type-dispatch)
-
-(defmethod c-layout :default
-  [type]
-  (c-prim-layout type))
 
 (defmulti primitive-type
   "Gets the primitive type that is used to pass as an argument for the `type`.
@@ -177,6 +152,31 @@
   [type]
   (primitive-types type))
 
+(def c-prim-layout
+  "Map of primitive type names to the [[CLinker]] types for a method handle."
+  {::byte CLinker/C_CHAR
+   ::short CLinker/C_SHORT
+   ::int CLinker/C_INT
+   ::long CLinker/C_LONG
+   ::long-long CLinker/C_LONG_LONG
+   ::char CLinker/C_CHAR
+   ::float CLinker/C_FLOAT
+   ::double CLinker/C_DOUBLE
+   ::pointer CLinker/C_POINTER})
+
+(defmulti c-layout
+  "Gets the layout object for a given `type`.
+
+  If a type is primitive it will return the appropriate primitive
+  layout (see [[c-prim-layout]]).
+
+  Otherwise, it should return a [[GroupLayout]] for the given type."
+  type-dispatch)
+
+(defmethod c-layout :default
+  [type]
+  (c-prim-layout (or (primitive-type type) type)))
+
 (def java-prim-layout
   "Map of primitive type names to the Java types for a method handle."
   {::byte Byte/TYPE
@@ -191,12 +191,16 @@
    ::void Void/TYPE})
 
 (defmulti java-layout
-  "Gets the Java class to an argument of this type for a method handle."
+  "Gets the Java class to an argument of this type for a method handle.
+
+  If a type serializes to a primitive it should return a Java primitive type.
+
+  Otherwise, it should return [[MemorySegment]]."
   type-dispatch)
 
 (defmethod java-layout :default
   [type]
-  (java-prim-layout type MemorySegment))
+  (java-prim-layout (or (primitive-type type) type) MemorySegment))
 
 (defn size-of
   "The size in bytes of the given `type`."
@@ -401,14 +405,6 @@
 (defmethod primitive-type ::c-string
   [_type]
   ::pointer)
-
-(defmethod c-layout ::c-string
-  [_type]
-  CLinker/C_POINTER)
-
-(defmethod java-layout ::c-string
-  [_type]
-  MemoryAddress)
 
 (defmethod serialize* ::c-string
   [obj _type scope]
