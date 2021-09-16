@@ -1,5 +1,6 @@
 {:paths ["src"]
- :deps {org.clojure/clojure {:mvn/version "1.10.3"}}
+ :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        insn/insn {:mvn/version "0.2.1"}}
  :aliases
  {:dev {:extra-paths ["."]
         :extra-deps {io.github.clojure/tools.build {:git/tag "v0.3.0" :git/sha "e418fc9"}

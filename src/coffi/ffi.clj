@@ -2,7 +2,8 @@
   (:refer-clojure :exclude [defstruct])
   (:require
    [clojure.java.io :as io]
-   [clojure.spec.alpha :as s])
+   [clojure.spec.alpha :as s]
+   [insn.core :as insn])
   (:import
    (java.lang.invoke
     VarHandle
@@ -503,15 +504,52 @@
                   (find-symbol "strlen")
                   (method-type args-types ret-type)
                   (function-descriptor args-types ret-type))
+        invoke (insn/new-instance
+                {:flags #{:public :final}
+                 :super clojure.lang.AFunction
+                 :fields [{:name "downcall_handle"
+                           :type MethodHandle
+                           :flags #{:final}}]
+                 :methods [{:name :init
+                            :flags #{:public}
+                            :desc [MethodHandle :void]
+                            :emit [[:aload 0]
+                                   [:dup]
+                                   [:invokespecial :super :init [:void]]
+                                   [:aload 1]
+                                   [:putfield :this "downcall_handle" MethodHandle]
+                                   [:return]]}
+                           {:name :invoke
+                            :flags #{:public}
+                            :desc [Object Object]
+                            :emit [
+                                   ;; load the handle
+                                   [:aload 0]
+                                   [:getfield :this "downcall_handle" MethodHandle]
+                                   ;; load the arguments
+                                   [:aload 1]
+                                   ;; invokeExact
+                                   [:invokevirtual MethodHandle "invokeExact" [MemoryAddress :int]]
+                                   ;; convert to object
+                                   [:istore 2]
+                                   [:new Integer]
+                                   [:dup]
+                                   [:iload 2]
+                                   [:invokespecial Integer :init [:int :void]]
+                                   ;; return
+                                   [:areturn]
+                                   ]}]}
+                downcall)
         strlen (fn [str]
                  (with-open [scope (stack-scope)]
                    (let [arg1 (serialize (nth args-types 0) str scope)]
-                     (deserialize* (.invoke downcall arg1) ret-type))))]
+                     (deserialize* (invoke arg1) ret-type))))
+        fun strlen]
     (def
       ^{:arglists '([str])}
       strlen
       "Counts the number of bytes in a C string."
-      strlen))
+      fun))
 
   )
 
