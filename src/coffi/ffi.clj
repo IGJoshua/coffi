@@ -399,10 +399,12 @@
   primitive representation. For types which do not, this deserializes out of
   a segment."
   [obj type]
-  ((if (primitive-type type)
-     deserialize*
-     deserialize-from)
-   obj type))
+  (when-not (identical? ::void type)
+    ((if (primitive-type type)
+       deserialize*
+       deserialize-from)
+     obj type)))
+
 
 (defn load-system-library
   "Loads the library named `libname` from the system's load path."
