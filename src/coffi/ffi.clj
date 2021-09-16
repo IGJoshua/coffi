@@ -163,10 +163,6 @@
   [type]
   (c-prim-layout type))
 
-(defmethod c-layout ::c-string
-  [_type]
-  CLinker/C_POINTER)
-
 (defmulti primitive-type
   "Gets the primitive type that is used to pass as an argument for the `type`.
 
@@ -180,10 +176,6 @@
 (defmethod primitive-type :default
   [type]
   (primitive-types type))
-
-(defmethod primitive-type ::c-string
-  [_type]
-  ::pointer)
 
 (def java-prim-layout
   "Map of primitive type names to the Java types for a method handle."
@@ -205,10 +197,6 @@
 (defmethod java-layout :default
   [type]
   (java-prim-layout type MemorySegment))
-
-(defmethod java-layout ::c-string
-  [_type]
-  MemoryAddress)
 
 (defn size-of
   "The size in bytes of the given `type`."
@@ -264,10 +252,6 @@
     #_{:clj-kondo/ignore [:unused-binding]}
     [obj type segment scope]
     (type-dispatch type)))
-
-(defmethod serialize* ::c-string
-  [obj _type scope]
-  (address-of (CLinker/toCString (str obj) ^ResourceScope scope)))
 
 (defmethod serialize-into :default
   [obj type segment scope]
@@ -383,16 +367,6 @@
   [obj _type]
   obj)
 
-(defmethod deserialize-from ::c-string
-  [segment type]
-  (-> segment
-      (deserialize-from ::pointer)
-      (deserialize* type)))
-
-(defmethod deserialize* ::c-string
-  [addr _type]
-  (CLinker/toJavaString ^MemoryAddress addr))
-
 (defn deserialize
   "Deserializes an arbitrary type.
 
@@ -405,6 +379,34 @@
        deserialize*
        deserialize-from)
      obj type)))
+
+;; C String type
+
+(defmethod primitive-type ::c-string
+  [_type]
+  ::pointer)
+
+(defmethod c-layout ::c-string
+  [_type]
+  CLinker/C_POINTER)
+
+(defmethod java-layout ::c-string
+  [_type]
+  MemoryAddress)
+
+(defmethod serialize* ::c-string
+  [obj _type scope]
+  (address-of (CLinker/toCString (str obj) ^ResourceScope scope)))
+
+(defmethod deserialize-from ::c-string
+  [segment type]
+  (-> segment
+      (deserialize-from ::pointer)
+      (deserialize* type)))
+
+(defmethod deserialize* ::c-string
+  [addr _type]
+  (CLinker/toJavaString ^MemoryAddress addr))
 
 #_(defn seq-of
     "Constructs a lazy sequence of `type` elements deserialized from `segment`."
