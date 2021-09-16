@@ -464,7 +464,7 @@
     `(let [args-types# ~(:native-arglist args)
            ret-type# ~(:return-type args)
            downcall# (downcall-handle
-                      (find-symbol ~(:symbol args))
+                      (find-symbol ~(name (:symbol args)))
                       (method-type args-types# ret-type#)
                       (function-descriptor args-types# ret-type#))
            ~(:name args) (fn [& args#]
