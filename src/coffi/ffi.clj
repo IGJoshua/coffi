@@ -22,11 +22,6 @@
     ResourceScope
     SegmentAllocator)))
 
-(defn alloc
-  "Allocates `size` bytes."
-  ([size] (alloc size (ResourceScope/newImplicitScope)))
-  ([size scope] (MemorySegment/allocateNative ^long size ^ResourceScope scope)))
-
 (defn stack-scope
   "Constructs a new scope for use only in this thread.
 
@@ -42,6 +37,24 @@
   be cleaned up once every thread accessing the scope closes it."
   []
   (ResourceScope/newSharedScope))
+
+(defn connected-scope
+  "Constructs a new scope to reclaim all connected resources at once.
+
+  The scope may be shared across threads, and all resources created with it will
+  be cleaned up at the same time, when all references have been collected.
+
+  This type of scope cannot be closed, and therefore should not be created in
+  a [[with-open]] clause."
+  []
+  (ResourceScope/newImplicitScope))
+
+(defn alloc
+  "Allocates `size` bytes.
+
+  If a `scope` is provided, the allocation will be reclaimed when it is closed."
+  ([size] (alloc size (connected-scope)))
+  ([size scope] (MemorySegment/allocateNative ^long size ^ResourceScope scope)))
 
 (defmacro with-acquired
   "Acquires a `scope` to ensure it will not be released until the `body` completes.
@@ -202,7 +215,7 @@
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
-  ([type] (alloc-instance type (ResourceScope/newImplicitScope)))
+  ([type] (alloc-instance type (connected-scope)))
   ([type scope] (MemorySegment/allocateNative ^long (size-of type) ^ResourceScope scope)))
 
 (defmulti serialize*
