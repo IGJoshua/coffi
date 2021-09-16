@@ -136,11 +136,11 @@
 
 (def primitive-types
   "A set of keywords representing all the primitive types which may be passed to
-  native functions."
+  or returned from native functions."
   #{::byte ::short ::int ::long ::long-long
     ::char
     ::float ::double
-    ::pointer})
+    ::pointer ::void})
 
 (def c-prim-layout
   "Map of primitive type names to the [[CLinker]] types for a method handle."
