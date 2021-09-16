@@ -423,7 +423,7 @@
   ([args] (method-type args ::void))
   ([args ret]
    (MethodType/methodType
-    ^Class ret
+    ^Class (java-layout ret)
     ^"[Ljava.lang.Class;" (into-array Class (map java-layout args)))))
 
 (defn- function-descriptor
