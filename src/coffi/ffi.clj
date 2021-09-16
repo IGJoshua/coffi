@@ -28,7 +28,7 @@
 
   The memory allocated within this scope is cheap to allocate, like a native
   stack."
-  []
+  ^ResourceScope []
   (ResourceScope/newConfinedScope))
 
 (defn shared-scope
@@ -36,7 +36,7 @@
 
   This scope can be shared across threads and memory allocated in it will only
   be cleaned up once every thread accessing the scope closes it."
-  []
+  ^ResourceScope []
   (ResourceScope/newSharedScope))
 
 (defn connected-scope
@@ -47,7 +47,7 @@
 
   This type of scope cannot be closed, and therefore should not be created in
   a [[with-open]] clause."
-  []
+  ^ResourceScope []
   (ResourceScope/newImplicitScope))
 
 (defn alloc
