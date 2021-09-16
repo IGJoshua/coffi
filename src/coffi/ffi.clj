@@ -166,6 +166,10 @@
   [type]
   (c-prim-layout type))
 
+(defmethod c-layout ::c-string
+  [_type]
+  CLinker/C_POINTER)
+
 (defmulti primitive-type
   "Gets the primitive type that is used to pass as an argument for the `type`.
 
@@ -204,6 +208,10 @@
 (defmethod java-layout :default
   [type]
   (java-prim-layout type MemorySegment))
+
+(defmethod java-layout ::c-string
+  [_type]
+  MemoryAddress)
 
 (defn size-of
   "The size in bytes of the given `type`."
