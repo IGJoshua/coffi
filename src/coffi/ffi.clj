@@ -227,7 +227,8 @@
   This method should only be implemented for types that serialize to primitives."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
-    [obj type scope]))
+    [obj type scope]
+    type))
 
 (defmethod serialize* :default
   [obj type _scope]
