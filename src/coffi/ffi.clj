@@ -50,6 +50,16 @@
   ^ResourceScope []
   (ResourceScope/newImplicitScope))
 
+(defn global-scope
+  "Constructs the global scope, which will never reclaim its resources.
+
+  This scope may be shared across threads, but is intended mainly in cases where
+  memory is allocated with [[alloc]] but is either never freed or whose
+  management is relinquished to a native library, such as when returned from a
+  callback."
+  ^ResourceScope []
+  (ResourceScope/globalScope))
+
 (defn alloc
   "Allocates `size` bytes.
 
