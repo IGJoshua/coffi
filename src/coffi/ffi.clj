@@ -265,7 +265,7 @@
   [obj type segment scope]
   (if-some [prim-layout (primitive-type type)]
     (serialize-into (serialize* obj type scope) prim-layout segment scope)
-    (throw (ex-info "Attempted to serialize an object to a type that has not been overriden."
+    (throw (ex-info "Attempted to serialize an object to a type that has not been overriden"
                     {:type type
                      :object obj}))))
 
@@ -318,14 +318,27 @@
      (let [segment (alloc-instance type scope)]
        (serialize-into obj type segment scope)))))
 
-(declare deserialize)
+(declare deserialize deserialize*)
 
 (defmulti deserialize-from
-  "Deserializes the given segment into a Clojure data structure."
+  "Deserializes the given segment into a Clojure data structure.
+
+  For types that serialize to primitives, a default implementation will
+  deserialize the primitive before calling [[deserialize*]]."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [segment type]
     (type-dispatch type)))
+
+(defmethod deserialize-from :default
+  [segment type]
+  (if-some [prim (primitive-type type)]
+    (-> segment
+        (deserialize-from prim)
+        (deserialize* type))
+    (throw (ex-info "Attempted to deserialize a non-primitive type that has not been overriden"
+                    {:type type
+                     :segment segment}))))
 
 (defmethod deserialize-from ::byte
   [segment _type]
@@ -377,8 +390,12 @@
     (type-dispatch type)))
 
 (defmethod deserialize* :default
-  [obj _type]
-  obj)
+  [obj type]
+  (if (primitive-type type)
+    obj
+    (throw (ex-info "Attempted to deserialize a non-primitive type with primitive methods"
+                    {:type type
+                     :segment obj}))))
 
 (defmethod deserialize* ::pointer
   [addr type]
@@ -409,12 +426,6 @@
 (defmethod serialize* ::c-string
   [obj _type scope]
   (address-of (CLinker/toCString (str obj) ^ResourceScope scope)))
-
-(defmethod deserialize-from ::c-string
-  [segment type]
-  (-> segment
-      (deserialize-from ::pointer)
-      (deserialize* type)))
 
 (defmethod deserialize* ::c-string
   [addr _type]
