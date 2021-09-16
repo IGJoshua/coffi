@@ -380,18 +380,15 @@
       (deserialize* type)))
 
 (defmethod deserialize* ::c-string
-  [obj _type]
-  (CLinker/toJavaString obj))
-
-(defn serialize
-  [])
+  [addr _type]
+  (CLinker/toJavaString ^MemoryAddress addr))
 
 (defn deserialize
-  "Deserializes an arbitrary type regardless of if it is primitive.
+  "Deserializes an arbitrary type.
 
   For types which have a primitive representation, this deserializes the
   primitive representation. For types which do not, this deserializes out of
-  a [[MemorySegment]]."
+  a segment."
   [obj type]
   ((if (primitive-type type)
      deserialize*
