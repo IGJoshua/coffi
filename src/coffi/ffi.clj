@@ -303,6 +303,19 @@
   [obj _type segment _scope]
   (MemoryAccess/setAddress segment obj))
 
+(defn serialize
+  "Serializes an arbitrary type.
+
+  For types which have a primitive representation, this serializes into that
+  representation. For types which do not, it allocates a new segment and
+  serializes into that."
+  ([obj type] (serialize obj type (connected-scope)))
+  ([obj type scope]
+   (if (primitive-type type)
+     (serialize* obj type scope)
+     (let [segment (alloc-instance type scope)]
+       (serialize-into obj type segment scope)))))
+
 (defmulti deserialize-from
   "Deserializes the given segment into a Clojure data structure."
   (fn
@@ -384,11 +397,6 @@
      deserialize*
      deserialize-from)
    obj type))
-
-(defn serialize
-  "Serializes the `obj` into a newly-allocated [[MemorySegment]]."
-  ([obj type] (serialize obj type (ResourceScope/newImplicitScope)))
-  ([obj type scope] (serialize-into obj type (alloc-instance type scope) scope)))
 
 (defn load-system-library
   "Loads the library named `libname` from the system's load path."
