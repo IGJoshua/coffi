@@ -447,6 +447,7 @@
                    (s/cat :arglist (s/coll-of simple-symbol? :kind vector?)
                           :body (s/* any?)))))
 
+;; TODO(Joshua): Finish this
 (defmacro defcfn
   {:arglists '([name docstring? symbol arg-types ret-type arglist & body])}
   [& args]
