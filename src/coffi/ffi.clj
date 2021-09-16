@@ -446,6 +446,93 @@
   [address method-type function-descriptor]
   (.downcallHandle (CLinker/getInstance) address method-type function-descriptor))
 
+(def ^:private load-instructions
+  {::byte :bload
+   ::short :sload
+   ::int :iload
+   ::long :lload
+   ::long-long :lload
+   ::char :cload
+   ::float :fload
+   ::double :dload
+   ::pointer :aload})
+
+(def ^:private store-instructions
+  {::byte :bstore
+   ::short :sstore
+   ::int :istore
+   ::long :lstore
+   ::long-long :lstore
+   ::char :cstore
+   ::float :fstore
+   ::double :dstore
+   ::pointer :astore})
+
+(def ^:private prim-classes
+  {::byte Byte
+   ::short Short
+   ::int Integer
+   ::long Long
+   ::long-long Long
+   ::char Character
+   ::float Float
+   ::double Double})
+
+(defn- to-object-asm
+  [type idx]
+  (cond
+    (identical? ::void type) [:ldc nil]
+    (identical? ::pointer (primitive-type type)) []
+    :else
+    (if-some [prim (some-> type primitive-type name keyword)]
+      ;; Box primitive
+      [[(store-instructions type) idx]
+       [:new (prim-classes type)]
+       [:dup]
+       [(load-instructions type) idx]
+       [:invokespecial (prim-classes type) :init [prim :void]]]
+      ;; Return object without change
+      [])))
+
+(defn- insn-layout
+  [type]
+  (if (some-> (primitive-type type) (not= ::pointer))
+    (keyword (name type))
+    (java-layout type)))
+
+(defn- downcall-fn
+  [handle args ret]
+  (insn/new-instance
+   {:flags #{:public :final}
+    :super clojure.lang.AFunction
+    :fields [{:name "downcall_handle"
+              :type MethodHandle
+              :flags #{:final}}]
+    :methods [{:name :init
+               :flags #{:public}
+               :desc [MethodHandle :void]
+               :emit [[:aload 0]
+                      [:dup]
+                      [:invokespecial :super :init [:void]]
+                      [:aload 1]
+                      [:putfield :this "downcall_handle" MethodHandle]
+                      [:return]]}
+              {:name :invoke
+               :flags #{:public}
+               :desc (repeat (inc (count args)) Object)
+               :emit [[:aload 0]
+                      [:getfield :this "downcall_handle" MethodHandle]
+                      (map-indexed
+                       (fn [idx arg]
+                         [(load-instructions (primitive-type arg) :aload) (inc idx)])
+                       args)
+                      [:invokevirtual MethodHandle "invokeExact"
+                       (conj (mapv insn-layout args)
+                             (insn-layout ret))]
+                      (to-object-asm ret (inc (count args)))
+                      [:areturn]]}]}
+   ^MethodHandle handle))
+
 (s/def ::defcfn-args
   (s/cat :name simple-symbol?
          :doc (s/? string?)
@@ -470,15 +557,13 @@
                       (find-symbol ~(name (:symbol args)))
                       (method-type args-types# ret-type#)
                       (function-descriptor args-types# ret-type#))
+           invoke# (downcall-fn downcall# args-types# ret-type#)
            ~(:name args) (fn [~@arg-syms]
                            (with-open [~scope (stack-scope)]
-                             (let [args# (map #(serialize %1 %2 ~scope)
-                                              [~@arg-syms]
-                                              args-types#)]
-                               ;; TODO(Joshua): Rewrite this to use jgpc42/insn
-                               ;; to generate bytecode for a proper invoke for
-                               ;; an instant performance boost
-                               (deserialize (.invokeWithArguments downcall# (object-array args#))
+                             (let [[~@arg-syms] (map #(serialize %1 %2 ~scope)
+                                                     [~@arg-syms]
+                                                     args-types#)]
+                               (deserialize (invoke# ~@arg-syms)
                                             ret-type#))))
            fun# ~(if (:fn-tail args)
                    `(fn ~(-> args :fn-tail :arglist)
