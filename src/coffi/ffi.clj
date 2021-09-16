@@ -455,7 +455,6 @@
                    (s/cat :arglist (s/coll-of simple-symbol? :kind vector?)
                           :body (s/* any?)))))
 
-;; TODO(Joshua): Finish this
 (defmacro defcfn
   {:arglists '([name docstring? symbol arg-types ret-type arglist & body])}
   [& args]
@@ -480,11 +479,13 @@
          ~(vary-meta (:name args)
                      update :arglists
                      (fn [old-list]
-                       (or old-list
-                           (list
-                            (or (-> args :fn-tail :arglist)
-                                (mapv (comp symbol name)
-                                      (:native-arglist args)))))))
+                       (list
+                        'quote
+                        (or old-list
+                            (list
+                             (or (-> args :fn-tail :arglist)
+                                 (mapv (comp symbol name)
+                                       (:native-arglist args))))))))
          ~@(list (:doc args))
          fun#))))
 
