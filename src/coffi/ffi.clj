@@ -692,18 +692,26 @@
        (make-downcall symbol args ret)))))
 
 (s/def ::defcfn-args
-  (s/cat :name simple-symbol?
-         :doc (s/? string?)
-         :attr-map (s/? map?)
-         :symbol (s/nonconforming
-                  (s/or :string string?
-                        :symbol simple-symbol?))
-         :native-arglist (s/coll-of qualified-keyword? :kind vector?)
-         :return-type qualified-keyword?
-         :fn-tail (s/?
-                   (s/nonconforming
-                    (s/cat :arglist (s/coll-of simple-symbol? :kind vector?)
-                           :body (s/* any?))))))
+  (s/and
+   (s/cat :name simple-symbol?
+          :doc (s/? string?)
+          :attr-map (s/? map?)
+          :symbol (s/nonconforming
+                   (s/or :string string?
+                         :symbol simple-symbol?))
+          :native-arglist (s/coll-of qualified-keyword? :kind vector?)
+          :return-type qualified-keyword?
+          :wrapper (s/?
+                    (s/cat
+                     :native-fn simple-symbol?
+                     :fn-tail (let [fn-tail (s/cat :arglist (s/coll-of simple-symbol? :kind vector?)
+                                                   :body (s/* any?))]
+                                (s/alt
+                                 :single-arity fn-tail
+                                 :multi-arity (s/+ (s/spec fn-tail)))))))
+   #(if (:wrapper %)
+      (not= (:name %) (-> % :wrapper :native-fn))
+      true)))
 
 (defmacro defcfn
   "Defines a Clojure function which maps to a native function.
@@ -713,10 +721,10 @@
   `arg-types` is a vector of qualified keywords representing the argument types.
   `ret-type` is a single qualified keyword representing the return type.
   `fn-tail` is the body of the function (potentially with multiple arities)
-  which wraps the native one. Inside the function, `name` is bound to a function
-  that will serialize its arguments, call the native function, and deserialize
-  its return type. If any body is present, you must call this function in order
-  to call the native code.
+  which wraps the native one. Inside the function, `native-fn` is bound to a
+  function that will serialize its arguments, call the native function, and
+  deserialize its return type. If any body is present, you must call this
+  function in order to call the native code.
 
   If no `fn-tail` is provided, then the resulting function will simply serialize
   the arguments according to `arg-types`, call the native function, and
@@ -728,38 +736,46 @@
 
   See [[serialize]], [[deserialize]], [[make-downcall]]."
   {:arglists '([name docstring? attr-map? symbol arg-types ret-type]
-               [name docstring? attr-map? symbol arg-types ret-type & fn-tail])}
+               [name docstring? attr-map? symbol arg-types ret-type native-fn & fn-tail])}
   [& args]
   (let [args (s/conform ::defcfn-args args)
         scope (gensym "scope")
         arg-syms (repeatedly (count (:native-arglist args)) #(gensym "arg"))
         arg-types (repeatedly (count (:native-arglist args)) #(gensym "arg-type"))
         ret-type (gensym "ret-type")
-        invoke (gensym "invoke")]
+        invoke (gensym "invoke")
+        native-sym (gensym "native")
+        [arity fn-tail] (-> args :wrapper :fn-tail)
+        fn-tail (case arity
+                  :single-arity (cons (:arglist fn-tail) (:body fn-tail))
+                  :multi-arity (map #(cons (:arglist %) (:body %)) fn-tail)
+                  nil)
+        arglists (map first (case arity
+                              :single-arity [fn-tail]
+                              :multi-arity fn-tail
+                              nil))]
     `(let [args-types# ~(:native-arglist args)
            [~@arg-types] args-types#
            ~ret-type ~(:return-type args)
-           ~invoke (-> (find-symbol ~(name (:symbol args)))
-                       (downcall-handle
-                        (method-type args-types# ~ret-type)
-                        (function-descriptor args-types# ~ret-type))
-                       (downcall-fn args-types# ~ret-type))
-           ~(:name args) ~(if (and (every? #(= % (primitive-type %))
-                                           (:native-arglist args))
-                                   (= (:return-type args)
-                                      (primitive-type (:return-type args))))
-                            invoke
-                            `(fn [~@arg-syms]
-                               (with-open [~scope (stack-scope)]
-                                 (deserialize (~invoke
-                                               ~@(map
-                                                  (fn [sym type]
-                                                    `(serialize ~sym ~type ~scope))
-                                                  arg-syms arg-types))
-                                              ~ret-type))))
-           fun# ~(if (:fn-tail args)
-                   `(fn ~@(:fn-tail args))
-                   (:name args))]
+           ~invoke (make-downcall ~(name (:symbol args)) args-types# ~ret-type)
+           ~(or (-> args :wrapper :native-fn) native-sym)
+           ~(if (and (every? #(= % (primitive-type %))
+                             (:native-arglist args))
+                     (= (:return-type args)
+                        (primitive-type (:return-type args))))
+              invoke
+              `(fn [~@arg-syms]
+                 (with-open [~scope (stack-scope)]
+                   (deserialize (~invoke
+                                 ~@(map
+                                    (fn [sym type]
+                                      `(serialize ~sym ~type ~scope))
+                                    arg-syms arg-types))
+                                ~ret-type))))
+           fun# ~(if (:wrapper args)
+                   `(fn ~(:name args)
+                      ~@fn-tail)
+                   native-sym)]
        (def
          ~(with-meta (:name args)
             (merge (update (meta (:name args)) :arglists
@@ -767,10 +783,10 @@
                              (list
                               'quote
                               (or old-list
+                                  (seq arglists)
                                   (list
-                                   (or (-> args :fn-tail :arglist)
-                                       (mapv (comp symbol name)
-                                             (:native-arglist args))))))))
+                                   (mapv (comp symbol name)
+                                         (:native-arglist args)))))))
                    (:attr-map args)))
          ~@(list (:doc args))
          fun#))))
@@ -794,10 +810,11 @@
   (defcfn some-func
     "Gets some output value"
     "someFunc" [::pointer] ::int
+    native-func
     []
     (with-open [scope (stack-scope)]
       (let [out-int (alloc-instance ::int scope)
-            success? (zero? (some-func (address-of out-int)))]
+            success? (zero? (native-func (address-of out-int)))]
         (if success?
           (deserialize-from ::int out-int)
           (throw (ex-info (getErrorString) {}))))))
