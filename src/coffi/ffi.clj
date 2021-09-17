@@ -691,6 +691,24 @@
      (let [args (concat required-args types)]
        (make-downcall symbol args ret)))))
 
+(comment
+
+  ;; Idea for a data model
+  {:strlen {:type :function
+            :symbol "strlen"
+            :function/args [::c-string]
+            :function/ret ::int}
+   :some-const {:type :const
+                :symbol "someConst"
+                :const/type ::int}
+   :some-var {:type :static-var
+              :symbol "someVar"
+              :static-var/type ::int}}
+
+  ;; TODO(Joshua): Write a function that parses this and produces live values
+
+  )
+
 (s/def ::defcfn-args
   (s/and
    (s/cat :name simple-symbol?
