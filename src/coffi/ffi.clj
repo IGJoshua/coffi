@@ -87,6 +87,11 @@
   [addressable]
   (.address ^Addressable addressable))
 
+(defn null?
+  "Checks if a memory address is null."
+  [addr]
+  (.equals (MemoryAddress/NULL) addr))
+
 (defn slice-global
   "Gets a slice of the global address space.
 
