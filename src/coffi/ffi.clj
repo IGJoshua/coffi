@@ -168,6 +168,10 @@
   [type]
   (primitive-types type))
 
+(defmethod primitive-type ::pointer
+  [_type]
+  ::pointer)
+
 (def c-prim-layout
   "Map of primitive type names to the [[CLinker]] types for a method handle."
   {::byte CLinker/C_CHAR
