@@ -508,6 +508,7 @@
   (.downcallHandle (CLinker/getInstance) address method-type function-descriptor))
 
 (def ^:private load-instructions
+  "Mapping from primitive types to the instruction used to load them onto the stack."
   {::byte :bload
    ::short :sload
    ::int :iload
@@ -519,6 +520,7 @@
    ::pointer :aload})
 
 (def ^:private store-instructions
+  "Mapping from primitive types to the instruction used to pop them off the stack."
   {::byte :bstore
    ::short :sstore
    ::int :istore
@@ -530,6 +532,7 @@
    ::pointer :astore})
 
 (def ^:private prim-classes
+  "Mapping from primitive types to their box classes."
   {::byte Byte
    ::short Short
    ::int Integer
@@ -540,6 +543,10 @@
    ::double Double})
 
 (defn- to-object-asm
+  "Constructs a bytecode sequence to box a primitive on the top of the stack.
+
+  If the `type` is not primitive, then no change will occur. If it is void, a
+  null reference will be pushed to the stack."
   [type idx]
   (cond
     (identical? ::void type) [:ldc nil]
@@ -556,12 +563,14 @@
       [])))
 
 (defn- insn-layout
+  "Gets the type keyword or class for referring to the type in bytecode."
   [type]
   (if (some-> (primitive-type type) (not= ::pointer))
     (keyword (name type))
     (java-layout type)))
 
 (defn- downcall-fn
+  "Creates a function to call `handle` without reflection."
   [handle args ret]
   (insn/new-instance
    {:flags #{:public :final}
@@ -595,12 +604,15 @@
    ^MethodHandle handle))
 
 (defn- ensure-address
+  "Gets the address if the argument is [[Addressable]], otherwise
+  calls [[find-symbol]] on it."
   [symbol-or-addr]
   (if (instance? Addressable symbol-or-addr)
     (address-of symbol-or-addr)
     (find-symbol symbol-or-addr)))
 
 (defn const
+  "Gets the value of a constant stored in `symbol-or-addr`."
   [symbol-or-addr type]
   (deserialize (ensure-address symbol-or-addr) [::pointer type]))
 
@@ -625,6 +637,7 @@
     (apply swap! meta f args)))
 
 (defn freset!
+  "Sets the value of `static-var`"
   [^StaticVariable static-var newval]
   (serialize-into
    newval (.-type static-var)
@@ -637,10 +650,22 @@
   (freset! static-var (apply f @static-var args)))
 
 (defn static-variable
+  "Constructs a reference to a mutable value stored in `symbol-or-addr`.
+
+  The returned value can be dereferenced, and has metadata, and the address of
+  the value can be queried with [[address-of]].
+
+  See [[freset!]], [[fswap!]]."
   [symbol-or-addr type]
   (StaticVariable. (ensure-address symbol-or-addr) type (atom nil)))
 
 (defn make-downcall
+  "Constructs a downcall function reference to `symbol-or-addr` with the given `args` and `ret` types.
+
+  The function returned takes only arguments whose types match exactly
+  the [[java-layout]] for that type, and returns an argument with exactly
+  the [[java-layout]] of the `ret` type. This function will perform no
+  serialization or deserialization of arguments or the return type."
   [symbol-or-addr args ret]
   (-> symbol-or-addr
       ensure-address
@@ -650,6 +675,16 @@
       (downcall-fn args ret)))
 
 (defn make-varargs-factory
+  "Returns a function for constructing downcalls with additional types for arguments.
+
+  The `required-args` are the types of the first arguments passed to the
+  downcall handle, and the values passed to the returned function are only the
+  varargs types.
+
+  The returned function is memoized, so that only one downcall function will be
+  generated per combination of argument types.
+
+  See [[make-downcall]]."
   [symbol required-args ret]
   (memoize
    (fn [& types]
@@ -670,6 +705,27 @@
                           :body (s/* any?)))))
 
 (defmacro defcfn
+  "Defines a Clojure function which maps to a native function.
+
+  `name` is the symbol naming the resulting var.
+  `symbol` is a symbol or string naming the library symbol to link against.
+  `arg-types` is a vector of qualified keywords representing the argument types.
+  `ret-type` is a single qualified keyword representing the return type.
+  `arglist` is a binding vector for the symbols used in the wrapping function.
+  `body` is a function body referring to `arglist`. During the execution of the
+  body, `name` is bound to a function that will serialize its arguments, call
+  the native function, and deserialize its return type. If any body is present,
+  you must call this function in order to call the native code.
+
+  If no `arglist` and `body` is provided, then the resulting function will
+  simply serialize the arguments according to `arg-types`, call the native
+  function, and deserialize the return value.
+
+  The number of args in `arglist` need not match the number of `arg-types` for
+  the native function. It need only call the native wrapper function with the
+  correct arguments.
+
+  See [[serialize]], [[deserialize]], [[make-downcall]]."
   {:arglists '([name docstring? attr-map? symbol arg-types ret-type]
                [name docstring? attr-map? symbol arg-types ret-type arglist & body])}
   [& args]
