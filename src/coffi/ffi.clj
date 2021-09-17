@@ -5,6 +5,8 @@
    [clojure.spec.alpha :as s]
    [insn.core :as insn])
   (:import
+   (clojure.lang
+    IDeref IMeta IObj IReference)
    (java.lang.invoke
     VarHandle
     MethodHandle
@@ -591,6 +593,52 @@
                       (to-object-asm ret (inc (count args)))
                       [:areturn]]}]}
    ^MethodHandle handle))
+
+(defn- ensure-address
+  [symbol-or-addr]
+  (if (instance? Addressable symbol-or-addr)
+    (address-of symbol-or-addr)
+    (find-symbol symbol-or-addr)))
+
+(defn const
+  [symbol-or-addr type]
+  (deserialize (ensure-address symbol-or-addr) [::pointer type]))
+
+(deftype StaticVariable [addr type meta]
+  Addressable
+  (address [_]
+    addr)
+  IDeref
+  (deref [_]
+    (deserialize addr [::pointer type]))
+
+  IObj
+  (withMeta [_ meta-map]
+    (StaticVariable. addr type (atom meta-map)))
+  IMeta
+  (meta [_]
+    @meta)
+  IReference
+  (resetMeta [_ meta-map]
+    (reset! meta meta-map))
+  (alterMeta [_ f args]
+    (apply swap! meta f args)))
+
+(defn freset!
+  [^StaticVariable static-var newval]
+  (serialize-into
+   newval (.-type static-var)
+   (slice-global (.-addr static-var) (size-of (.-type static-var)))
+   (global-scope))
+  newval)
+
+(defn fswap!
+  [static-var f & args]
+  (freset! static-var (apply f @static-var args)))
+
+(defn static-variable
+  [symbol-or-addr type]
+  (StaticVariable. (ensure-address symbol-or-addr) type (atom nil)))
 
 (s/def ::defcfn-args
   (s/cat :name simple-symbol?
