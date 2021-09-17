@@ -691,23 +691,54 @@
      (let [args (concat required-args types)]
        (make-downcall symbol args ret)))))
 
-(comment
+(s/def :coffi.ffi.symbolspec/symbol string?)
+(s/def :coffi.ffi.symbolspec/type keyword?)
+(s/def ::symbolspec
+  (s/keys :req-un [:coffi.ffi.symbolspec/type :coffi.ffi.symbolspec/symbol]))
 
-  ;; Idea for a data model
-  {:strlen {:type :function
-            :symbol "strlen"
-            :function/args [::c-string]
-            :function/ret ::int}
-   :some-const {:type :const
-                :symbol "someConst"
-                :const/type ::int}
-   :some-var {:type :static-var
-              :symbol "someVar"
-              :static-var/type ::int}}
+(defmulti reify-symbolspec
+  "Takes a spec for a symbol reference and returns a live value for that type."
+  :type)
+(s/fdef reify-symbolspec
+  :args (s/cat :spec ::symbolspec))
 
-  ;; TODO(Joshua): Write a function that parses this and produces live values
+(defmethod reify-symbolspec :downcall
+  [spec]
+  (make-downcall (:symbol spec)
+                 (:function/args spec)
+                 (:function/ret spec)))
 
-  )
+(defmethod reify-symbolspec :varargs-factory
+  [spec]
+  (make-varargs-factory (:symbol spec)
+                        (:function/args spec)
+                        (:function/ret spec)))
+
+(defmethod reify-symbolspec :const
+  [spec]
+  (const (:symbol spec)
+         (:const/type spec)))
+
+(defmethod reify-symbolspec :static-var
+  [spec]
+  (static-variable (:symbol spec)
+                   (:static-var/type spec)))
+
+(s/def ::libspec
+  (s/map-of keyword? ::symbolspec))
+
+(defn reify-libspec
+  "Converts"
+  [libspec]
+  (reduce-kv
+   (fn [m k v]
+     (assoc m k
+            (reify-symbolspec v)))
+   {}
+   libspec))
+(s/fdef reify-libspec
+  :args (s/cat :libspec ::libspec)
+  :ret (s/map-of keyword? any?))
 
 (s/def ::defcfn-args
   (s/and
