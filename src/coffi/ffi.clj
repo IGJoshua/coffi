@@ -10,6 +10,7 @@
     MethodHandle
     MethodType)
    (jdk.incubator.foreign
+    Addressable
     CLinker
     FunctionDescriptor
     GroupLayout
@@ -83,8 +84,8 @@
   "Gets the address of a given segment.
 
   This value can be used as an argument to functions which take a pointer."
-  [segment]
-  (.address ^MemorySegment segment))
+  [addressable]
+  (.address ^Addressable addressable))
 
 (defn slice-global
   "Gets a slice of the global address space.
