@@ -740,6 +740,12 @@
   :args (s/cat :libspec ::libspec)
   :ret (s/map-of keyword? any?))
 
+(s/def ::type
+  (s/nonconforming
+   (s/or :simple-type qualified-keyword?
+         :complex-type (s/cat :base-type qualified-keyword?
+                              :type-args (s/* ::type)))))
+
 (s/def ::defcfn-args
   (s/and
    (s/cat :name simple-symbol?
@@ -748,7 +754,7 @@
           :symbol (s/nonconforming
                    (s/or :string string?
                          :symbol simple-symbol?))
-          :native-arglist (s/coll-of qualified-keyword? :kind vector?)
+          :native-arglist (s/coll-of ::type :kind vector?)
           :return-type qualified-keyword?
           :wrapper (s/?
                     (s/cat
