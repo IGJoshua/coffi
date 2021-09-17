@@ -395,10 +395,8 @@
 
 (defmethod deserialize-from ::pointer
   [segment type]
-  (if (sequential? type)
-    (deserialize (slice-global (MemoryAccess/getAddress segment) (size-of (second type)))
-                 (second type))
-    (MemoryAccess/getAddress segment)))
+  (cond-> (MemoryAccess/getAddress segment)
+    (sequential? type) (deserialize* type)))
 
 (defmulti deserialize*
   "Deserializes a primitive object into a Clojure data structure.
