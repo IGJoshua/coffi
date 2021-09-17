@@ -448,7 +448,7 @@
 (defmethod serialize* ::c-string
   [obj _type scope]
   (if obj
-    (address-of (CLinker/toCString (str obj) ^ResourceScope scope))
+    (address-of (CLinker/toCString ^String obj ^ResourceScope scope))
     (MemoryAddress/NULL)))
 
 (defmethod deserialize* ::c-string
