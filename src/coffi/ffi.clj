@@ -259,11 +259,12 @@
 
 (defmethod serialize* ::pointer
   [obj type scope]
-  (if (sequential? type)
-    (let [segment (alloc-instance (second type) scope)]
-      (serialize-into obj (second type) segment scope)
-      (address-of segment))
-    obj))
+  (when-not (null? obj)
+    (if (sequential? type)
+      (let [segment (alloc-instance (second type) scope)]
+        (serialize-into obj (second type) segment scope)
+        (address-of segment))
+      obj)))
 
 (defmulti serialize-into
   "Writes a serialized version of the `obj` to the given `segment`.
@@ -419,10 +420,11 @@
 
 (defmethod deserialize* ::pointer
   [addr type]
-  (if (sequential? type)
-    (deserialize (slice-global addr (size-of (second type)))
-                 (second type))
-    addr))
+  (when-not (null? addr)
+    (if (sequential? type)
+      (deserialize-from (slice-global addr (size-of (second type)))
+                        (second type))
+      addr)))
 
 (defn deserialize
   "Deserializes an arbitrary type.
@@ -445,11 +447,14 @@
 
 (defmethod serialize* ::c-string
   [obj _type scope]
-  (address-of (CLinker/toCString (str obj) ^ResourceScope scope)))
+  (if obj
+    (address-of (CLinker/toCString (str obj) ^ResourceScope scope))
+    (MemoryAddress/NULL)))
 
 (defmethod deserialize* ::c-string
   [addr _type]
-  (CLinker/toJavaString ^MemoryAddress addr))
+  (when-not (null? addr)
+    (CLinker/toJavaString ^MemoryAddress addr)))
 
 #_(defn seq-of
     "Constructs a lazy sequence of `type` elements deserialized from `segment`."
