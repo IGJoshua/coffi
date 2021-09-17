@@ -774,6 +774,8 @@
                    (:attr-map args)))
          ~@(list (:doc args))
          fun#))))
+(s/fdef defcfn
+  :args ::defcfn-args)
 
 #_:clj-kondo/ignore
 (comment
