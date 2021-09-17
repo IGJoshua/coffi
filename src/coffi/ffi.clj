@@ -882,6 +882,7 @@
     "qsort"
     [::pointer ::long ::long (fn [::pointer ::pointer] ::int)]
     ::void
+    qsort-native
     [type comparator list]
     (with-open [scope (stack-scope)]
       (let [copied-list (alloc (* (count list) (size-of type)) scope)
@@ -890,7 +891,7 @@
                       (let [obj1 (deserialize-from type (slice-global addr1 (size-of type)))
                             obj2 (deserialize-from type (slice-global addr2 (size-of type)))]
                         (comparator obj1 obj2)))]
-        (qsort copied-list (count list) (size-of type) comp-fn)
+        (qsort-native copied-list (count list) (size-of type) comp-fn)
         (for [segment (seq-of type copied-list)]
           (deserialize-from type segment)))))
   )
