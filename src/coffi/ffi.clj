@@ -640,6 +640,15 @@
   [symbol-or-addr type]
   (StaticVariable. (ensure-address symbol-or-addr) type (atom nil)))
 
+(defn make-downcall
+  [symbol-or-addr args ret]
+  (-> symbol-or-addr
+      ensure-address
+      (downcall-handle
+       (method-type args ret)
+       (function-descriptor args ret))
+      (downcall-fn args ret)))
+
 (s/def ::defcfn-args
   (s/cat :name simple-symbol?
          :doc (s/? string?)
