@@ -649,6 +649,13 @@
        (function-descriptor args ret))
       (downcall-fn args ret)))
 
+(defn make-varargs-factory
+  [symbol required-args ret]
+  (memoize
+   (fn [& types]
+     (let [args (concat required-args types)]
+       (make-downcall symbol args ret)))))
+
 (s/def ::defcfn-args
   (s/cat :name simple-symbol?
          :doc (s/? string?)
