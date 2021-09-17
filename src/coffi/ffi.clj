@@ -701,8 +701,9 @@
          :native-arglist (s/coll-of qualified-keyword? :kind vector?)
          :return-type qualified-keyword?
          :fn-tail (s/?
-                   (s/cat :arglist (s/coll-of simple-symbol? :kind vector?)
-                          :body (s/* any?)))))
+                   (s/nonconforming
+                    (s/cat :arglist (s/coll-of simple-symbol? :kind vector?)
+                           :body (s/* any?))))))
 
 (defmacro defcfn
   "Defines a Clojure function which maps to a native function.
@@ -711,23 +712,23 @@
   `symbol` is a symbol or string naming the library symbol to link against.
   `arg-types` is a vector of qualified keywords representing the argument types.
   `ret-type` is a single qualified keyword representing the return type.
-  `arglist` is a binding vector for the symbols used in the wrapping function.
-  `body` is a function body referring to `arglist`. During the execution of the
-  body, `name` is bound to a function that will serialize its arguments, call
-  the native function, and deserialize its return type. If any body is present,
-  you must call this function in order to call the native code.
+  `fn-tail` is the body of the function (potentially with multiple arities)
+  which wraps the native one. Inside the function, `name` is bound to a function
+  that will serialize its arguments, call the native function, and deserialize
+  its return type. If any body is present, you must call this function in order
+  to call the native code.
 
-  If no `arglist` and `body` is provided, then the resulting function will
-  simply serialize the arguments according to `arg-types`, call the native
-  function, and deserialize the return value.
+  If no `fn-tail` is provided, then the resulting function will simply serialize
+  the arguments according to `arg-types`, call the native function, and
+  deserialize the return value.
 
-  The number of args in `arglist` need not match the number of `arg-types` for
-  the native function. It need only call the native wrapper function with the
-  correct arguments.
+  The number of args in the `fn-tail` need not match the number of `arg-types`
+  for the native function. It need only call the native wrapper function with
+  the correct arguments.
 
   See [[serialize]], [[deserialize]], [[make-downcall]]."
   {:arglists '([name docstring? attr-map? symbol arg-types ret-type]
-               [name docstring? attr-map? symbol arg-types ret-type arglist & body])}
+               [name docstring? attr-map? symbol arg-types ret-type & fn-tail])}
   [& args]
   (let [args (s/conform ::defcfn-args args)
         scope (gensym "scope")
@@ -757,8 +758,7 @@
                                                   arg-syms arg-types))
                                               ~ret-type))))
            fun# ~(if (:fn-tail args)
-                   `(fn ~(-> args :fn-tail :arglist)
-                      ~@(-> args :fn-tail :body))
+                   `(fn ~@(:fn-tail args))
                    (:name args))]
        (def
          ~(with-meta (:name args)
