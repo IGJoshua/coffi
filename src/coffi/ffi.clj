@@ -477,10 +477,10 @@
   [path]
   (System/load (.getAbsolutePath (io/file path))))
 
-(defn- find-symbol
+(defn find-symbol
   "Gets the [[MemoryAddress]] of a symbol from the loaded libraries."
   [sym]
-  (.. (CLinker/systemLookup) (lookup sym) (orElse nil)))
+  (.. (CLinker/systemLookup) (lookup (name sym)) (orElse nil)))
 
 (defn- method-type
   "Gets the [[MethodType]] for a set of `args` and `ret` types."
