@@ -745,7 +745,7 @@
   (s/nonconforming
    (s/or :simple-type qualified-keyword?
          :complex-type (s/cat :base-type qualified-keyword?
-                              :type-args (s/* ::type)))))
+                              :type-args (s/* any?)))))
 
 (s/def ::defcfn-args
   (s/and
