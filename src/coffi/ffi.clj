@@ -729,7 +729,10 @@
   (s/map-of keyword? ::symbolspec))
 
 (defn reify-libspec
-  "Converts"
+  "Loads all the symbols specified in the `libspec`.
+
+  The value of each key of the passed map is transformed as
+  by [[reify-symbolspec]]."
   [libspec]
   (reduce-kv
    (fn [m k v]
