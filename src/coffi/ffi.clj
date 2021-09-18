@@ -480,8 +480,9 @@
 (defn find-symbol
   "Gets the [[MemoryAddress]] of a symbol from the loaded libraries."
   [sym]
-  ;; TODO(Joshua): Ensure this looks up both in the system, and loaded libraries (see `SymbolLookup#loaderLookup`)
-  (.. (CLinker/systemLookup) (lookup (name sym)) (orElse nil)))
+  (let [sym (name sym)]
+    (or (.. (CLinker/systemLookup) (lookup sym) (orElse nil))
+        (.. (CLinker/systemLookup) (loaderLookup) (lookup sym) (orElse nil)))))
 
 (defn- method-type
   "Gets the [[MethodType]] for a set of `args` and `ret` types."
