@@ -487,6 +487,10 @@
      segment
      scope)))
 
+(defmethod deserialize-from ::union
+  [segment type]
+  (slice segment 0 (size-of type)))
+
 ;;; FFI Code loading and function access
 
 (defn load-system-library
