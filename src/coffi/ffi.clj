@@ -339,7 +339,8 @@
    (if (primitive-type type)
      (serialize* obj type scope)
      (let [segment (alloc-instance type scope)]
-       (serialize-into obj type segment scope)))))
+       (serialize-into obj type segment scope)
+       segment))))
 
 (declare deserialize deserialize*)
 
