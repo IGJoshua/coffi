@@ -141,6 +141,13 @@
   [scope action]
   (.addCloseAction ^ResourceScope scope action))
 
+(defn clone-segment
+  "Clones the content of `segment` into a new segment of the same size."
+  ([segment] (clone-segment segment (connected-scope)))
+  ([segment scope]
+   (doto (alloc (.byteSize ^MemorySegment segment) scope)
+     (.copyFrom ^MemorySegment segment))))
+
 (def primitive-types
   "A set of keywords representing all the primitive types which may be passed to
   or returned from native functions."
@@ -489,7 +496,7 @@
 
 (defmethod deserialize-from ::union
   [segment type]
-  (slice segment 0 (size-of type)))
+  (clone-segment (slice segment 0 (size-of type))))
 
 ;;; FFI Code loading and function access
 
