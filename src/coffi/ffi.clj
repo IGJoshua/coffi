@@ -752,6 +752,19 @@
          :complex-type (s/cat :base-type qualified-keyword?
                               :type-args (s/* any?)))))
 
+(defn make-serde-wrapper
+  "Constructs a wrapper function for the `downcall` which serializes the arguments
+  and deserializes the return value."
+  [downcall arg-types ret-type]
+  (fn native-fn [& args]
+    (with-open [scope (stack-scope)]
+      (deserialize (apply downcall (map #(serialize %1 %2 scope) args arg-types))
+                   ret-type))))
+(s/fdef make-serde-wrapper
+  :args (s/cat :downcall ifn?
+               :arg-types (s/coll-of ::type :kind vector?)
+               :ret-type ::type))
+
 (s/def ::defcfn-args
   (s/and
    (s/cat :name simple-symbol?
@@ -800,9 +813,7 @@
                [name docstring? attr-map? symbol arg-types ret-type native-fn & fn-tail])}
   [& args]
   (let [args (s/conform ::defcfn-args args)
-        scope (gensym "scope")
-        arg-syms (repeatedly (count (:native-arglist args)) #(gensym "arg"))
-        arg-types (repeatedly (count (:native-arglist args)) #(gensym "arg-type"))
+        args-types (gensym "args-types")
         ret-type (gensym "ret-type")
         invoke (gensym "invoke")
         native-sym (gensym "native")
@@ -815,24 +826,16 @@
                               :single-arity [fn-tail]
                               :multi-arity fn-tail
                               nil))]
-    `(let [args-types# ~(:native-arglist args)
-           [~@arg-types] args-types#
+    `(let [~args-types ~(:native-arglist args)
            ~ret-type ~(:return-type args)
-           ~invoke (make-downcall ~(name (:symbol args)) args-types# ~ret-type)
+           ~invoke (make-downcall ~(name (:symbol args)) ~args-types ~ret-type)
            ~(or (-> args :wrapper :native-fn) native-sym)
            ~(if (and (every? #(= % (primitive-type %))
                              (:native-arglist args))
                      (= (:return-type args)
                         (primitive-type (:return-type args))))
               invoke
-              `(fn [~@arg-syms]
-                 (with-open [~scope (stack-scope)]
-                   (deserialize (~invoke
-                                 ~@(map
-                                    (fn [sym type]
-                                      `(serialize ~sym ~type ~scope))
-                                    arg-syms arg-types))
-                                ~ret-type))))
+              `(make-serde-wrapper ~invoke ~args-types ~ret-type))
            fun# ~(if (:wrapper args)
                    `(fn ~(:name args)
                       ~@fn-tail)
