@@ -440,7 +440,7 @@
        deserialize-from)
      obj type)))
 
-;; C String type
+;;; C String type
 
 (defmethod primitive-type ::c-string
   [_type]
@@ -467,6 +467,27 @@
                    (cons (deserialize-from type segment)
                          (rec (slice segment size))))))]
         (rec segment))))
+
+;;; Union types
+
+(defmethod c-layout ::union
+  [[_union _dispatch types & {:as _opts} :as _type]]
+  (let [items (map c-layout types)]
+    (MemoryLayout/unionLayout
+     (into-array MemoryLayout items))))
+
+(defmethod serialize-into ::union
+  [obj [_union dispatch _types & {:keys [extract]}] segment scope]
+  (let [type (dispatch obj)]
+    (serialize-into
+     (if extract
+       (extract type obj)
+       obj)
+     type
+     segment
+     scope)))
+
+;;; FFI Code loading and function access
 
 (defn load-system-library
   "Loads the library named `libname` from the system's load path."
