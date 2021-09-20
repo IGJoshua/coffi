@@ -715,6 +715,31 @@
      (let [args (concat required-args types)]
        (make-downcall symbol args ret)))))
 
+(defn make-serde-wrapper
+  "Constructs a wrapper function for the `downcall` which serializes the arguments
+  and deserializes the return value."
+  [downcall arg-types ret-type]
+  (fn native-fn [& args]
+    (with-open [scope (stack-scope)]
+      (deserialize (apply downcall (map #(serialize %1 %2 scope) args arg-types))
+                   ret-type))))
+(s/fdef make-serde-wrapper
+  :args (s/cat :downcall ifn?
+               :arg-types (s/coll-of ::type :kind vector?)
+               :ret-type ::type))
+
+(defn make-serde-varargs-wrapper
+  "Constructs a wrapper function for the `varargs-factory` which produces
+  functions that serialize the arguments and deserialize the return value."
+  [varargs-factory required-args ret-type]
+  (memoize
+   (fn [& types]
+     (let [args-types (concat required-args types)]
+       (make-serde-wrapper
+        (apply varargs-factory types)
+        args-types
+        ret-type)))))
+
 (s/def :coffi.ffi.symbolspec/symbol string?)
 (s/def :coffi.ffi.symbolspec/type keyword?)
 (s/def ::symbolspec
@@ -772,19 +797,6 @@
    (s/or :simple-type qualified-keyword?
          :complex-type (s/cat :base-type qualified-keyword?
                               :type-args (s/* any?)))))
-
-(defn make-serde-wrapper
-  "Constructs a wrapper function for the `downcall` which serializes the arguments
-  and deserializes the return value."
-  [downcall arg-types ret-type]
-  (fn native-fn [& args]
-    (with-open [scope (stack-scope)]
-      (deserialize (apply downcall (map #(serialize %1 %2 scope) args arg-types))
-                   ret-type))))
-(s/fdef make-serde-wrapper
-  :args (s/cat :downcall ifn?
-               :arg-types (s/coll-of ::type :kind vector?)
-               :ret-type ::type))
 
 (s/def ::defcfn-args
   (s/and
