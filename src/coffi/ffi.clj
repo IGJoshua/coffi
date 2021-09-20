@@ -753,15 +753,25 @@
 
 (defmethod reify-symbolspec :downcall
   [spec]
-  (make-downcall (:symbol spec)
-                 (:function/args spec)
-                 (:function/ret spec)))
+  (cond->
+      (make-downcall (:symbol spec)
+                     (:function/args spec)
+                     (:function/ret spec))
+    (:function/wrap-serde? spec)
+    (make-serde-wrapper
+     (:function/args spec)
+     (:function/ret spec))))
 
 (defmethod reify-symbolspec :varargs-factory
   [spec]
-  (make-varargs-factory (:symbol spec)
-                        (:function/args spec)
-                        (:function/ret spec)))
+  (cond->
+      (make-varargs-factory (:symbol spec)
+                            (:function/args spec)
+                            (:function/ret spec))
+    (:function/wrap-serde? spec)
+    (make-serde-varargs-wrapper
+     (:function/args spec)
+     (:function/ret spec))))
 
 (defmethod reify-symbolspec :const
   [spec]
