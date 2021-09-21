@@ -499,6 +499,44 @@
   [segment type]
   (clone-segment (slice segment 0 (size-of type))))
 
+;;; Struct types
+
+(defmethod c-layout ::struct
+  [[_struct fields]]
+  (let [fields (for [[field-name field] fields]
+                 (.withName (c-layout field)
+                            (name field-name)))]
+    (MemoryLayout/structLayout
+     (into-array MemoryLayout fields))))
+
+(defmethod serialize-into ::struct
+  [obj [_struct fields] segment scope]
+  (loop [offset 0
+         fields fields]
+    (when (seq fields)
+      (let [[field type] (first fields)
+            size (size-of type)]
+        (serialize-into
+         (get obj field) type
+         (slice segment offset size) scope)
+        (recur (+ offset size) (rest fields))))))
+
+(defmethod deserialize-from ::struct
+  [segment [_struct fields]]
+  (loop [offset 0
+         fields fields
+         obj {}]
+    (if (seq fields)
+      (let [[field type] (first fields)
+            size (size-of type)]
+        (recur
+         (+ offset size)
+         (rest fields)
+         (assoc obj field (deserialize-from
+                           (slice segment offset size)
+                           type))))
+      obj)))
+
 ;;; FFI Code loading and function access
 
 (defn load-system-library
