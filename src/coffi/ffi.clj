@@ -227,15 +227,11 @@
    ::pointer MemoryAddress
    ::void Void/TYPE})
 
-(defmulti java-layout
+(defn java-layout
   "Gets the Java class to an argument of this type for a method handle.
 
-  If a type serializes to a primitive it should return a Java primitive type.
-
-  Otherwise, it should return [[MemorySegment]]."
-  type-dispatch)
-
-(defmethod java-layout :default
+  If a type serializes to a primitive it returns return a Java primitive type.
+  Otherwise, it returns [[MemorySegment]]."
   [type]
   (java-prim-layout (or (primitive-type type) type) MemorySegment))
 
