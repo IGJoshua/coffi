@@ -146,13 +146,13 @@
   "Clones the content of `segment` into a new segment of the same size."
   ([segment] (clone-segment segment (connected-scope)))
   ([segment scope]
-   (doto (alloc (.byteSize ^MemorySegment segment) scope)
+   (doto ^MemorySegment (alloc (.byteSize ^MemorySegment segment) scope)
      (.copyFrom ^MemorySegment segment))))
 
 (defn slice-segments
   "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
   [segment size]
-  (let [num-segments (quot (.byteSize segment) size)]
+  (let [num-segments (quot (.byteSize ^MemorySegment segment) size)]
     (map #(slice segment (* % size) size)
          (range num-segments))))
 
@@ -242,10 +242,7 @@
 (defn size-of
   "The size in bytes of the given `type`."
   [type]
-  (let [layout ^MemoryLayout (c-layout type)]
-    (.byteSize
-     (cond-> layout
-       (qualified-keyword? layout) ^MemoryLayout c-layout))))
+  (.byteSize ^MemoryLayout (c-layout type)))
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
@@ -505,7 +502,7 @@
 (defmethod c-layout ::struct
   [[_struct fields]]
   (let [fields (for [[field-name field] fields]
-                 (.withName (c-layout field)
+                 (.withName ^MemoryLayout (c-layout field)
                             (name field-name)))]
     (MemoryLayout/structLayout
      (into-array MemoryLayout fields))))
@@ -520,7 +517,7 @@
         (serialize-into
          (get obj field) type
          (slice segment offset size) scope)
-        (recur (+ offset size) (rest fields))))))
+        (recur (long (+ offset size)) (rest fields))))))
 
 (defmethod deserialize-from ::struct
   [segment [_struct fields]]
@@ -531,7 +528,7 @@
       (let [[field type] (first fields)
             size (size-of type)]
         (recur
-         (+ offset size)
+         (long (+ offset size))
          (rest fields)
          (assoc obj field (deserialize-from
                            (slice segment offset size)
