@@ -24,7 +24,8 @@
     MemoryLayouts
     MemorySegment
     ResourceScope
-    SegmentAllocator)))
+    SegmentAllocator
+    SymbolLookup)))
 
 (defn stack-scope
   "Constructs a new scope for use only in this thread.
@@ -590,7 +591,7 @@
   [sym]
   (let [sym (name sym)]
     (or (.. (CLinker/systemLookup) (lookup sym) (orElse nil))
-        (.. (CLinker/systemLookup) (loaderLookup) (lookup sym) (orElse nil)))))
+        (.. (SymbolLookup/loaderLookup) (lookup sym) (orElse nil)))))
 
 (defn- method-type
   "Gets the [[MethodType]] for a set of `args` and `ret` types."
