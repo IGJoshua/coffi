@@ -537,6 +537,20 @@
                            type))))
       obj)))
 
+;;; Padding type
+
+(defmethod c-layout ::padding
+  [[_padding size]]
+  (MemoryLayout/paddingLayout (* 8 size)))
+
+(defmethod serialize-into ::padding
+  [_obj [_padding _size] _segment _scope]
+  nil)
+
+(defmethod deserialize-from ::padding
+  [_segment [_padding _size]]
+  nil)
+
 ;;; FFI Code loading and function access
 
 (defn load-system-library
