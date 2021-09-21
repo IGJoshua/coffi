@@ -809,10 +809,6 @@
     (with-open [scope (stack-scope)]
       (deserialize (apply downcall (map #(serialize %1 %2 scope) args arg-types))
                    ret-type))))
-(s/fdef make-serde-wrapper
-  :args (s/cat :downcall ifn?
-               :arg-types (s/coll-of ::type :kind vector?)
-               :ret-type ::type))
 
 (defn make-serde-varargs-wrapper
   "Constructs a wrapper function for the `varargs-factory` which produces
