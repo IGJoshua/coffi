@@ -721,54 +721,6 @@
     (address-of symbol-or-addr)
     (find-symbol symbol-or-addr)))
 
-(defn const
-  "Gets the value of a constant stored in `symbol-or-addr`."
-  [symbol-or-addr type]
-  (deserialize (ensure-address symbol-or-addr) [::pointer type]))
-
-(deftype StaticVariable [addr type meta]
-  Addressable
-  (address [_]
-    addr)
-  IDeref
-  (deref [_]
-    (deserialize addr [::pointer type]))
-
-  IObj
-  (withMeta [_ meta-map]
-    (StaticVariable. addr type (atom meta-map)))
-  IMeta
-  (meta [_]
-    @meta)
-  IReference
-  (resetMeta [_ meta-map]
-    (reset! meta meta-map))
-  (alterMeta [_ f args]
-    (apply swap! meta f args)))
-
-(defn freset!
-  "Sets the value of `static-var`"
-  [^StaticVariable static-var newval]
-  (serialize-into
-   newval (.-type static-var)
-   (slice-global (.-addr static-var) (size-of (.-type static-var)))
-   (global-scope))
-  newval)
-
-(defn fswap!
-  [static-var f & args]
-  (freset! static-var (apply f @static-var args)))
-
-(defn static-variable
-  "Constructs a reference to a mutable value stored in `symbol-or-addr`.
-
-  The returned value can be dereferenced, and has metadata, and the address of
-  the value can be queried with [[address-of]].
-
-  See [[freset!]], [[fswap!]]."
-  [symbol-or-addr type]
-  (StaticVariable. (ensure-address symbol-or-addr) type (atom nil)))
-
 (defn make-downcall
   "Constructs a downcall function reference to `symbol-or-addr` with the given `args` and `ret` types.
 
@@ -821,6 +773,56 @@
         (apply varargs-factory types)
         args-types
         ret-type)))))
+
+;;; Static memory access
+
+(defn const
+  "Gets the value of a constant stored in `symbol-or-addr`."
+  [symbol-or-addr type]
+  (deserialize (ensure-address symbol-or-addr) [::pointer type]))
+
+(deftype StaticVariable [addr type meta]
+  Addressable
+  (address [_]
+    addr)
+  IDeref
+  (deref [_]
+    (deserialize addr [::pointer type]))
+
+  IObj
+  (withMeta [_ meta-map]
+    (StaticVariable. addr type (atom meta-map)))
+  IMeta
+  (meta [_]
+    @meta)
+  IReference
+  (resetMeta [_ meta-map]
+    (reset! meta meta-map))
+  (alterMeta [_ f args]
+    (apply swap! meta f args)))
+
+(defn freset!
+  "Sets the value of `static-var`"
+  [^StaticVariable static-var newval]
+  (serialize-into
+   newval (.-type static-var)
+   (slice-global (.-addr static-var) (size-of (.-type static-var)))
+   (global-scope))
+  newval)
+
+(defn fswap!
+  [static-var f & args]
+  (freset! static-var (apply f @static-var args)))
+
+(defn static-variable
+  "Constructs a reference to a mutable value stored in `symbol-or-addr`.
+
+  The returned value can be dereferenced, and has metadata, and the address of
+  the value can be queried with [[address-of]].
+
+  See [[freset!]], [[fswap!]]."
+  [symbol-or-addr type]
+  (StaticVariable. (ensure-address symbol-or-addr) type (atom nil)))
 
 (s/def :coffi.ffi.symbolspec/symbol string?)
 (s/def :coffi.ffi.symbolspec/type keyword?)
