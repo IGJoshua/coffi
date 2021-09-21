@@ -551,6 +551,28 @@
   [_segment [_padding _size]]
   nil)
 
+;;; Array types
+
+(defmethod c-layout ::array
+  [[_array type count]]
+  (MemoryLayout/sequenceLayout
+   count
+   (c-layout type)))
+
+(defmethod serialize-into ::array
+  [obj [_array type count] segment scope]
+  (dorun
+   (map #(serialize-into %1 type %2 scope)
+        obj
+        (slice-segments (slice segment 0 (* count (size-of type)))
+                        (size-of type)))))
+
+(defmethod deserialize-from ::array
+  [segment [_array type count]]
+  (map #(deserialize-from % type)
+       (slice-segments (slice segment 0 (* count (size-of type)))
+                       (size-of type))))
+
 ;;; FFI Code loading and function access
 
 (defn load-system-library
