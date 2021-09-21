@@ -148,6 +148,13 @@
    (doto (alloc (.byteSize ^MemorySegment segment) scope)
      (.copyFrom ^MemorySegment segment))))
 
+(defn slice-segments
+  "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
+  [segment size]
+  (let [num-segments (quot (.byteSize segment) size)]
+    (map #(slice segment (* % size) size)
+         (range num-segments))))
+
 (def primitive-types
   "A set of keywords representing all the primitive types which may be passed to
   or returned from native functions."
@@ -447,6 +454,11 @@
        deserialize-from)
      obj type)))
 
+(defn seq-of
+  "Constructs a lazy sequence of `type` elements deserialized from `segment`."
+  [type segment]
+  (map #(deserialize % type) (slice-segments segment (size-of type))))
+
 ;;; C String type
 
 (defmethod primitive-type ::c-string
@@ -463,17 +475,6 @@
   [addr _type]
   (when-not (null? addr)
     (CLinker/toJavaString ^MemoryAddress addr)))
-
-#_(defn seq-of
-    "Constructs a lazy sequence of `type` elements deserialized from `segment`."
-    [type segment]
-    (let [size (size-of type)]
-      (letfn [(rec [segment]
-                (lazy-seq
-                 (when (>= (.byteSize ^MemorySegment segment) size)
-                   (cons (deserialize-from type segment)
-                         (rec (slice segment size))))))]
-        (rec segment))))
 
 ;;; Union types
 
