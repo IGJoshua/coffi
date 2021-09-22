@@ -3,6 +3,7 @@
    [clojure.test :as t]
    [coffi.ffi :as sut]))
 
-(t/deftest a-test
-  (t/testing "FIXME, I fail."
-    (t/is (= 0 1))))
+(sut/load-library "target/ffi_test.so")
+
+(t/deftest can-load-symbols
+  (t/is (not (nil? (sut/find-symbol "add_points")))))
