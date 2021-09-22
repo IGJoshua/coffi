@@ -6,25 +6,20 @@
    [insn.core :as insn])
   (:import
    (clojure.lang
-    IDeref IMeta IObj IReference)
+    IDeref IFn IMeta IObj IReference)
    (java.lang.invoke
-    VarHandle
     MethodHandle
+    MethodHandles
     MethodType)
    (jdk.incubator.foreign
     Addressable
     CLinker
     FunctionDescriptor
-    GroupLayout
     MemoryAccess
     MemoryAddress
-    MemoryHandles
     MemoryLayout
-    MemoryLayout$PathElement
-    MemoryLayouts
     MemorySegment
     ResourceScope
-    SegmentAllocator
     SymbolLookup)))
 
 (defn stack-scope
@@ -651,20 +646,17 @@
 
   If the `type` is not primitive, then no change will occur. If it is void, a
   null reference will be pushed to the stack."
-  [type idx]
+  [type]
   (cond
     (identical? ::void type) [:ldc nil]
     (identical? ::pointer (primitive-type type)) []
     :else
-    (if-some [prim (some-> type primitive-type name keyword)]
-      ;; Box primitive
-      [[(store-instructions type) idx]
-       [:new (prim-classes type)]
-       [:dup]
-       [(load-instructions type) idx]
-       [:invokespecial (prim-classes type) :init [prim :void]]]
-      ;; Return object without change
-      [])))
+    (let [prim-type (some-> type primitive-type)]
+      (if-some [prim  (some-> prim-type name keyword)]
+       ;; Box primitive
+       [:invokestatic (prim-classes prim-type) "valueOf" [prim (prim-classes prim-type)]]
+       ;; Return object without change
+       []))))
 
 (defn- insn-layout
   "Gets the type keyword or class for referring to the type in bytecode."
@@ -673,11 +665,35 @@
     (keyword (name type))
     (java-layout type)))
 
-(defn- downcall-fn
-  "Creates a function to call `handle` without reflection."
-  [handle args ret]
-  (insn/new-instance
-   {:flags #{:public :final}
+(def ^:private unbox-fn-for-type
+  {::byte "byteValue"
+   ::short "shortValue"
+   ::int "intValue"
+   ::long "longValue"
+   ::long-long "longValue"
+   ::char "charValue"
+   ::float "floatValue"
+   ::double "doubleValue"})
+
+(defn- to-prim-asm
+  "Constructs a bytecode sequence to unbox a primitive type on top of the stack.
+
+  If the `type` is not primitive, then no change will occur. If it is void, it
+  will be popped."
+  [type]
+  (cond
+    (identical? ::void type) [:pop]
+    (identical? ::pointer (primitive-type type)) []
+    :else
+    (let [prim-type (some-> type primitive-type)]
+      (if-some [prim (some-> prim-type name keyword)]
+        [[:checkcast (prim-classes prim-type)]
+         [:invokevirtual (prim-classes prim-type) (unbox-fn-for-type prim-type) [prim]]]
+        []))))
+
+(defn- downcall-class
+  [args ret]
+  {:flags #{:public :final}
     :super clojure.lang.AFunction
     :fields [{:name "downcall_handle"
               :type MethodHandle
@@ -698,14 +714,19 @@
                       [:getfield :this "downcall_handle" MethodHandle]
                       (map-indexed
                        (fn [idx arg]
-                         [(load-instructions (primitive-type arg) :aload) (inc idx)])
+                         [[:aload (inc idx)]
+                          (to-prim-asm arg)])
                        args)
                       [:invokevirtual MethodHandle "invokeExact"
                        (conj (mapv insn-layout args)
                              (insn-layout ret))]
-                      (to-object-asm ret (inc (count args)))
-                      [:areturn]]}]}
-   ^MethodHandle handle))
+                      (to-object-asm ret)
+                      [:areturn]]}]})
+
+(defn- downcall-fn
+  "Creates a function to call `handle` without reflection."
+  [handle args ret]
+  (insn/new-instance (downcall-class args ret) ^MethodHandle handle))
 
 (defn- ensure-address
   "Gets the address if the argument is [[Addressable]], otherwise
@@ -767,6 +788,87 @@
         (apply varargs-factory types)
         args-types
         ret-type)))))
+
+;;; Function types
+
+(def ^:private return-for-type
+  {::byte :breturn
+   ::short :sreturn
+   ::int :ireturn
+   ::long :lreturn
+   ::long-long :lreturn
+   ::char :creturn
+   ::float :freturn
+   ::double :dreturn
+   ::void :return})
+
+(defn- upcall-class
+  [arg-types ret-type]
+  {:flags #{:public :final}
+    :fields [{:name "upcall_ifn"
+              :type IFn
+              :flags #{:final}}]
+    :methods [{:name :init
+               :flags #{:public}
+               :desc [IFn :void]
+               :emit [[:aload 0]
+                      [:dup]
+                      [:invokespecial :super :init [:void]]
+                      [:aload 1]
+                      [:putfield :this "upcall_ifn" IFn]
+                      [:return]]}
+              {:name :upcall
+               :flags #{:public}
+               :desc (conj (mapv java-layout arg-types)
+                           (java-layout ret-type))
+               :emit [[:aload 0]
+                      [:dup]
+                      [:getfield :this "upcall_ifn" IFn]
+                      (map-indexed
+                       (fn [idx arg]
+                         [[(load-instructions arg) (inc idx)]
+                          (to-object-asm arg)])
+                       arg-types)
+                      [:invokevirtual IFn "invoke" (repeat (inc (count arg-types)) Object)]
+                      (to-prim-asm ret-type)
+                      [(return-for-type ret-type :areturn)]]}]})
+
+(defn- upcall
+  [f arg-types ret-type]
+  (insn/new-instance (upcall-class arg-types ret-type) ^IFn f))
+
+(defn- upcall-handle
+  "Constructs a method handle for invoking `f`, a function of `arg-count` args."
+  [f arg-types ret-type]
+  (.bind
+   (MethodHandles/lookup)
+   (upcall f arg-types ret-type)
+   "upcall"
+   (method-type arg-types ret-type)))
+
+(defmethod primitive-type ::fn
+  [_type]
+  ::pointer)
+
+(defmethod serialize* ::fn
+  [f [_fn arg-types ret-type & {:keys [wrap-serde?]}] scope]
+  (.upcallStub
+   (CLinker/getInstance)
+   (cond-> f
+     wrap-serde? (make-serde-wrapper arg-types ret-type)
+     :always (upcall-handle arg-types ret-type))
+   (function-descriptor arg-types ret-type)
+   scope))
+
+(defmethod deserialize* ::fn
+  [addr [_fn arg-types ret-type & {:keys [wrap-serde?]}]]
+  (-> addr
+      (downcall-handle
+       (method-type arg-types ret-type)
+       (function-descriptor arg-types ret-type))
+      (downcall-fn arg-types ret-type)
+      (cond->
+        wrap-serde? (make-serde-wrapper arg-types ret-type))))
 
 ;;; Static memory access
 
