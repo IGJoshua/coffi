@@ -14,7 +14,6 @@
   deployments. Use the `:deploy` alias to deploy to clojars."
   (:require
    [clojure.java.io :as io]
-   [clojure.string :as str]
    [clojure.tools.build.api :as b]))
 
 (def lib-coord 'org.suskalo/coffi)
@@ -53,8 +52,7 @@
                         :connection "scm:git:git://github.com/IGJoshua/coffi.git"
                         :developerConnection "scm:git:ssh://git@github.com/IGJoshua/coffi.git"
                         :tag (str "v" version)}
-                  :src-dirs source-dirs
-                  :resource-dirs resource-dirs}))
+                  :src-dirs source-dirs}))
   opts)
 
 (defn pom
@@ -70,13 +68,10 @@
 
 (defn jar
   "Generates a `coffi.jar` file in the `target/` directory.
-  This is a thin jar including only the sources and resources."
+  This is a thin jar including only the sources."
   [opts]
   (write-pom opts)
-  (copy-resources opts)
   (when-not (exists? target-dir jar-file)
-    (b/copy-dir {:target-dir class-dir
-                 :src-dirs resource-dirs})
     (b/jar {:class-dir class-dir
             :jar-file jar-file}))
   opts)
