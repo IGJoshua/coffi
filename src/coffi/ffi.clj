@@ -567,7 +567,7 @@
 (defn load-system-library
   "Loads the library named `libname` from the system's load path."
   [libname]
-  (System/loadLibrary (name ~libname)))
+  (System/loadLibrary (name libname)))
 
 (defn load-library
   "Loads the library at `path`."
