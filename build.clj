@@ -21,12 +21,15 @@
 
 (def source-dirs ["src/"])
 
+(def c-test-dirs ["test/c/"])
+
 (def target-dir "target/")
 (def class-dir (str target-dir "classes/"))
 
 (def basis (b/create-basis {:project "deps.edn"}))
 
 (def jar-file (str target-dir "coffi.jar"))
+(def test-c-library (str target-dir "ffi_test.so"))
 
 (defn clean
   "Deletes the `target/` directory."
@@ -74,6 +77,20 @@
   (when-not (exists? target-dir jar-file)
     (b/jar {:class-dir class-dir
             :jar-file jar-file}))
+  opts)
+
+(defn compile-test-library
+  "Compiles the C test code for running the tests."
+  [opts]
+  (let [c-files (->> c-test-dirs
+                     (map io/file)
+                     (mapcat file-seq)
+                     (filter #(.isFile %))
+                     (map #(.getAbsolutePath %)))]
+    (.mkdirs (io/file target-dir))
+    (b/process {:command-args (concat ["clang" "-fpic" "-shared"]
+                                      c-files
+                                      ["-o" test-c-library])}))
   opts)
 
 (defn run-tasks
