@@ -13,6 +13,7 @@
                       io.github.cognitect-labs/test-runner
                       {:git/url "https://github.com/cognitect-labs/test-runner"
                        :sha "62ef1de18e076903374306060ac0e8a752e57c86"}}
+         :jvm-opts ["--add-modules=jdk.incubator.foreign" "--enable-native-access=ALL-UNNAMED"]
          :exec-fn cognitect.test-runner.api/test}
 
   :build {:replace-deps {org.clojure/clojure {:mvn/version "1.10.3"}
