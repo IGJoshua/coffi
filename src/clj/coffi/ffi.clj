@@ -799,6 +799,17 @@
         args-types
         ret-type)))))
 
+(defn cfn
+  "Constructs a Clojure function to call the native function referenced by `symbol`.
+
+  The function returned will serialize any passed arguments into the `args`
+  types, and deserialize the return to the `ret` type."
+  [symbol args ret]
+  (-> symbol
+      ensure-address
+      (make-downcall args ret)
+      (make-serde-wrapper args ret)))
+
 ;;; Function types
 
 (def ^:private return-for-type
