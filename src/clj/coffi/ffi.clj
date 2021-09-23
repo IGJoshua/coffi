@@ -645,18 +645,6 @@
    ::double :dload
    ::pointer :aload})
 
-(def ^:private store-instructions
-  "Mapping from primitive types to the instruction used to pop them off the stack."
-  {::byte :bstore
-   ::short :sstore
-   ::int :istore
-   ::long :lstore
-   ::long-long :lstore
-   ::char :cstore
-   ::float :fstore
-   ::double :dstore
-   ::pointer :astore})
-
 (def ^:private prim-classes
   "Mapping from primitive types to their box classes."
   {::byte Byte
