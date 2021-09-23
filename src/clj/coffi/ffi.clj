@@ -1166,9 +1166,7 @@
   ;; TODO(Joshua): Support adding padding to the structure (and make it
   ;; extensible?)
   (let [args (s/conform ::defstruct-args args)]
-    `(let [struct-type# [::struct [~@(->> (:fields args)
-                                          (partition 2)
-                                          (map vector))]]]
+    `(let [struct-type# [::struct ~(mapv (juxt :field-name :field-type) (:fields args))]]
        (defmethod c-layout ~(:struct-name args)
          [_type#]
          (c-layout struct-type#))
