@@ -20,8 +20,7 @@
     MemoryAddress
     MemoryLayout
     MemorySegment
-    ResourceScope
-    SymbolLookup)))
+    ResourceScope)))
 
 (defn stack-scope
   "Constructs a new scope for use only in this thread.
@@ -1090,51 +1089,3 @@
          fun#))))
 (s/fdef defcfn
   :args ::defcfn-args)
-
-#_:clj-kondo/ignore
-(comment
-  ;;; Prospective syntax for ffi
-
-  ;; This function has no out params, and no extra marshalling work, so it has no
-  ;; body
-  (-> (defcfn strlen
-        "Counts the number of bytes in a C String."
-        "strlen" [::c-string] ::int)
-      quote
-      macroexpand-1)
-
-  ;; This function has an output parameter and requires some clojure code to
-  ;; translate the values from the c fn to something sensible in clojure.
-  (defcfn some-func
-    "Gets some output value"
-    "someFunc" [::pointer] ::int
-    native-func
-    []
-    (with-open [scope (stack-scope)]
-      (let [out-int (alloc-instance ::int scope)
-            success? (zero? (native-func (address-of out-int)))]
-        (if success?
-          (deserialize-from ::int out-int)
-          (throw (ex-info (getErrorString) {}))))))
-
-  ;; This function probably wouldn't actually get wrapped, since the cost of
-  ;; marshalling is greater than the speed boost of using an in-place sort. That
-  ;; said, this is a nice sample of what more complex marshalling looks like.
-  (defcfn qsort
-    "Quicksort implementation"
-    "qsort"
-    [::pointer ::long ::long (fn [::pointer ::pointer] ::int)]
-    ::void
-    qsort-native
-    [type comparator list]
-    (with-open [scope (stack-scope)]
-      (let [copied-list (alloc (* (count list) (size-of type)) scope)
-            _ (dorun (map #(serialize-into %1 type %2 scope) list (seq-of type copied-list)))
-            comp-fn (fn [addr1 addr2]
-                      (let [obj1 (deserialize-from type (slice-global addr1 (size-of type)))
-                            obj2 (deserialize-from type (slice-global addr2 (size-of type)))]
-                        (comparator obj1 obj2)))]
-        (qsort-native copied-list (count list) (size-of type) comp-fn)
-        (for [segment (seq-of type copied-list)]
-          (deserialize-from type segment)))))
-  )
