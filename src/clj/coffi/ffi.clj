@@ -862,33 +862,33 @@
 (defn- upcall-class
   [arg-types ret-type]
   {:flags #{:public :final}
-    :fields [{:name "upcall_ifn"
-              :type IFn
-              :flags #{:final}}]
-    :methods [{:name :init
-               :flags #{:public}
-               :desc [IFn :void]
-               :emit [[:aload 0]
-                      [:dup]
-                      [:invokespecial :super :init [:void]]
-                      [:aload 1]
-                      [:putfield :this "upcall_ifn" IFn]
-                      [:return]]}
-              {:name :upcall
-               :flags #{:public}
-               :desc (conj (mapv java-layout arg-types)
-                           (java-layout ret-type))
-               :emit [[:aload 0]
-                      [:dup]
-                      [:getfield :this "upcall_ifn" IFn]
-                      (map-indexed
-                       (fn [idx arg]
-                         [[(load-instructions arg) (inc idx)]
-                          (to-object-asm arg)])
-                       arg-types)
-                      [:invokevirtual IFn "invoke" (repeat (inc (count arg-types)) Object)]
-                      (to-prim-asm ret-type)
-                      [(return-for-type ret-type :areturn)]]}]})
+   :fields [{:name "upcall_ifn"
+             :type IFn
+             :flags #{:final}}]
+   :methods [{:name :init
+              :flags #{:public}
+              :desc [IFn :void]
+              :emit [[:aload 0]
+                     [:dup]
+                     [:invokespecial :super :init [:void]]
+                     [:aload 1]
+                     [:putfield :this "upcall_ifn" IFn]
+                     [:return]]}
+             {:name :upcall
+              :flags #{:public}
+              :desc (conj (mapv java-layout arg-types)
+                          (java-layout ret-type))
+              :emit [[:aload 0]
+                     [:dup]
+                     [:getfield :this "upcall_ifn" IFn]
+                     (map-indexed
+                      (fn [idx arg]
+                        [[(load-instructions arg) (inc idx)]
+                         (to-object-asm arg)])
+                      arg-types)
+                     [:invokevirtual IFn "invoke" (repeat (inc (count arg-types)) Object)]
+                     (to-prim-asm ret-type)
+                     [(return-for-type ret-type :areturn)]]}]})
 
 (defn- upcall
   [f arg-types ret-type]
