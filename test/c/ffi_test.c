@@ -1,5 +1,9 @@
 #include <stdio.h>
 
+int add_numbers(int a, int b) {
+    return a + b;
+}
+
 typedef struct point {
     float x;
     float y;
@@ -18,7 +22,7 @@ typedef char *CString;
 
 typedef CString (*StringFactory)(void);
 
-void upcall_test(StringFactory fun) {
+CString upcall_test(StringFactory fun) {
     return fun();
 }
 
