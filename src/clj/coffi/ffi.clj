@@ -1089,3 +1089,36 @@
          fun#))))
 (s/fdef defcfn
   :args ::defcfn-args)
+
+(s/def ::defstruct-args
+  (s/cat :struct-name qualified-keyword?
+         ;:layout (s/? keyword?)
+         :docstring (s/? string?)
+         :fields (s/* (s/cat :field-name simple-keyword?
+                             :field-type ::type))))
+
+(defmacro defstruct
+  "Defines a type alias for a struct with the given name and fields.
+
+  The fields are provided as keyword args.
+
+  Currently no padding is provided into the structure."
+  {:arglists '([struct-name docstring? & fields])}
+  [& args]
+  ;; TODO(Joshua): Support adding padding to the structure (and make it
+  ;; extensible?)
+  (let [args (s/conform ::defstruct-args args)]
+    `(let [struct-type# [::struct [~@(->> (:fields args)
+                                          (partition 2)
+                                          (map vector))]]]
+       (defmethod c-layout ~(:struct-name args)
+         [_type#]
+         (c-layout struct-type#))
+       (defmethod serialize-into ~(:struct-name args)
+         [obj# _type# segment# scope#]
+         (serialize-into obj# struct-type# segment# scope#))
+       (defmethod deserialize-from ~(:struct-name args)
+         [segment# _type#]
+         (deserialize-from segment# struct-type#)))))
+(s/fdef defstruct
+  :args ::defstruct-args)
