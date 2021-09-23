@@ -880,8 +880,6 @@
                          (to-object-asm arg)])
                       arg-types)
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
-                     ;; TODO(Joshua): If this returns nil and this is primitive,
-                     ;; return a default value
                      (to-prim-asm ret-type)
                      [(return-for-type ret-type :areturn)]]}]})
 
