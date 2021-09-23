@@ -907,12 +907,22 @@
   [_type]
   ::pointer)
 
+(defn- upcall-serde-wrapper
+  "Creates a function that wraps `f` which deserializes the arguments and
+  serializes the return type in the [[global-scope]]."
+  [f arg-types ret-type]
+  (fn [& args]
+    (serialize
+     (apply f (map deserialize args arg-types))
+     ret-type
+     (global-scope))))
+
 (defmethod serialize* ::fn
   [f [_fn arg-types ret-type & {:keys [wrap-serde?]}] scope]
   (.upcallStub
    (CLinker/getInstance)
    (cond-> f
-     wrap-serde? (make-serde-wrapper arg-types ret-type)
+     wrap-serde? (upcall-serde-wrapper arg-types ret-type)
      :always (upcall-handle arg-types ret-type))
    (function-descriptor arg-types ret-type)
    scope))
