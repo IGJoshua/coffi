@@ -19,7 +19,8 @@
 (def lib-coord 'org.suskalo/coffi)
 (def version (format "0.1.%s-SNAPSHOT" (b/git-count-revs nil)))
 
-(def source-dirs ["src/"])
+(def source-dirs ["src/clj/"])
+(def java-source-dirs ["src/java/"])
 
 (def c-test-dirs ["test/c/"])
 
@@ -41,6 +42,15 @@
   "Checks if a file composed of the given path segments exists."
   [& path-components]
   (.exists ^java.io.File (apply io/file path-components)))
+
+(defn compile-java
+  "Compiles java classes required for interop."
+  [opts]
+  (.mkdirs (io/file class-dir))
+  (b/process {:command-args ["javac" "--add-modules=jdk.incubator.foreign"
+                             "src/java/coffi/ffi/Loader.java"
+                             "-d" class-dir]})
+  opts)
 
 (defn- write-pom
   "Writes a pom file if one does not already exist."

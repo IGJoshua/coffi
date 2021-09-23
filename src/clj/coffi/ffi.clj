@@ -7,6 +7,7 @@
   (:import
    (clojure.lang
     IDeref IFn IMeta IObj IReference)
+   (coffi.ffi Loader)
    (java.lang.invoke
     MethodHandle
     MethodHandles
@@ -567,19 +568,18 @@
 (defn load-system-library
   "Loads the library named `libname` from the system's load path."
   [libname]
-  (System/loadLibrary (name libname)))
+  (Loader/loadSystemLibrary (name libname)))
 
 (defn load-library
   "Loads the library at `path`."
   [path]
-  (System/load (.getAbsolutePath (io/file path))))
+  (Loader/loadLibrary (.getAbsolutePath (io/file path))))
 
 (defn find-symbol
   "Gets the [[MemoryAddress]] of a symbol from the loaded libraries."
   [sym]
   (let [sym (name sym)]
-    (or (.. (CLinker/systemLookup) (lookup sym) (orElse nil))
-        (.. (SymbolLookup/loaderLookup) (lookup sym) (orElse nil)))))
+    (Loader/findSymbol sym)))
 
 (defn- method-type
   "Gets the [[MethodType]] for a set of `args` and `ret` types."
