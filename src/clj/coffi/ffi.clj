@@ -879,14 +879,13 @@
               :desc (conj (mapv java-layout arg-types)
                           (java-layout ret-type))
               :emit [[:aload 0]
-                     [:dup]
                      [:getfield :this "upcall_ifn" IFn]
                      (map-indexed
                       (fn [idx arg]
                         [[(load-instructions arg) (inc idx)]
                          (to-object-asm arg)])
                       arg-types)
-                     [:invokevirtual IFn "invoke" (repeat (inc (count arg-types)) Object)]
+                     [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
                      ;; TODO(Joshua): If this returns nil and this is primitive,
                      ;; return a default value
                      (to-prim-asm ret-type)
