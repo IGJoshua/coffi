@@ -966,7 +966,7 @@
     (apply swap! meta f args)))
 
 (defn freset!
-  "Sets the value of `static-var`"
+  "Sets the value of `static-var` to `newval`, running it through [[serialize]]."
   [^StaticVariable static-var newval]
   (serialize-into
    newval (.-type static-var)
@@ -975,6 +975,10 @@
   newval)
 
 (defn fswap!
+  "Non-atomically runs the function `f` over the value stored in `static-var`.
+
+  The value is deserialized before passing it to `f`, and serialized before
+  putting the value into `static-var`."
   [static-var f & args]
   (freset! static-var (apply f @static-var args)))
 
