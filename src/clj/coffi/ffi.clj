@@ -912,24 +912,24 @@
      (global-scope))))
 
 (defmethod serialize* ::fn
-  [f [_fn arg-types ret-type & {:keys [wrap-serde?]}] scope]
+  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] scope]
   (.upcallStub
    (CLinker/getInstance)
    (cond-> f
-     wrap-serde? (upcall-serde-wrapper arg-types ret-type)
+     (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
      :always (upcall-handle arg-types ret-type))
    (function-descriptor arg-types ret-type)
    scope))
 
 (defmethod deserialize* ::fn
-  [addr [_fn arg-types ret-type & {:keys [wrap-serde?]}]]
+  [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
   (-> addr
       (downcall-handle
        (method-type arg-types ret-type)
        (function-descriptor arg-types ret-type))
       (downcall-fn arg-types ret-type)
       (cond->
-        wrap-serde? (make-serde-wrapper arg-types ret-type))))
+        (not raw-fn?) (make-serde-wrapper arg-types ret-type))))
 
 ;;; Static memory access
 
@@ -1002,7 +1002,7 @@
       (make-downcall (:symbol spec)
                      (:function/args spec)
                      (:function/ret spec))
-    (:function/wrap-serde? spec)
+    (not (:function/raw-fn? spec))
     (make-serde-wrapper
      (:function/args spec)
      (:function/ret spec))))
@@ -1013,7 +1013,7 @@
       (make-varargs-factory (:symbol spec)
                             (:function/args spec)
                             (:function/ret spec))
-    (:function/wrap-serde? spec)
+    (not (:function/raw-fn? spec))
     (make-serde-varargs-wrapper
      (:function/args spec)
      (:function/ret spec))))

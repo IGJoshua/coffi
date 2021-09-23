@@ -21,10 +21,10 @@
 
 (t/deftest can-call-deserialized-fn-pointers
   (t/is (= "Alternate string"
-           (((sut/cfn "get_downcall" [::sut/int] [::sut/fn [] ::sut/c-string :wrap-serde? true])
+           (((sut/cfn "get_downcall" [::sut/int] [::sut/fn [] ::sut/c-string])
              1)))))
 
 (t/deftest can-make-upcall
-  (t/is (= ((sut/cfn "upcall_test" [[::sut/fn [] ::sut/c-string :wrap-serde? true]] ::sut/c-string)
+  (t/is (= ((sut/cfn "upcall_test" [[::sut/fn [] ::sut/c-string]] ::sut/c-string)
             (fn [] "hello"))
            "hello")))
