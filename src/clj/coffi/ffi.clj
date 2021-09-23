@@ -74,7 +74,7 @@
 
   If a `scope` is provided, the allocation will be reclaimed when it is closed."
   ([size] (alloc size (connected-scope)))
-  ([size scope] (MemorySegment/allocateNative ^long size ^ResourceScope scope)))
+  ([size scope] (MemorySegment/allocateNative (long size) ^ResourceScope scope)))
 
 (defn alloc-with
   "Allocates `size` bytes using the `allocator`."
@@ -115,26 +115,26 @@
   freed. Be careful to ensure that you are not retaining an object incorrectly."
   [address size]
   (.asSlice (MemorySegment/globalNativeSegment)
-            ^MemoryAddress address ^long size))
+            ^MemoryAddress address (long size)))
 
 (defn slice
   "Get a slice over the `segment` with the given `offset`."
   ([segment offset]
-   (.asSlice ^MemorySegment segment ^long offset))
+   (.asSlice ^MemorySegment segment (long offset)))
   ([segment offset size]
-   (.asSlice ^MemorySegment segment ^long offset ^long size)))
+   (.asSlice ^MemorySegment segment (long offset) (long size))))
 
 (defn slice-into
   "Get a slice into the `segment` starting at the `address`."
   ([address segment]
    (.asSlice ^MemorySegment segment ^MemoryAddress address))
   ([address segment size]
-   (.asSlice ^MemorySegment segment ^MemoryAddress address ^long size)))
+   (.asSlice ^MemorySegment segment ^MemoryAddress address (long size))))
 
 (defn with-offset
   "Get a new address `offset` from the old `address`."
   [address offset]
-  (.addOffset ^MemoryAddress address ^long offset))
+  (.addOffset ^MemoryAddress address (long offset)))
 
 (defn as-segment
   "Dereferences an `address` into a memory segment associated with the `scope`.
@@ -255,7 +255,7 @@
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
   ([type] (alloc-instance type (connected-scope)))
-  ([type scope] (MemorySegment/allocateNative ^long (size-of type) ^ResourceScope scope)))
+  ([type scope] (MemorySegment/allocateNative (long (size-of type)) ^ResourceScope scope)))
 
 (declare serialize serialize-into)
 
