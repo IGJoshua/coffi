@@ -693,6 +693,7 @@
     (java-layout type)))
 
 (def ^:private unbox-fn-for-type
+  "Map from type name to the name of its unboxing function."
   {::byte "byteValue"
    ::short "shortValue"
    ::int "intValue"
@@ -719,6 +720,8 @@
         []))))
 
 (defn- downcall-class
+  "Class definition for an implementation of [[IFn]] which calls a closed over
+  method handle without reflection, unboxing primitives when needed."
   [args ret]
   {:flags #{:public :final}
     :super clojure.lang.AFunction
@@ -849,6 +852,7 @@
 ;;; Function types
 
 (def ^:private return-for-type
+  "Map from type name to the return instruction for that type."
   {::byte :breturn
    ::short :sreturn
    ::int :ireturn
@@ -860,6 +864,8 @@
    ::void :return})
 
 (defn- upcall-class
+  "Constructs a class definition for a class with a single method, `upcall`, which
+  boxes any primitives passed to it and calls a closed over [[IFn]]."
   [arg-types ret-type]
   {:flags #{:public :final}
    :fields [{:name "upcall_ifn"
@@ -892,6 +898,7 @@
                      [(return-for-type ret-type :areturn)]]}]})
 
 (defn- upcall
+  "Constructs an instance of [[upcall-class]], closing over `f`."
   [f arg-types ret-type]
   (insn/new-instance (upcall-class arg-types ret-type) ^IFn f))
 
