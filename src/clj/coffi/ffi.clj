@@ -1050,10 +1050,11 @@
   :ret (s/map-of keyword? any?))
 
 (s/def ::type
-  (s/nonconforming
-   (s/or :simple-type qualified-keyword?
-         :complex-type (s/cat :base-type qualified-keyword?
-                              :type-args (s/* any?)))))
+  (s/spec
+   (s/nonconforming
+    (s/or :simple-type qualified-keyword?
+          :complex-type (s/cat :base-type qualified-keyword?
+                               :type-args (s/* any?))))))
 
 (s/def ::defcfn-args
   (s/and
