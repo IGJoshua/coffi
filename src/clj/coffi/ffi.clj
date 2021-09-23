@@ -20,7 +20,8 @@
     MemoryAddress
     MemoryLayout
     MemorySegment
-    ResourceScope)))
+    ResourceScope
+    SegmentAllocator)))
 
 (defn stack-scope
   "Constructs a new scope for use only in this thread.
@@ -59,12 +60,28 @@
   ^ResourceScope []
   (ResourceScope/globalScope))
 
+(defn scope-allocator
+  "Constructs a segment allocator from the given `scope`.
+
+  This is primarily used when working with unwrapped downcall functions. When a
+  downcall function returns a non-primitive type, it must be provided with an
+  allocator."
+  ^SegmentAllocator [^ResourceScope scope]
+  (SegmentAllocator/ofScope scope))
+
 (defn alloc
   "Allocates `size` bytes.
 
   If a `scope` is provided, the allocation will be reclaimed when it is closed."
   ([size] (alloc size (connected-scope)))
   ([size scope] (MemorySegment/allocateNative ^long size ^ResourceScope scope)))
+
+(defn alloc-with
+  "Allocates `size` bytes using the `allocator`."
+  ([allocator size]
+   (.allocate ^SegmentAllocator allocator (long size)))
+  ([allocator size alignment]
+   (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
 (defmacro with-acquired
   "Acquires a `scope` to ensure it will not be released until the `body` completes.
@@ -719,17 +736,25 @@
                       [:return]]}
               {:name :invoke
                :flags #{:public}
-               :desc (repeat (inc (count args)) Object)
+               :desc (repeat (cond-> (inc (count args))
+                               (not (primitive-type ret)) inc)
+                             Object)
                :emit [[:aload 0]
                       [:getfield :this "downcall_handle" MethodHandle]
+                      (when-not (primitive-type ret)
+                        [[:aload 1]
+                         [:checkcast SegmentAllocator]])
                       (map-indexed
                        (fn [idx arg]
-                         [[:aload (inc idx)]
+                         [[:aload (cond-> (inc idx)
+                                    (not (primitive-type ret)) inc)]
                           (to-prim-asm arg)])
                        args)
                       [:invokevirtual MethodHandle "invokeExact"
-                       (conj (mapv insn-layout args)
-                             (insn-layout ret))]
+                       (cond->>
+                           (conj (mapv insn-layout args)
+                                 (insn-layout ret))
+                         (not (primitive-type ret)) (cons SegmentAllocator))]
                       (to-object-asm ret)
                       [:areturn]]}]})
 
@@ -752,7 +777,10 @@
   The function returned takes only arguments whose types match exactly
   the [[java-layout]] for that type, and returns an argument with exactly
   the [[java-layout]] of the `ret` type. This function will perform no
-  serialization or deserialization of arguments or the return type."
+  serialization or deserialization of arguments or the return type.
+
+  If the `ret` type is non-primitive, then the returned function will take a
+  first argument of a [[SegmentAllocator]]."
   [symbol-or-addr args ret]
   (-> symbol-or-addr
       ensure-address
@@ -782,10 +810,18 @@
   "Constructs a wrapper function for the `downcall` which serializes the arguments
   and deserializes the return value."
   [downcall arg-types ret-type]
-  (fn native-fn [& args]
-    (with-open [scope (stack-scope)]
-      (deserialize (apply downcall (map #(serialize %1 %2 scope) args arg-types))
-                   ret-type))))
+  (if (primitive-type ret-type)
+    (fn native-fn [& args]
+      (with-open [scope (stack-scope)]
+        (deserialize
+         (apply downcall (map #(serialize %1 %2 scope) args arg-types))
+         ret-type)))
+    (fn native-fn [& args]
+      (with-open [scope (stack-scope)]
+        (deserialize
+         (apply downcall (scope-allocator scope)
+                (map #(serialize %1 %2 scope) args arg-types))
+         ret-type)))))
 
 (defn make-serde-varargs-wrapper
   "Constructs a wrapper function for the `varargs-factory` which produces
