@@ -1175,3 +1175,43 @@
          (deserialize-from segment# struct-type#)))))
 (s/fdef defcstruct
   :args ::defcstruct-args)
+
+(s/def ::defcunion-args
+  (s/cat :union-name qualified-keyword?
+         ;:docstring (s/? string?)
+         :types (s/coll-of ::type :kind set?)
+         :kwargs (s/* (s/cat :key #{:extract}
+                             :val any?))
+         :dispatch (s/cat :obj-sym simple-symbol?
+                          :body (s/* any?))))
+
+(defmacro defcunion
+  "Defines a type alias for a union with the given name and types.
+
+  The `obj-sym` is a binding for the duration of `body` which is run as a
+  function which returns one of the items of the set `types`, and specifies how
+  an object from this union must be serialized.
+
+  `kwargs*` is keyword arguments to the function, accepting the following
+  arguments:
+
+  - :extract :: A function of the passed object which returns the value to be serialized"
+  {:arglists '([union-name types kwargs* obj-sym & body])}
+  [& args]
+  (let [args (s/conform ::defcunion-args args)]
+    `(let [union-type# [::union
+                        (fn [~(-> args :dispatch :obj-sym)]
+                          ~@(-> args :dispatch :body))
+                        ~(:types args)
+                        ~@(mapcat (juxt :obj-sym :body) (:dispatch args))]]
+       (defmethod c-layout ~(:union-name args)
+         [_type#]
+         (c-layout union-type#))
+       (defmethod serialize-into ~(:union-name args)
+         [obj# _type# segment# scope#]
+         (serialize-into obj# union-type# segment# scope#))
+       (defmethod deserialize-from ~(:union-name args)
+         [segment# _type#]
+         (deserialize-from segment# union-type#)))))
+(s/fdef defcunion
+  :args ::defcunion-args)
