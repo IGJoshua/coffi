@@ -1,5 +1,4 @@
 (ns coffi.ffi
-  (:refer-clojure :exclude [defstruct])
   (:require
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
@@ -1146,14 +1145,14 @@
 (s/fdef defcfn
   :args ::defcfn-args)
 
-(s/def ::defstruct-args
+(s/def ::defcstruct-args
   (s/cat :struct-name qualified-keyword?
          ;:layout (s/? keyword?)
          :docstring (s/? string?)
          :fields (s/* (s/cat :field-name simple-keyword?
                              :field-type ::type))))
 
-(defmacro defstruct
+(defmacro defcstruct
   "Defines a type alias for a struct with the given name and fields.
 
   The fields are provided as keyword args.
@@ -1163,7 +1162,7 @@
   [& args]
   ;; TODO(Joshua): Support adding padding to the structure (and make it
   ;; extensible?)
-  (let [args (s/conform ::defstruct-args args)]
+  (let [args (s/conform ::defcstruct-args args)]
     `(let [struct-type# [::struct ~(mapv (juxt :field-name :field-type) (:fields args))]]
        (defmethod c-layout ~(:struct-name args)
          [_type#]
@@ -1174,5 +1173,5 @@
        (defmethod deserialize-from ~(:struct-name args)
          [segment# _type#]
          (deserialize-from segment# struct-type#)))))
-(s/fdef defstruct
-  :args ::defstruct-args)
+(s/fdef defcstruct
+  :args ::defcstruct-args)
