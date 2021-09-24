@@ -1098,7 +1098,8 @@
 
   See [[serialize]], [[deserialize]], [[make-downcall]]."
   {:arglists '([name docstring? attr-map? symbol arg-types ret-type]
-               [name docstring? attr-map? symbol arg-types ret-type native-fn & fn-tail])}
+               [name docstring? attr-map? symbol arg-types ret-type native-fn & fn-tail])
+   :style/indent [:defn]}
   [& args]
   (let [args (s/conform ::defcfn-args args)
         args-types (gensym "args-types")
@@ -1150,6 +1151,7 @@
 
   This creates needed serialization and deserialization implementations for the
   aliased type."
+  {:style/indent [:defn]}
   [new-type aliased-type]
   (if (primitive-type aliased-type)
     `(let [aliased# ~aliased-type]
