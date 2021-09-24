@@ -1145,73 +1145,33 @@
 (s/fdef defcfn
   :args ::defcfn-args)
 
-(s/def ::defcstruct-args
-  (s/cat :struct-name qualified-keyword?
-         ;:layout (s/? keyword?)
-         ;:docstring (s/? string?)
-         :fields (s/* (s/cat :field-name simple-keyword?
-                             :field-type ::type))))
+(defmacro defalias
+  "Defines a type alias from `new-type` to `aliased-type`.
 
-(defmacro defcstruct
-  "Defines a type alias for a struct with the given name and fields.
-
-  The fields are provided as keyword args.
-
-  Currently no padding is provided into the structure."
-  {:arglists '([struct-name & fields])}
-  [& args]
-  ;; TODO(Joshua): Support adding padding to the structure (and make it
-  ;; extensible?)
-  (let [args (s/conform ::defcstruct-args args)]
-    `(let [struct-type# [::struct ~(mapv (juxt :field-name :field-type) (:fields args))]]
-       (defmethod c-layout ~(:struct-name args)
+  This creates needed serialization and deserialization implementations for the
+  aliased type."
+  [new-type aliased-type]
+  (if (primitive-type aliased-type)
+    `(let [aliased# ~aliased-type]
+       (defmethod primitive-type ~new-type
          [_type#]
-         (c-layout struct-type#))
-       (defmethod serialize-into ~(:struct-name args)
-         [obj# _type# segment# scope#]
-         (serialize-into obj# struct-type# segment# scope#))
-       (defmethod deserialize-from ~(:struct-name args)
-         [segment# _type#]
-         (deserialize-from segment# struct-type#)))))
-(s/fdef defcstruct
-  :args ::defcstruct-args)
-
-(s/def ::defcunion-args
-  (s/cat :union-name qualified-keyword?
-         ;:docstring (s/? string?)
-         :types (s/coll-of ::type :kind set?)
-         :kwargs (s/* (s/cat :key #{:extract}
-                             :val any?))
-         :dispatch (s/cat :obj-sym simple-symbol?
-                          :body (s/* any?))))
-
-(defmacro defcunion
-  "Defines a type alias for a union with the given name and types.
-
-  The `obj-sym` is a binding for the duration of `body` which is run as a
-  function which returns one of the items of the set `types`, and specifies how
-  an object from this union must be serialized.
-
-  `kwargs*` is keyword arguments to the function, accepting the following
-  arguments:
-
-  - :extract :: A function of the passed object which returns the value to be serialized"
-  {:arglists '([union-name types kwargs* obj-sym & body])}
-  [& args]
-  (let [args (s/conform ::defcunion-args args)]
-    `(let [union-type# [::union
-                        (fn [~(-> args :dispatch :obj-sym)]
-                          ~@(-> args :dispatch :body))
-                        ~(:types args)
-                        ~@(mapcat (juxt :obj-sym :body) (:dispatch args))]]
-       (defmethod c-layout ~(:union-name args)
+         (primitive-type aliased#))
+       (defmethod serialize* ~new-type
+         [obj# _type# scope#]
+         (serialize* obj# aliased# scope#))
+       (defmethod deserialize* ~new-type
+         [obj# _type#]
+         (deserialize* obj# aliased#)))
+    `(let [aliased# ~aliased-type]
+       (defmethod c-layout ~new-type
          [_type#]
-         (c-layout union-type#))
-       (defmethod serialize-into ~(:union-name args)
+         (c-layout aliased#))
+       (defmethod serialize-into ~new-type
          [obj# _type# segment# scope#]
-         (serialize-into obj# union-type# segment# scope#))
-       (defmethod deserialize-from ~(:union-name args)
+         (serialize-into obj# aliased# segment# scope#))
+       (defmethod deserialize-from ~new-type
          [segment# _type#]
-         (deserialize-from segment# union-type#)))))
-(s/fdef defcunion
-  :args ::defcunion-args)
+         (deserialize-from segment# aliased#)))))
+(s/fdef defalias
+  :args (s/cat :new-type qualified-keyword?
+               :aliased-type ::type))
