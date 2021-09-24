@@ -1148,7 +1148,7 @@
 (s/def ::defcstruct-args
   (s/cat :struct-name qualified-keyword?
          ;:layout (s/? keyword?)
-         :docstring (s/? string?)
+         ;:docstring (s/? string?)
          :fields (s/* (s/cat :field-name simple-keyword?
                              :field-type ::type))))
 
@@ -1158,7 +1158,7 @@
   The fields are provided as keyword args.
 
   Currently no padding is provided into the structure."
-  {:arglists '([struct-name docstring? & fields])}
+  {:arglists '([struct-name & fields])}
   [& args]
   ;; TODO(Joshua): Support adding padding to the structure (and make it
   ;; extensible?)
