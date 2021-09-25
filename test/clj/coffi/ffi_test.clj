@@ -11,9 +11,10 @@
 (t/deftest can-call-primitive-fns
   (t/is (= 5 ((sut/cfn "add_numbers" [::sut/int ::sut/int] ::sut/int) 2 3))))
 
-(sut/defstruct ::point
-  :x ::sut/float
-  :y ::sut/float)
+(sut/defalias ::point
+  [::sut/struct
+   [[:x ::sut/float]
+    [:y ::sut/float]]])
 
 (t/deftest can-call-with-structs
   (t/is (= {:x 2.0 :y 2.0}
