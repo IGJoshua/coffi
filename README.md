@@ -17,7 +17,7 @@ This library is available on Clojars. Add the following entry to the `:deps` key
 of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.1.0"}
+org.suskalo/coffi {:mvn/version "0.1.0-RC1"}
 ```
 
 ## Usage
