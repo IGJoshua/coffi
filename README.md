@@ -28,7 +28,7 @@ In the simplest cases, the native functions you call will work exclusively with
 built-in types, for example the function `strlen` from libc.
 
 ```clojure
-(require '[coffi.ffi :as ffi :refer [defcfn defcstruct]])
+(require '[coffi.ffi :as ffi :refer [defcfn defalias]])
 
 (defcfn strlen
   "Given a string, measures its length in bytes."
