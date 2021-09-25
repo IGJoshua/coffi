@@ -836,6 +836,18 @@
       (make-downcall args ret)
       (make-serde-wrapper args ret)))
 
+(defn vacfn-factory
+  "Constructs a varargs factory to call the native function referenced by `symbol`.
+
+  The function returned takes any number of type arguments and returns a
+  specialized Clojure function for calling the native function with those
+  arguments."
+  [symbol required-args ret]
+  (-> symbol
+      ensure-address
+      (make-varargs-factory required-args ret)
+      (make-serde-varargs-wrapper required-args ret)))
+
 ;;; Function types
 
 (def ^:private return-for-type
