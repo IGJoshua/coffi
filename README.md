@@ -96,8 +96,8 @@ macro `defalias` is used to define a struct alias.
 ```clojure
 (defalias ::point
   [::ffi/struct
-   [:x ::ffi/float]
-   [:y ::ffi/float]])
+   [[:x ::ffi/float]
+    [:y ::ffi/float]]])
 
 (defcfn zero-point
   "zero" [] ::point)
