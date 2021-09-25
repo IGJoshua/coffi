@@ -23,6 +23,17 @@ of your `deps.edn`:
 org.suskalo/coffi {:mvn/version "0.1.0-RC1"}
 ```
 
+Coffi also includes support for the linter clj-kondo. If you use clj-kondo and
+this library's macros are not linting correctly, you may need to install the
+config bundled with the library. You can do so with the following shell command:
+
+```sh
+$ clj-kondo --copy-configs --dependencies --lint "$(clojure -Spath)"
+```
+
+And then adding `"org.suskalo/coffi"` to the `:config-paths` key in your
+`.clj-kondo/config.edn` file.
+
 ## Usage
 There are two major components to coffi and interacting with native code:
 manipulating off-heap memory, and loading native code for use with Clojure.
