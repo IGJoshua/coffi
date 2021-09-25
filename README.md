@@ -43,6 +43,14 @@ native function reference, followed by an optional docstring and attribute map,
 then the C function identifier, including the name of the native symbol, a
 vector of argument types, and the return type.
 
+If you wish to use a native function as an anonymous function, it can be done
+with the `cfn` function.
+
+```clojure
+((ffi/cfn "strlen" [::ffi/c-string] ::ffi/long) "hello")
+;; => 5
+```
+
 ### Primitive Types
 Coffi defines a basic set of primitive types:
 - byte
