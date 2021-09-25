@@ -141,7 +141,7 @@ Some native functions can take any number of arguments, and in these cases coffi
 provides `vacfn-factory` (for "varargs C function factory").
 
 ```clojure
-(def printf-factory (vacfn-factory "printf" [::ffi/c-string] ::ffi/int))
+(def printf-factory (ffi/vacfn-factory "printf" [::ffi/c-string] ::ffi/int))
 ```
 
 This returns a function of the types of the rest of the arguments which itself
