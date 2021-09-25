@@ -533,6 +533,18 @@ This functionality can be extended by specifying new types as implementations of
 the multimethod `reify-symbolspec`, although it's recommended that for any
 library authors who do so, namespaced keywords be used to name types.
 
+## Known Issues
+The project author is aware of these issues and plans to fix them in a future
+release:
+
+There are currently no known issues! Hooray!
+
+## Future Plans
+These features are planned for future releases.
+
+- Support for va_args type
+- Header parsing tool for generating a data model?
+
 ## License
 
 Copyright © 2021 Joshua Suskalo
