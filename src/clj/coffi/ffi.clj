@@ -153,12 +153,17 @@
   [scope action]
   (.addCloseAction ^ResourceScope scope action))
 
+(defn copy-segment
+  "Copies the content to `dest` from `src`"
+  [dest src]
+  (.copyFrom ^MemorySegment dest ^MemorySegment src))
+
 (defn clone-segment
   "Clones the content of `segment` into a new segment of the same size."
   ([segment] (clone-segment segment (connected-scope)))
   ([segment scope]
    (doto ^MemorySegment (alloc (.byteSize ^MemorySegment segment) scope)
-     (.copyFrom ^MemorySegment segment))))
+     (copy-segment segment))))
 
 (defn slice-segments
   "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
