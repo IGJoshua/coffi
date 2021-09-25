@@ -461,7 +461,7 @@ The functions `make-downcall` and `make-varargs-factory` are provided to create
 these raw handles.
 
 ```clojure
-(def raw-strlen (ffi/make-downcall "strlen" [::ffi/c-string] ::ffi/int))
+(def raw-strlen (ffi/make-downcall "strlen" [::ffi/c-string] ::ffi/long))
 (raw-strlen (ffi/serialize "hello" ::ffi/c-string))
 ;; => 5
 ```
