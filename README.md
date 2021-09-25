@@ -202,7 +202,39 @@ value is being mutated on another thread.
 A parallel function `fswap!` is also provided, but it does not provide any
 atomic semantics either.
 
-### TODO Complex Wrappers
+### Complex Wrappers
+Some functions require more complex code to map nicely to a Clojure function.
+The `defcfn` macro provides facilities to wrap the native function with some
+Clojure code to make this easier.
+
+```clojure
+(defcfn takes-array
+  "takes_array_with_count" [::ffi/pointer ::ffi/long] ::ffi/void
+  native-fn
+  [ints]
+  (let [arr-len (count ints)
+        int-array (serialize ints [::ffi/array ::ffi/int arr-len]
+    (native-fn (ffi/address-of int-array) arr-len))]))
+```
+
+The symbol `native-fn` can be any unqualified symbol, and names the native
+function being wrapped. It must be called in the function body below if you want
+to call the native code.
+
+This `serialize` function has a paired `deserialize`, and allows marshaling
+Clojure data back and forth to native data structures.
+
+This can be used to implement out variables often seen in native code.
+
+```clojure
+(defcfn out-int
+  "out_int" [::ffi/pointer] ::ffi/void
+  native-fn
+  [i]
+  (let [int-ptr (serialize i [::ffi/pointer ::ffi/int])]
+    (native-fn int-ptr)
+    (deserialize int-ptr [::ffi/pointer ::ffi/int])))
+```
 
 ### TODO Scopes
 
