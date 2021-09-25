@@ -168,7 +168,39 @@ Some native functions that are variadic use the type `va_list` to make it easier
 for other languages to call them in their FFI. At the time of writing, coffi
 does not support va-list, however it is a planned feature.
 
-### TODO Global Variables
+### Global Variables
+Some libraries include global variables or constants accessible through symbols.
+To start with, constant values stored in symbols can be fetched with `const`
+
+```clojure
+(def some-const (ffi/const "some_const" ::ffi/int))
+```
+
+This value is fetched once when you call `const` and is turned into a Clojure
+value. If you need to refer to a global variable, then `static-variable` can be
+used to create a reference to the native value.
+
+```clojure
+(def some-var (ffi/static-variable "some_var" ::ffi/int))
+```
+
+This variable is an `IDeref`. Each time you dereference it, the value will be
+deserialized from the native memory and returned. Additional functions are
+provided for mutating the variable.
+
+```clojure
+(ffi/freset! some-var 5)
+;; => 5
+@some-var
+;; => 5
+```
+
+Be aware however that there is no synchronization on these types. The value
+being read is not read atomically, so you may see an inconsistent state if the
+value is being mutated on another thread.
+
+A parallel function `fswap!` is also provided, but it does not provide any
+atomic semantics either.
 
 ### TODO Complex Wrappers
 
