@@ -411,7 +411,46 @@ Deserialization is a little more complex. First the tag is retrieved from the
 beginning of the segment, and then the type of the value is decided based on
 that before it is deserialized.
 
-### TODO Unions
+### Unions
+In the last section the custom serialization and deserialization of a tagged
+union used a union from coffi in order to define the native layout, but not for
+actual serialization or deserialization. This is intentional. A union in coffi
+is rather limited. It can be serialized, but not deserialized without external
+information.
+
+```clojure
+[::ffi/union
+ #{::ffi/float ::ffi/double}
+ :dispatch #(cond
+             (float? %) ::ffi/float
+             (double? %) ::ffi/double)]
+```
+
+This is a minimal union in coffi. If the `:dispatch` keyword argument is not
+passed, then the union cannot be serialized, as coffi would not know which type
+to serialize the values as. In the example with a tagged union, a dispatch
+function was not provided because the type was only used for the native layout.
+
+In addition to a dispatch function, when serializing a union an extract function
+may also be provided. In the case of the value in the tagged union from before,
+it could be represented for serialization purposes like so:
+
+```clojure
+[::ffi/union
+ #{::ffi/int ::ffi/c-string}
+ :dispatch #(case (first %)
+              :ok ::ffi/int
+              :err ::ffi/c-string)
+ :extract second]
+```
+
+This union however would not include the tag when serialized.
+
+If a union is deserialized, then all that coffi does is to allocate a new
+segment of the appropriate size with an implicit scope so that it may later be
+garbage collected, and copies the data from the source segment into it. It's up
+to the user to call `deserialize-from` on that segment with the appropriate
+type.
 
 ### TODO Data Model
 
