@@ -452,7 +452,41 @@ garbage collected, and copies the data from the source segment into it. It's up
 to the user to call `deserialize-from` on that segment with the appropriate
 type.
 
-### TODO Unwrapped Native Handles
+### Unwrapped Native Handles
+Sometimes the overhead brought by the automatic serialization and
+deserialization from the methods explained so far is too much. In cases like
+these, unwrapped native handles are desirable.
+
+The functions `make-downcall` and `make-varargs-factory` are provided to create
+these raw handles.
+
+```clojure
+(def raw-strlen (ffi/make-downcall "strlen" [::ffi/c-string] ::ffi/int))
+(raw-strlen (ffi/serialize "hello" ::ffi/c-string))
+;; => 5
+```
+
+In these cases, the argument types are expected to exactly match the types
+expected by the native function. For primitive types, those are primitives. For
+addresses, that is `MemoryAddress`, and for composite types like structs and
+unions, that is `MemorySegment`. Both `MemoryAddress` and `MemorySegment` come
+from the `jdk.incubator.foreign` package.
+
+In addition, when a raw handle returns a composite type represented with a
+`MemorySegment`, it requires an additional first argument, a `SegmentAllocator`,
+which can be acquired with `scope-allocator` to get one associated with a
+specific scope. The returned value will live until that scope is released.
+
+In addition, function types can be specified as being raw, in the following
+manner:
+
+```clojure
+[::ffi/fn [::ffi/int] ::ffi/int :raw-fn? true]
+```
+
+Clojure functions serialized to this type will have their arguments and return
+value exactly match the types specified and will not perform any serialization
+or deserialization at their boundaries.
 
 ### TODO Data Model
 
