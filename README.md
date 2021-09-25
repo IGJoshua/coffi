@@ -452,6 +452,8 @@ garbage collected, and copies the data from the source segment into it. It's up
 to the user to call `deserialize-from` on that segment with the appropriate
 type.
 
+### TODO Unwrapped Native Handles
+
 ### TODO Data Model
 
 ## License
