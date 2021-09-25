@@ -103,14 +103,34 @@ macro `defalias` is used to define a struct alias.
   "zero" [] ::point)
 ```
 
-In addition to structs, there is also support for passing Clojure functions as
-callbacks to native functions, as well as calling function pointers returned
-from native functions as Clojure functions.
+In cases where a pointer to some data is required to pass as an argument to a
+native function, but dosn't need to be read back in, the `pointer` primitive
+type can take a type argument.
 
 ```clojure
-(defcfn higher-order
-  "higher_order" [[::ffi/fn [::ffi/c-string] ::ffi/int]] ::ffi/int)
+[::ffi/pointer ::ffi/int]
 ```
+
+Arrays are also supported via a type argument. Keep in mind that they are the
+array itself, and not a pointer to the array like you might see in certain cases
+in C.
+
+```clojure
+[::ffi/array ::ffi/int 3]
+```
+
+In addition to these compound types, there is also support for Clojure
+functions.
+
+```clojure
+[::ffi/fn [::ffi/c-string] ::ffi/int]
+```
+
+Be aware though that if an exception is thrown out of a callback that is called
+from C, the JVM will crash. The resulting crash log should include the exception
+type and message in the registers section, but it's important to be aware of all
+the same. Ideally you should test your callbacks before actually passing them to
+native code.
 
 TODO Talk about writing your own serdes
 
