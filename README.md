@@ -275,7 +275,141 @@ In addition, two non-`Closeable` scopes are `global-scope`, which never frees
 the resources associated with it, and `connected-scope`, which is a scope that
 frees its resources on garbage collection, like an implicit scope.
 
-### TODO Serialization and Deserialization
+### Serialization and Deserialization
+Custom serializers and deserializers may also be created. This is done using two
+sets of three multimethods which can be extended by the user. For any given
+type, only one set need be implemented.
+
+Two examples of custom types are given here, one is a 3d vector, and the other
+an example of a tagged union.
+
+#### Vector3
+For the vector type, it will serialize to a pointer to an array of three floats.
+
+The multimethod `primitive-type` returns the primitive type that a given type
+serializes to. For this example, it should be a pointer.
+
+```clojure
+(defmethod ffi/primitive-type ::vector
+  [_type]
+  ::ffi/pointer)
+```
+
+For any type which doesn't serialize to a primitive, it returns nil, and
+therefore need not be overriden.
+
+Next is `serialize*` and `deserialize*`, multimethods that work with types that
+serialize to primitives.
+
+```clojure
+(defmethod ffi/serialize* ::vector
+  [obj _type scope]
+  (ffi/address-of (ffi/serialize obj [::ffi/array ::ffi/float 3] scope)))
+
+(defmethod ffi/deserialize* ::vector
+  [addr _type]
+  (ffi/deserialize (ffi/slice-global addr (ffi/size-of [::ffi/array ::ffi/float 3]))
+                   [::ffi/array ::ffi/float 3]))
+```
+
+The `slice-global` function allows you to take an address without an associated
+scope and get a memory segment which can be deserialized.
+
+In cases like this where we don't know the scope of the pointer, we could use
+`add-close-action!` to ensure it's freed. For example if a `free-vector!`
+function that takes a pointer exists, we could use this:
+
+```clojure
+(defcfn returns-vector
+  "returns_vector" [] ::ffi/pointer
+  native-fn
+  [scope]
+  (let [ret-ptr (native-fn)]
+    (add-close-action! scope #(free-vector! ret-ptr))
+    (deserialize ret-ptr ::vector)))
+```
+
+This function takes a scope and returns the deserialized vector, and it will
+free the pointer when the scope closes.
+
+#### TODO Tagged Union
+For the tagged union type, we will represent the value as a vector of a keyword
+naming the tag and the value. The type itself will need to take arguments,
+similar to `struct`. For example, if we were to represent a result type like in
+Rust, we might have the following values:
+
+```clojure
+[:ok 5]
+[:err "Invalid number format"]
+```
+
+To represent this, we can have a `tagged-union` type. For this instance of the
+result type, it may look like this:
+
+```clojure
+[::tagged-union [:ok :err] {:ok ::ffi/int :err ::ffi/c-string}]
+```
+
+The native representation of these objects is a struct of the tag and a union of
+the value. In order to correctly serialize the data and pass it to native code,
+we need a representation of the native layout of the data. The `c-layout`
+multimethod provides that.
+
+```clojure
+(defmethod ffi/c-layout ::tagged-union
+  [[_tagged-union tags type-map]]
+  (ffi/c-layout [::ffi/struct
+                 [[:tag ::ffi/long]
+                  [:value [::ffi/union (vals type-map)]]]]))
+```
+
+Types with type arguments are represented as vectors of the type name and any
+additional arguments. The type name is what is dispatched on for the
+multimethods.
+
+Now that we have a native layout, we need to be able to serialize and
+deserialize the value into and out of memory segments. This is accomplished with
+`serialize-into` and `deserialize-from`.
+
+```clojure
+(defn item-index
+  "Gets the index of the first occurance of `item` in `coll`."
+  [coll item]
+  (first
+   (->> coll
+        (map-indexed vector)
+        (filter (comp #{item} second))
+        (map first))))
+
+(defmethod ffi/serialize-into ::tagged-union
+  [obj [_tagged-union tags type-map] segment scope]
+  (ffi/serialize-into
+   {:tag (item-index tags (first obj))
+    :value (second obj)}
+   [::ffi/struct
+    [[:tag ::ffi/long]
+     [:value (get type-map (first obj))]]]
+   segment
+   scope))
+```
+
+This serialization method is rather simple, it just turns the vector value into
+a map, and serializes it as a struct, choosing the type of the value based on
+the tag.
+
+```clojure
+(defmethod ffi/deserialize-from ::tagged-union
+  [segment [_tagged-union tags type-map]]
+  (let [tag (ffi/deserialize-from segment ::ffi/long)]
+    [(nth tags tag)
+     (ffi/deserialize-from
+      (ffi/slice segment (ffi/size-of ::ffi/long))
+      (get type-map tag))]))
+```
+
+Deserialization is a little more complex. First the tag is retrieved from the
+beginning of the segment, and then the type of the value is decided based on
+that before it is deserialized.
 
 ### TODO Unions
 
