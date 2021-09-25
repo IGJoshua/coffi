@@ -136,7 +136,29 @@ type and message in the registers section, but it's important to be aware of all
 the same. Ideally you should test your callbacks before actually passing them to
 native code.
 
-### TODO Variadic Functions
+### Variadic Functions
+Some native functions can take any number of arguments, and in these cases coffi
+provides `vacfn-factory` (for "varargs C function factory").
+
+```clojure
+(def printf-factory (vacfn-factory "printf" [::ffi/c-string] ::ffi/int))
+```
+
+This returns a function of the types of the rest of the arguments which itself
+returns a native function wrapper.
+
+```clojure
+(def print-int (printf-factory ::ffi/int))
+
+(print-int "Some integer: %d\n" 5)
+;; Some integer: 5
+```
+
+At the moment there is no equivalent to `defcfn` for varargs functions.
+
+Some native functions that are variadic use the type `va_list` to make it easier
+for other languages to call them in their FFI. At the time of writing, coffi
+does not support va-list, however it is a planned feature.
 
 ### TODO Global Variables
 
