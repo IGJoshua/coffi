@@ -1019,7 +1019,7 @@
 (s/fdef reify-symbolspec
   :args (s/cat :spec ::symbolspec))
 
-(defmethod reify-symbolspec :downcall
+(defmethod reify-symbolspec :function
   [spec]
   (cond->
       (make-downcall (:symbol spec)
