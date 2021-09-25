@@ -43,6 +43,7 @@ native function reference, followed by an optional docstring and attribute map,
 then the C function identifier, including the name of the native symbol, a
 vector of argument types, and the return type.
 
+### Primitive Types
 Coffi defines a basic set of primitive types:
 - byte
 - short
@@ -60,8 +61,10 @@ Clojure function (with `long-long` mapping to the `long` function) when they are
 passed as arguments to native functions. Additionally, the `c-string` type is
 defined, although it is not primitive.
 
-In addition, some compound types are also defined in coffi, including struct and
-union types. For an example c struct and function:
+### Composite Types
+In addition, some composite types are also defined in coffi, including struct
+and union types (unions will be discussed with serialization and
+deserialization). For an example c struct and function:
 
 ```c
 typedef struct point {
@@ -119,7 +122,8 @@ in C.
 [::ffi/array ::ffi/int 3]
 ```
 
-In addition to these compound types, there is also support for Clojure
+### Callbacks
+In addition to these composite types, there is also support for Clojure
 functions.
 
 ```clojure
@@ -132,7 +136,15 @@ type and message in the registers section, but it's important to be aware of all
 the same. Ideally you should test your callbacks before actually passing them to
 native code.
 
-TODO Talk about writing your own serdes
+### TODO Variadic Functions
+
+### TODO Global Variables
+
+### TODO Complex Wrappers
+
+### TODO Serialization and Deserialization
+
+### TODO Data Model
 
 ## License
 
