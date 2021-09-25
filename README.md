@@ -277,6 +277,8 @@ frees its resources on garbage collection, like an implicit scope.
 
 ### TODO Serialization and Deserialization
 
+### TODO Unions
+
 ### TODO Data Model
 
 ## License
