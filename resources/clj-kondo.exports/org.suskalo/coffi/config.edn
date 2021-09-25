@@ -1,0 +1,1 @@
+{:hooks {:analyze-call {coffi.ffi/defcfn coffi.hooks/defcfn}}}

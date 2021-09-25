@@ -19,6 +19,8 @@
 (def lib-coord 'org.suskalo/coffi)
 (def version (format "0.1.%s-SNAPSHOT" (b/git-count-revs nil)))
 
+(def resource-dirs ["resources/"])
+
 (def source-dirs ["src/clj/"])
 (def java-source-dirs ["src/java/"])
 
@@ -79,11 +81,19 @@
                   :target path}))
   opts)
 
+(defn- copy-resources
+  "Copies the resources from the [[resource-dirs]] to the [[class-dir]]."
+  [opts]
+  (b/copy-dir {:target-dir class-dir
+               :src-dirs resource-dirs})
+  opts)
+
 (defn jar
   "Generates a `coffi.jar` file in the `target/` directory.
   This is a thin jar including only the sources."
   [opts]
   (write-pom opts)
+  (copy-resources opts)
   (when-not (exists? target-dir jar-file)
     (b/jar {:class-dir class-dir
             :jar-file jar-file}))
