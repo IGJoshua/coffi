@@ -204,6 +204,8 @@ atomic semantics either.
 
 ### TODO Complex Wrappers
 
+### TODO Scopes
+
 ### TODO Serialization and Deserialization
 
 ### TODO Data Model
