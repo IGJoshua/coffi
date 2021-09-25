@@ -51,6 +51,32 @@ with the `cfn` function.
 ;; => 5
 ```
 
+If you want to use functions from libraries other than libc, then you'll need to
+load them. Two functions are provided for this, `load-system-library`, and
+`load-library`. `load-system-library` takes a string which represents the name
+of a library that should be loaded via system lookup.
+
+```clojure
+(ffi/load-system-library "z")
+```
+
+This will load libz from the appropriate place on the user's load path.
+
+Alternatively, `load-library` takes a file path to a dynamically loaded library.
+
+```clojure
+(ffi/load-library "lib/libz.so")
+```
+
+This will load libz from the lib subdirectory of the current working directory.
+As you can see this requires the entire filename, including platform-specific
+file extensions.
+
+If a library is attempted to be loaded but doesn't exist or otherwise can't be
+loaded, an exception is thrown. This can be convenient as any namespace with a
+`load-library` call at the top level cannot be required without the library
+being able to be loaded.
+
 ### Primitive Types
 Coffi defines a basic set of primitive types:
 - byte
