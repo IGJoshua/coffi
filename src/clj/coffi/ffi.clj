@@ -495,13 +495,17 @@
 ;;; Union types
 
 (defmethod c-layout ::union
-  [[_union _dispatch types & {:as _opts} :as _type]]
+  [[_union types & {:as _opts} :as _type]]
   (let [items (map c-layout types)]
     (MemoryLayout/unionLayout
      (into-array MemoryLayout items))))
 
 (defmethod serialize-into ::union
-  [obj [_union dispatch _types & {:keys [extract]}] segment scope]
+  [obj [_union _types & {:keys [dispatch extract]} :as type] segment scope]
+  (when-not dispatch
+    (throw (ex-info "Attempted to serialize a union with no dispatch function"
+                    {:type type
+                     :value obj})))
   (let [type (dispatch obj)]
     (serialize-into
      (if extract
