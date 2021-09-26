@@ -372,7 +372,7 @@ function that takes a pointer exists, we could use this:
 This function takes a scope and returns the deserialized vector, and it will
 free the pointer when the scope closes.
 
-#### TODO Tagged Union
+#### Tagged Union
 For the tagged union type, we will represent the value as a vector of a keyword
 naming the tag and the value. The type itself will need to take arguments,
 similar to `struct`. For example, if we were to represent a result type like in
