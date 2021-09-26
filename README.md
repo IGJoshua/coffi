@@ -583,6 +583,7 @@ There are currently no known issues! Hooray!
 These features are planned for future releases.
 
 - Support for va_args type
+- Functions for wrapping structs in padding following various standards
 - Header parsing tool for generating a data model?
 
 ## License
