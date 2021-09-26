@@ -42,11 +42,12 @@ In the simplest cases, the native functions you call will work exclusively with
 built-in types, for example the function `strlen` from libc.
 
 ```clojure
-(require '[coffi.ffi :as ffi :refer [defcfn defalias]])
+(require '[coffi.mem :as mem :refer [defalias]])
+(require '[coffi.ffi :as ffi :refer [defcfn]])
 
 (defcfn strlen
   "Given a string, measures its length in bytes."
-  strlen [::ffi/c-string] ::ffi/long)
+  strlen [::mem/c-string] ::mem/long)
 
 (strlen "hello")
 ;; => 5
@@ -61,7 +62,7 @@ If you wish to use a native function as an anonymous function, it can be done
 with the `cfn` function.
 
 ```clojure
-((ffi/cfn "strlen" [::ffi/c-string] ::ffi/long) "hello")
+((ffi/cfn "strlen" [::mem/c-string] ::mem/long) "hello")
 ;; => 5
 ```
 
@@ -134,7 +135,7 @@ The corresponding coffi definition is like so:
 
 ```clojure
 (defcfn zero-point
-  "zero" [] [::ffi/struct [[:x ::ffi/float] [:y ::ffi/float]]])
+  "zero" [] [::mem/struct [[:x ::mem/float] [:y ::mem/float]]])
 
 (zero-point)
 ;; => {:x 0.0,
@@ -146,9 +147,9 @@ macro `defalias` is used to define a struct alias.
 
 ```clojure
 (defalias ::point
-  [::ffi/struct
-   [[:x ::ffi/float]
-    [:y ::ffi/float]]])
+  [::mem/struct
+   [[:x ::mem/float]
+    [:y ::mem/float]]])
 
 (defcfn zero-point
   "zero" [] ::point)
@@ -159,7 +160,7 @@ native function, but dosn't need to be read back in, the `pointer` primitive
 type can take a type argument.
 
 ```clojure
-[::ffi/pointer ::ffi/int]
+[::mem/pointer ::mem/int]
 ```
 
 Arrays are also supported via a type argument. Keep in mind that they are the
@@ -167,7 +168,7 @@ array itself, and not a pointer to the array like you might see in certain cases
 in C.
 
 ```clojure
-[::ffi/array ::ffi/int 3]
+[::mem/array ::mem/int 3]
 ```
 
 ### Callbacks
@@ -175,7 +176,7 @@ In addition to these composite types, there is also support for Clojure
 functions.
 
 ```clojure
-[::ffi/fn [::ffi/c-string] ::ffi/int]
+[::ffi/fn [::mem/c-string] ::mem/int]
 ```
 
 Be aware though that if an exception is thrown out of a callback that is called
@@ -189,14 +190,14 @@ Some native functions can take any number of arguments, and in these cases coffi
 provides `vacfn-factory` (for "varargs C function factory").
 
 ```clojure
-(def printf-factory (ffi/vacfn-factory "printf" [::ffi/c-string] ::ffi/int))
+(def printf-factory (ffi/vacfn-factory "printf" [::mem/c-string] ::mem/int))
 ```
 
 This returns a function of the types of the rest of the arguments which itself
 returns a native function wrapper.
 
 ```clojure
-(def print-int (printf-factory ::ffi/int))
+(def print-int (printf-factory ::mem/int))
 
 (print-int "Some integer: %d\n" 5)
 ;; Some integer: 5
@@ -213,7 +214,7 @@ Some libraries include global variables or constants accessible through symbols.
 To start with, constant values stored in symbols can be fetched with `const`
 
 ```clojure
-(def some-const (ffi/const "some_const" ::ffi/int))
+(def some-const (ffi/const "some_const" ::mem/int))
 ```
 
 This value is fetched once when you call `const` and is turned into a Clojure
@@ -221,7 +222,7 @@ value. If you need to refer to a global variable, then `static-variable` can be
 used to create a reference to the native value.
 
 ```clojure
-(def some-var (ffi/static-variable "some_var" ::ffi/int))
+(def some-var (ffi/static-variable "some_var" ::mem/int))
 ```
 
 This variable is an `IDeref`. Each time you dereference it, the value will be
@@ -249,12 +250,12 @@ Clojure code to make this easier.
 
 ```clojure
 (defcfn takes-array
-  "takes_array_with_count" [::ffi/pointer ::ffi/long] ::ffi/void
+  "takes_array_with_count" [::mem/pointer ::mem/long] ::mem/void
   native-fn
   [ints]
   (let [arr-len (count ints)
-        int-array (serialize ints [::ffi/array ::ffi/int arr-len]
-    (native-fn (ffi/address-of int-array) arr-len))]))
+        int-array (serialize ints [::mem/array ::mem/int arr-len]
+    (native-fn (mem/address-of int-array) arr-len))]))
 ```
 
 The symbol `native-fn` can be any unqualified symbol, and names the native
@@ -268,17 +269,17 @@ This can be used to implement out variables often seen in native code.
 
 ```clojure
 (defcfn out-int
-  "out_int" [::ffi/pointer] ::ffi/void
+  "out_int" [::mem/pointer] ::mem/void
   native-fn
   [i]
-  (let [int-ptr (serialize i [::ffi/pointer ::ffi/int])]
+  (let [int-ptr (serialize i [::mem/pointer ::mem/int])]
     (native-fn int-ptr)
-    (deserialize int-ptr [::ffi/pointer ::ffi/int])))
+    (deserialize int-ptr [::mem/pointer ::mem/int])))
 ```
 
 ### Scopes
 In order to serialize any non-primitive type (such as the previous
-`[::ffi/pointer ::ffi/int]`), off-heap memory needs to be allocated. When memory
+`[::mem/pointer ::mem/int]`), off-heap memory needs to be allocated. When memory
 is allocated inside the JVM, the memory is associated with a scope. Because none
 was provided here, the scope is an implicit scope, and the memory will be freed
 when the serialized object is garbage collected.
@@ -294,13 +295,13 @@ stack scope.
 
 ```clojure
 (defcfn out-int
-  "out_int" [::ffi/pointer] ::ffi/void
+  "out_int" [::mem/pointer] ::mem/void
   native-fn
   [i]
-  (with-open [scope (ffi/stack-scope)]
-    (let [int-ptr (ffi/serialize i [::ffi/pointer ::ffi/int] scope)]
+  (with-open [scope (mem/stack-scope)]
+    (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int] scope)]
       (native-fn int-ptr)
-      (ffi/deserialize int-ptr [::ffi/pointer ::ffi/int]))))
+      (mem/deserialize int-ptr [::mem/pointer ::mem/int]))))
 ```
 
 This will free the pointer immediately upon leaving the function.
@@ -330,9 +331,9 @@ The multimethod `primitive-type` returns the primitive type that a given type
 serializes to. For this example, it should be a pointer.
 
 ```clojure
-(defmethod ffi/primitive-type ::vector
+(defmethod mem/primitive-type ::vector
   [_type]
-  ::ffi/pointer)
+  ::mem/pointer)
 ```
 
 For any type which doesn't serialize to a primitive, it returns nil, and
@@ -342,14 +343,14 @@ Next is `serialize*` and `deserialize*`, multimethods that work with types that
 serialize to primitives.
 
 ```clojure
-(defmethod ffi/serialize* ::vector
+(defmethod mem/serialize* ::vector
   [obj _type scope]
-  (ffi/address-of (ffi/serialize obj [::ffi/array ::ffi/float 3] scope)))
+  (mem/address-of (mem/serialize obj [::mem/array ::mem/float 3] scope)))
 
-(defmethod ffi/deserialize* ::vector
+(defmethod mem/deserialize* ::vector
   [addr _type]
-  (ffi/deserialize (ffi/slice-global addr (ffi/size-of [::ffi/array ::ffi/float 3]))
-                   [::ffi/array ::ffi/float 3]))
+  (mem/deserialize (mem/slice-global addr (mem/size-of [::mem/array ::mem/float 3]))
+                   [::mem/array ::mem/float 3]))
 ```
 
 The `slice-global` function allows you to take an address without an associated
@@ -361,7 +362,7 @@ function that takes a pointer exists, we could use this:
 
 ```clojure
 (defcfn returns-vector
-  "returns_vector" [] ::ffi/pointer
+  "returns_vector" [] ::mem/pointer
   native-fn
   [scope]
   (let [ret-ptr (native-fn)]
@@ -387,7 +388,7 @@ To represent this, we can have a `tagged-union` type. For this instance of the
 result type, it may look like this:
 
 ```clojure
-[::tagged-union [:ok :err] {:ok ::ffi/int :err ::ffi/c-string}]
+[::tagged-union [:ok :err] {:ok ::mem/int :err ::mem/c-string}]
 ```
 
 The native representation of these objects is a struct of the tag and a union of
@@ -396,11 +397,11 @@ we need a representation of the native layout of the data. The `c-layout`
 multimethod provides that.
 
 ```clojure
-(defmethod ffi/c-layout ::tagged-union
+(defmethod mem/c-layout ::tagged-union
   [[_tagged-union tags type-map]]
-  (ffi/c-layout [::ffi/struct
-                 [[:tag ::ffi/long]
-                  [:value [::ffi/union (vals type-map)]]]]))
+  (mem/c-layout [::mem/struct
+                 [[:tag ::mem/long]
+                  [:value [::mem/union (vals type-map)]]]]))
 ```
 
 Types with type arguments are represented as vectors of the type name and any
@@ -421,13 +422,13 @@ deserialize the value into and out of memory segments. This is accomplished with
         (filter (comp #{item} second))
         (map first))))
 
-(defmethod ffi/serialize-into ::tagged-union
+(defmethod mem/serialize-into ::tagged-union
   [obj [_tagged-union tags type-map] segment scope]
-  (ffi/serialize-into
+  (mem/serialize-into
    {:tag (item-index tags (first obj))
     :value (second obj)}
-   [::ffi/struct
-    [[:tag ::ffi/long]
+   [::mem/struct
+    [[:tag ::mem/long]
      [:value (get type-map (first obj))]]]
    segment
    scope))
@@ -438,12 +439,12 @@ a map, and serializes it as a struct, choosing the type of the value based on
 the tag.
 
 ```clojure
-(defmethod ffi/deserialize-from ::tagged-union
+(defmethod mem/deserialize-from ::tagged-union
   [segment [_tagged-union tags type-map]]
-  (let [tag (ffi/deserialize-from segment ::ffi/long)]
+  (let [tag (mem/deserialize-from segment ::mem/long)]
     [(nth tags tag)
-     (ffi/deserialize-from
-      (ffi/slice segment (ffi/size-of ::ffi/long))
+     (mem/deserialize-from
+      (mem/slice segment (mem/size-of ::mem/long))
       (get type-map tag))]))
 ```
 
@@ -459,11 +460,11 @@ is rather limited. It can be serialized, but not deserialized without external
 information.
 
 ```clojure
-[::ffi/union
- #{::ffi/float ::ffi/double}
+[::mem/union
+ #{::mem/float ::mem/double}
  :dispatch #(cond
-             (float? %) ::ffi/float
-             (double? %) ::ffi/double)]
+             (float? %) ::mem/float
+             (double? %) ::mem/double)]
 ```
 
 This is a minimal union in coffi. If the `:dispatch` keyword argument is not
@@ -476,11 +477,11 @@ may also be provided. In the case of the value in the tagged union from before,
 it could be represented for serialization purposes like so:
 
 ```clojure
-[::ffi/union
- #{::ffi/int ::ffi/c-string}
+[::mem/union
+ #{::mem/int ::mem/c-string}
  :dispatch #(case (first %)
-              :ok ::ffi/int
-              :err ::ffi/c-string)
+              :ok ::mem/int
+              :err ::mem/c-string)
  :extract second]
 ```
 
@@ -501,8 +502,8 @@ The functions `make-downcall` and `make-varargs-factory` are provided to create
 these raw handles.
 
 ```clojure
-(def raw-strlen (ffi/make-downcall "strlen" [::ffi/c-string] ::ffi/long))
-(raw-strlen (ffi/serialize "hello" ::ffi/c-string))
+(def raw-strlen (ffi/make-downcall "strlen" [::mem/c-string] ::mem/long))
+(raw-strlen (mem/serialize "hello" ::mem/c-string))
 ;; => 5
 ```
 
@@ -521,7 +522,7 @@ In addition, function types can be specified as being raw, in the following
 manner:
 
 ```clojure
-[::ffi/fn [::ffi/int] ::ffi/int :raw-fn? true]
+[::ffi/fn [::mem/int] ::mem/int :raw-fn? true]
 ```
 
 Clojure functions serialized to this type will have their arguments and return
@@ -541,8 +542,8 @@ The data to represent an API is a map with the following form:
 (def strlen-libspec
   {:strlen {:type :function
             :symbol "strlen"
-            :function/args [::ffi/c-string]
-            :function/ret ::ffi/long}})
+            :function/args [::mem/c-string]
+            :function/ret ::mem/long}})
 ```
 
 Each key in this map represents a single symbol to be loaded. The value is a map
@@ -585,6 +586,7 @@ These features are planned for future releases.
 - Support for va_args type
 - Functions for wrapping structs in padding following various standards
 - Header parsing tool for generating a data model?
+- Generic type aliases
 
 ## License
 

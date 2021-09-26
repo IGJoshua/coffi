@@ -5,6 +5,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
+   [coffi.mem :as mem]
    [insn.core :as insn])
   (:import
    (clojure.lang
@@ -18,588 +19,8 @@
     Addressable
     CLinker
     FunctionDescriptor
-    MemoryAccess
-    MemoryAddress
     MemoryLayout
-    MemorySegment
-    ResourceScope
     SegmentAllocator)))
-
-(defn stack-scope
-  "Constructs a new scope for use only in this thread.
-
-  The memory allocated within this scope is cheap to allocate, like a native
-  stack."
-  ^ResourceScope []
-  (ResourceScope/newConfinedScope))
-
-(defn shared-scope
-  "Constructs a new shared scope.
-
-  This scope can be shared across threads and memory allocated in it will only
-  be cleaned up once every thread accessing the scope closes it."
-  ^ResourceScope []
-  (ResourceScope/newSharedScope))
-
-(defn connected-scope
-  "Constructs a new scope to reclaim all connected resources at once.
-
-  The scope may be shared across threads, and all resources created with it will
-  be cleaned up at the same time, when all references have been collected.
-
-  This type of scope cannot be closed, and therefore should not be created in
-  a [[with-open]] clause."
-  ^ResourceScope []
-  (ResourceScope/newImplicitScope))
-
-(defn global-scope
-  "Constructs the global scope, which will never reclaim its resources.
-
-  This scope may be shared across threads, but is intended mainly in cases where
-  memory is allocated with [[alloc]] but is either never freed or whose
-  management is relinquished to a native library, such as when returned from a
-  callback."
-  ^ResourceScope []
-  (ResourceScope/globalScope))
-
-(defn scope-allocator
-  "Constructs a segment allocator from the given `scope`.
-
-  This is primarily used when working with unwrapped downcall functions. When a
-  downcall function returns a non-primitive type, it must be provided with an
-  allocator."
-  ^SegmentAllocator [^ResourceScope scope]
-  (SegmentAllocator/ofScope scope))
-
-(defn alloc
-  "Allocates `size` bytes.
-
-  If a `scope` is provided, the allocation will be reclaimed when it is closed."
-  ([size] (alloc size (connected-scope)))
-  ([size scope] (MemorySegment/allocateNative (long size) ^ResourceScope scope)))
-
-(defn alloc-with
-  "Allocates `size` bytes using the `allocator`."
-  ([allocator size]
-   (.allocate ^SegmentAllocator allocator (long size)))
-  ([allocator size alignment]
-   (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
-
-(defmacro with-acquired
-  "Acquires a `scope` to ensure it will not be released until the `body` completes.
-
-  This is only necessary to do on shared scopes, however if you are operating on
-  an arbitrary passed scope, it is best practice to wrap code that interacts
-  with it wrapped in this."
-  [scope & body]
-  `(let [scope# ~scope
-         handle# (.acquire ^ResourceScope scope#)]
-     (try ~@body
-          (finally (.release ^ResourceScope scope# handle#)))))
-
-(defn address-of
-  "Gets the address of a given segment.
-
-  This value can be used as an argument to functions which take a pointer."
-  [addressable]
-  (.address ^Addressable addressable))
-
-(defn null?
-  "Checks if a memory address is null."
-  [addr]
-  (.equals (MemoryAddress/NULL) addr))
-
-(defn slice-global
-  "Gets a slice of the global address space.
-
-  Because this fetches from the global segment, it has no associated scope, and
-  therefore the reference created here cannot prevent the value from being
-  freed. Be careful to ensure that you are not retaining an object incorrectly."
-  [address size]
-  (.asSlice (MemorySegment/globalNativeSegment)
-            ^MemoryAddress address (long size)))
-
-(defn slice
-  "Get a slice over the `segment` with the given `offset`."
-  ([segment offset]
-   (.asSlice ^MemorySegment segment (long offset)))
-  ([segment offset size]
-   (.asSlice ^MemorySegment segment (long offset) (long size))))
-
-(defn slice-into
-  "Get a slice into the `segment` starting at the `address`."
-  ([address segment]
-   (.asSlice ^MemorySegment segment ^MemoryAddress address))
-  ([address segment size]
-   (.asSlice ^MemorySegment segment ^MemoryAddress address (long size))))
-
-(defn with-offset
-  "Get a new address `offset` from the old `address`."
-  [address offset]
-  (.addOffset ^MemoryAddress address (long offset)))
-
-(defn as-segment
-  "Dereferences an `address` into a memory segment associated with the `scope`.
-
-  If `cleanup` is provided, it is a 0-arity function run when the scope is
-  closed. This can be used to register a free method for the memory, or do other
-  cleanup in a way that doesn't require modifying the code at the point of
-  freeing, and allows shared or garbage collected resources to be freed
-  correctly."
-  ([address size scope]
-   (.asSegment ^MemoryAddress address size scope))
-  ([address size scope cleanup]
-   (.asSegment ^MemoryAddress address size cleanup scope)))
-
-(defn add-close-action!
-  "Adds a 0-arity function to be run when the `scope` closes."
-  [scope action]
-  (.addCloseAction ^ResourceScope scope action))
-
-(defn copy-segment
-  "Copies the content to `dest` from `src`"
-  [dest src]
-  (.copyFrom ^MemorySegment dest ^MemorySegment src))
-
-(defn clone-segment
-  "Clones the content of `segment` into a new segment of the same size."
-  ([segment] (clone-segment segment (connected-scope)))
-  ([segment scope]
-   (doto ^MemorySegment (alloc (.byteSize ^MemorySegment segment) scope)
-     (copy-segment segment))))
-
-(defn slice-segments
-  "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
-  [segment size]
-  (let [num-segments (quot (.byteSize ^MemorySegment segment) size)]
-    (map #(slice segment (* % size) size)
-         (range num-segments))))
-
-(def primitive-types
-  "A set of keywords representing all the primitive types which may be passed to
-  or returned from native functions."
-  #{::byte ::short ::int ::long ::long-long
-    ::char
-    ::float ::double
-    ::pointer ::void})
-
-(defn- type-dispatch
-  "Gets a type dispatch value from a (potentially composite) type."
-  [type]
-  (cond
-    (qualified-keyword? type) type
-    (sequential? type) (keyword (first type))))
-
-(defmulti primitive-type
-  "Gets the primitive type that is used to pass as an argument for the `type`.
-
-  This is for objects which are passed to native functions as primitive types,
-  but which need additional logic to be performed during serialization and
-  deserialization.
-
-  Returns nil for any type which does not have a primitive representation."
-  type-dispatch)
-
-(defmethod primitive-type :default
-  [type]
-  (primitive-types type))
-
-(defmethod primitive-type ::pointer
-  [_type]
-  ::pointer)
-
-(def c-prim-layout
-  "Map of primitive type names to the [[CLinker]] types for a method handle."
-  {::byte CLinker/C_CHAR
-   ::short CLinker/C_SHORT
-   ::int CLinker/C_INT
-   ::long CLinker/C_LONG
-   ::long-long CLinker/C_LONG_LONG
-   ::char CLinker/C_CHAR
-   ::float CLinker/C_FLOAT
-   ::double CLinker/C_DOUBLE
-   ::pointer CLinker/C_POINTER})
-
-(defmulti c-layout
-  "Gets the layout object for a given `type`.
-
-  If a type is primitive it will return the appropriate primitive
-  layout (see [[c-prim-layout]]).
-
-  Otherwise, it should return a [[GroupLayout]] for the given type."
-  type-dispatch)
-
-(defmethod c-layout :default
-  [type]
-  (c-prim-layout (or (primitive-type type) type)))
-
-(def java-prim-layout
-  "Map of primitive type names to the Java types for a method handle."
-  {::byte Byte/TYPE
-   ::short Short/TYPE
-   ::int Integer/TYPE
-   ::long Long/TYPE
-   ::long-long Long/TYPE
-   ::char Byte/TYPE
-   ::float Float/TYPE
-   ::double Double/TYPE
-   ::pointer MemoryAddress
-   ::void Void/TYPE})
-
-(defn java-layout
-  "Gets the Java class to an argument of this type for a method handle.
-
-  If a type serializes to a primitive it returns return a Java primitive type.
-  Otherwise, it returns [[MemorySegment]]."
-  [type]
-  (java-prim-layout (or (primitive-type type) type) MemorySegment))
-
-(defn size-of
-  "The size in bytes of the given `type`."
-  [type]
-  (.byteSize ^MemoryLayout (c-layout type)))
-
-(defn alloc-instance
-  "Allocates a memory segment for the given `type`."
-  ([type] (alloc-instance type (connected-scope)))
-  ([type scope] (MemorySegment/allocateNative (long (size-of type)) ^ResourceScope scope)))
-
-(declare serialize serialize-into)
-
-(defmulti serialize*
-  "Constructs a serialized version of the `obj` and returns it.
-
-  Any new allocations made during the serialization should be tied to the given
-  `scope`, except in extenuating circumstances.
-
-  This method should only be implemented for types that serialize to primitives."
-  (fn
-    #_{:clj-kondo/ignore [:unused-binding]}
-    [obj type scope]
-    (type-dispatch type)))
-
-(def ^:private primitive-cast
-  "Map from primitive type names to the function to cast it to a primitive."
-  {::byte byte
-   ::short short
-   ::int int
-   ::long long
-   ::long-long long
-   ::char char
-   ::float float
-   ::double double})
-
-(defmethod serialize* :default
-  [obj type _scope]
-  (if-let [prim (primitive-type type)]
-    ((primitive-cast prim) obj)
-    (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
-                    {:type type
-                     :object obj}))))
-
-(defmethod serialize* ::pointer
-  [obj type scope]
-  (when-not (null? obj)
-    (if (sequential? type)
-      (let [segment (alloc-instance (second type) scope)]
-        (serialize-into obj (second type) segment scope)
-        (address-of segment))
-      obj)))
-
-(defmulti serialize-into
-  "Writes a serialized version of the `obj` to the given `segment`.
-
-  Any new allocations made during the serialization should be tied to the given
-  `scope`, except in extenuating circumstances.
-
-  This method should be implemented for any type which does not
-  override [[c-layout]].
-
-  For any other type, this will serialize it as [[serialize*]] before writing
-  the result value into the `segment`."
-  (fn
-    #_{:clj-kondo/ignore [:unused-binding]}
-    [obj type segment scope]
-    (type-dispatch type)))
-
-(defmethod serialize-into :default
-  [obj type segment scope]
-  (if-some [prim-layout (primitive-type type)]
-    (serialize-into (serialize* obj type scope) prim-layout segment scope)
-    (throw (ex-info "Attempted to serialize an object to a type that has not been overriden"
-                    {:type type
-                     :object obj}))))
-
-(defmethod serialize-into ::byte
-  [obj _type segment _scope]
-  (MemoryAccess/setByte segment (byte obj)))
-
-(defmethod serialize-into ::short
-  [obj _type segment _scope]
-  (MemoryAccess/setShort segment (short obj)))
-
-(defmethod serialize-into ::int
-  [obj _type segment _scope]
-  (MemoryAccess/setInt segment (int obj)))
-
-(defmethod serialize-into ::long
-  [obj _type segment _scope]
-  (MemoryAccess/setLong segment (long obj)))
-
-(defmethod serialize-into ::long-long
-  [obj _type segment _scope]
-  (MemoryAccess/setLong segment (long obj)))
-
-(defmethod serialize-into ::char
-  [obj _type segment _scope]
-  (MemoryAccess/setChar segment (char obj)))
-
-(defmethod serialize-into ::float
-  [obj _type segment _scope]
-  (MemoryAccess/setFloat segment (float obj)))
-
-(defmethod serialize-into ::double
-  [obj _type segment _scope]
-  (MemoryAccess/setDouble segment (double obj)))
-
-(defmethod serialize-into ::pointer
-  [obj _type segment _scope]
-  (MemoryAccess/setAddress segment obj))
-
-(defn serialize
-  "Serializes an arbitrary type.
-
-  For types which have a primitive representation, this serializes into that
-  representation. For types which do not, it allocates a new segment and
-  serializes into that."
-  ([obj type] (serialize obj type (connected-scope)))
-  ([obj type scope]
-   (if (primitive-type type)
-     (serialize* obj type scope)
-     (let [segment (alloc-instance type scope)]
-       (serialize-into obj type segment scope)
-       segment))))
-
-(declare deserialize deserialize*)
-
-(defmulti deserialize-from
-  "Deserializes the given segment into a Clojure data structure.
-
-  For types that serialize to primitives, a default implementation will
-  deserialize the primitive before calling [[deserialize*]]."
-  (fn
-    #_{:clj-kondo/ignore [:unused-binding]}
-    [segment type]
-    (type-dispatch type)))
-
-(defmethod deserialize-from :default
-  [segment type]
-  (if-some [prim (primitive-type type)]
-    (-> segment
-        (deserialize-from prim)
-        (deserialize* type))
-    (throw (ex-info "Attempted to deserialize a non-primitive type that has not been overriden"
-                    {:type type
-                     :segment segment}))))
-
-(defmethod deserialize-from ::byte
-  [segment _type]
-  (MemoryAccess/getByte segment))
-
-(defmethod deserialize-from ::short
-  [segment _type]
-  (MemoryAccess/getShort segment))
-
-(defmethod deserialize-from ::int
-  [segment _type]
-  (MemoryAccess/getInt segment))
-
-(defmethod deserialize-from ::long
-  [segment _type]
-  (MemoryAccess/getLong segment))
-
-(defmethod deserialize-from ::long-long
-  [segment _type]
-  (MemoryAccess/getLong segment))
-
-(defmethod deserialize-from ::char
-  [segment _type]
-  (MemoryAccess/getChar segment))
-
-(defmethod deserialize-from ::float
-  [segment _type]
-  (MemoryAccess/getFloat segment))
-
-(defmethod deserialize-from ::double
-  [segment _type]
-  (MemoryAccess/getDouble segment))
-
-(defmethod deserialize-from ::pointer
-  [segment type]
-  (cond-> (MemoryAccess/getAddress segment)
-    (sequential? type) (deserialize* type)))
-
-(defmulti deserialize*
-  "Deserializes a primitive object into a Clojure data structure.
-
-  This is intended for use with types that are returned as a primitive but which
-  need additional processing before they can be returned."
-  (fn
-    #_{:clj-kondo/ignore [:unused-binding]}
-    [obj type]
-    (type-dispatch type)))
-
-(defmethod deserialize* :default
-  [obj type]
-  (if (primitive-type type)
-    obj
-    (throw (ex-info "Attempted to deserialize a non-primitive type with primitive methods"
-                    {:type type
-                     :segment obj}))))
-
-(defmethod deserialize* ::pointer
-  [addr type]
-  (when-not (null? addr)
-    (if (sequential? type)
-      (deserialize-from (slice-global addr (size-of (second type)))
-                        (second type))
-      addr)))
-
-(defn deserialize
-  "Deserializes an arbitrary type.
-
-  For types which have a primitive representation, this deserializes the
-  primitive representation. For types which do not, this deserializes out of
-  a segment."
-  [obj type]
-  (when-not (identical? ::void type)
-    ((if (primitive-type type)
-       deserialize*
-       deserialize-from)
-     obj type)))
-
-(defn seq-of
-  "Constructs a lazy sequence of `type` elements deserialized from `segment`."
-  [type segment]
-  (map #(deserialize % type) (slice-segments segment (size-of type))))
-
-;;; C String type
-
-(defmethod primitive-type ::c-string
-  [_type]
-  ::pointer)
-
-(defmethod serialize* ::c-string
-  [obj _type scope]
-  (if obj
-    (address-of (CLinker/toCString ^String obj ^ResourceScope scope))
-    (MemoryAddress/NULL)))
-
-(defmethod deserialize* ::c-string
-  [addr _type]
-  (when-not (null? addr)
-    (CLinker/toJavaString ^MemoryAddress addr)))
-
-;;; Union types
-
-(defmethod c-layout ::union
-  [[_union types & {:as _opts} :as _type]]
-  (let [items (map c-layout types)]
-    (MemoryLayout/unionLayout
-     (into-array MemoryLayout items))))
-
-(defmethod serialize-into ::union
-  [obj [_union _types & {:keys [dispatch extract]} :as type] segment scope]
-  (when-not dispatch
-    (throw (ex-info "Attempted to serialize a union with no dispatch function"
-                    {:type type
-                     :value obj})))
-  (let [type (dispatch obj)]
-    (serialize-into
-     (if extract
-       (extract type obj)
-       obj)
-     type
-     segment
-     scope)))
-
-(defmethod deserialize-from ::union
-  [segment type]
-  (clone-segment (slice segment 0 (size-of type))))
-
-;;; Struct types
-
-(defmethod c-layout ::struct
-  [[_struct fields]]
-  (let [fields (for [[field-name field] fields]
-                 (.withName ^MemoryLayout (c-layout field)
-                            (name field-name)))]
-    (MemoryLayout/structLayout
-     (into-array MemoryLayout fields))))
-
-(defmethod serialize-into ::struct
-  [obj [_struct fields] segment scope]
-  (loop [offset 0
-         fields fields]
-    (when (seq fields)
-      (let [[field type] (first fields)
-            size (size-of type)]
-        (serialize-into
-         (get obj field) type
-         (slice segment offset size) scope)
-        (recur (long (+ offset size)) (rest fields))))))
-
-(defmethod deserialize-from ::struct
-  [segment [_struct fields]]
-  (loop [offset 0
-         fields fields
-         obj {}]
-    (if (seq fields)
-      (let [[field type] (first fields)
-            size (size-of type)]
-        (recur
-         (long (+ offset size))
-         (rest fields)
-         (assoc obj field (deserialize-from
-                           (slice segment offset size)
-                           type))))
-      obj)))
-
-;;; Padding type
-
-(defmethod c-layout ::padding
-  [[_padding size]]
-  (MemoryLayout/paddingLayout (* 8 size)))
-
-(defmethod serialize-into ::padding
-  [_obj [_padding _size] _segment _scope]
-  nil)
-
-(defmethod deserialize-from ::padding
-  [_segment [_padding _size]]
-  nil)
-
-;;; Array types
-
-(defmethod c-layout ::array
-  [[_array type count]]
-  (MemoryLayout/sequenceLayout
-   count
-   (c-layout type)))
-
-(defmethod serialize-into ::array
-  [obj [_array type count] segment scope]
-  (dorun
-   (map #(serialize-into %1 type %2 scope)
-        obj
-        (slice-segments (slice segment 0 (* count (size-of type)))
-                        (size-of type)))))
-
-(defmethod deserialize-from ::array
-  [segment [_array type count]]
-  (map #(deserialize-from % type)
-       (slice-segments (slice segment 0 (* count (size-of type)))
-                       (size-of type))))
 
 ;;; FFI Code loading and function access
 
@@ -621,20 +42,20 @@
 
 (defn- method-type
   "Gets the [[MethodType]] for a set of `args` and `ret` types."
-  ([args] (method-type args ::void))
+  ([args] (method-type args ::mem/void))
   ([args ret]
    (MethodType/methodType
-    ^Class (java-layout ret)
-    ^"[Ljava.lang.Class;" (into-array Class (map java-layout args)))))
+    ^Class (mem/java-layout ret)
+    ^"[Ljava.lang.Class;" (into-array Class (map mem/java-layout args)))))
 
 (defn- function-descriptor
   "Gets the [[FunctionDescriptor]] for a set of `args` and `ret` types."
-  ([args] (function-descriptor args ::void))
+  ([args] (function-descriptor args ::mem/void))
   ([args ret]
-   (let [args-arr (into-array MemoryLayout (map c-layout args))]
-     (if-not (identical? ret ::void)
+   (let [args-arr (into-array MemoryLayout (map mem/c-layout args))]
+     (if-not (identical? ret ::mem/void)
        (FunctionDescriptor/of
-        (c-layout ret)
+        (mem/c-layout ret)
         args-arr)
        (FunctionDescriptor/ofVoid
         args-arr)))))
@@ -646,26 +67,26 @@
 
 (def ^:private load-instructions
   "Mapping from primitive types to the instruction used to load them onto the stack."
-  {::byte :bload
-   ::short :sload
-   ::int :iload
-   ::long :lload
-   ::long-long :lload
-   ::char :cload
-   ::float :fload
-   ::double :dload
-   ::pointer :aload})
+  {::mem/byte :bload
+   ::mem/short :sload
+   ::mem/int :iload
+   ::mem/long :lload
+   ::mem/long-long :lload
+   ::mem/char :cload
+   ::mem/float :fload
+   ::mem/double :dload
+   ::mem/pointer :aload})
 
 (def ^:private prim-classes
   "Mapping from primitive types to their box classes."
-  {::byte Byte
-   ::short Short
-   ::int Integer
-   ::long Long
-   ::long-long Long
-   ::char Character
-   ::float Float
-   ::double Double})
+  {::mem/byte Byte
+   ::mem/short Short
+   ::mem/int Integer
+   ::mem/long Long
+   ::mem/long-long Long
+   ::mem/char Character
+   ::mem/float Float
+   ::mem/double Double})
 
 (defn- to-object-asm
   "Constructs a bytecode sequence to box a primitive on the top of the stack.
@@ -674,10 +95,10 @@
   null reference will be pushed to the stack."
   [type]
   (cond
-    (identical? ::void type) [:ldc nil]
-    (identical? ::pointer (primitive-type type)) []
+    (identical? ::mem/void type) [:ldc nil]
+    (identical? ::mem/pointer (mem/primitive-type type)) []
     :else
-    (let [prim-type (some-> type primitive-type)]
+    (let [prim-type (some-> type mem/primitive-type)]
       (if-some [prim  (some-> prim-type name keyword)]
        ;; Box primitive
        [:invokestatic (prim-classes prim-type) "valueOf" [prim (prim-classes prim-type)]]
@@ -687,20 +108,20 @@
 (defn- insn-layout
   "Gets the type keyword or class for referring to the type in bytecode."
   [type]
-  (if (some-> (primitive-type type) (not= ::pointer))
+  (if (some-> (mem/primitive-type type) (not= ::mem/pointer))
     (keyword (name type))
-    (java-layout type)))
+    (mem/java-layout type)))
 
 (def ^:private unbox-fn-for-type
   "Map from type name to the name of its unboxing function."
-  {::byte "byteValue"
-   ::short "shortValue"
-   ::int "intValue"
-   ::long "longValue"
-   ::long-long "longValue"
-   ::char "charValue"
-   ::float "floatValue"
-   ::double "doubleValue"})
+  {::mem/byte "byteValue"
+   ::mem/short "shortValue"
+   ::mem/int "intValue"
+   ::mem/long "longValue"
+   ::mem/long-long "longValue"
+   ::mem/char "charValue"
+   ::mem/float "floatValue"
+   ::mem/double "doubleValue"})
 
 (defn- to-prim-asm
   "Constructs a bytecode sequence to unbox a primitive type on top of the stack.
@@ -709,10 +130,10 @@
   will be popped."
   [type]
   (cond
-    (identical? ::void type) [:pop]
-    (identical? ::pointer (primitive-type type)) []
+    (identical? ::mem/void type) [:pop]
+    (identical? ::mem/pointer (mem/primitive-type type)) []
     :else
-    (let [prim-type (some-> type primitive-type)]
+    (let [prim-type (some-> type mem/primitive-type)]
       (if-some [prim (some-> prim-type name keyword)]
         [[:checkcast (prim-classes prim-type)]
          [:invokevirtual (prim-classes prim-type) (unbox-fn-for-type prim-type) [prim]]]
@@ -739,24 +160,24 @@
               {:name :invoke
                :flags #{:public}
                :desc (repeat (cond-> (inc (count args))
-                               (not (primitive-type ret)) inc)
+                               (not (mem/primitive-type ret)) inc)
                              Object)
                :emit [[:aload 0]
                       [:getfield :this "downcall_handle" MethodHandle]
-                      (when-not (primitive-type ret)
+                      (when-not (mem/primitive-type ret)
                         [[:aload 1]
                          [:checkcast SegmentAllocator]])
                       (map-indexed
                        (fn [idx arg]
                          [[:aload (cond-> (inc idx)
-                                    (not (primitive-type ret)) inc)]
+                                    (not (mem/primitive-type ret)) inc)]
                           (to-prim-asm arg)])
                        args)
                       [:invokevirtual MethodHandle "invokeExact"
                        (cond->>
                            (conj (mapv insn-layout args)
                                  (insn-layout ret))
-                         (not (primitive-type ret)) (cons SegmentAllocator))]
+                         (not (mem/primitive-type ret)) (cons SegmentAllocator))]
                       (to-object-asm ret)
                       [:areturn]]}]})
 
@@ -770,7 +191,7 @@
   calls [[find-symbol]] on it."
   [symbol-or-addr]
   (if (instance? Addressable symbol-or-addr)
-    (address-of symbol-or-addr)
+    (mem/address-of symbol-or-addr)
     (find-symbol symbol-or-addr)))
 
 (defn make-downcall
@@ -812,17 +233,17 @@
   "Constructs a wrapper function for the `downcall` which serializes the arguments
   and deserializes the return value."
   [downcall arg-types ret-type]
-  (if (primitive-type ret-type)
+  (if (mem/primitive-type ret-type)
     (fn native-fn [& args]
-      (with-open [scope (stack-scope)]
-        (deserialize
-         (apply downcall (map #(serialize %1 %2 scope) args arg-types))
+      (with-open [scope (mem/stack-scope)]
+        (mem/deserialize
+         (apply downcall (map #(mem/serialize %1 %2 scope) args arg-types))
          ret-type)))
     (fn native-fn [& args]
-      (with-open [scope (stack-scope)]
-        (deserialize
-         (apply downcall (scope-allocator scope)
-                (map #(serialize %1 %2 scope) args arg-types))
+      (with-open [scope (mem/stack-scope)]
+        (mem/deserialize
+         (apply downcall (mem/scope-allocator scope)
+                (map #(mem/serialize %1 %2 scope) args arg-types))
          ret-type)))))
 
 (defn make-serde-varargs-wrapper
@@ -864,15 +285,15 @@
 
 (def ^:private return-for-type
   "Map from type name to the return instruction for that type."
-  {::byte :breturn
-   ::short :sreturn
-   ::int :ireturn
-   ::long :lreturn
-   ::long-long :lreturn
-   ::char :creturn
-   ::float :freturn
-   ::double :dreturn
-   ::void :return})
+  {::mem/byte :breturn
+   ::mem/short :sreturn
+   ::mem/int :ireturn
+   ::mem/long :lreturn
+   ::mem/long-long :lreturn
+   ::mem/char :creturn
+   ::mem/float :freturn
+   ::mem/double :dreturn
+   ::mem/void :return})
 
 (defn- upcall-class
   "Constructs a class definition for a class with a single method, `upcall`, which
@@ -893,8 +314,8 @@
                      [:return]]}
              {:name :upcall
               :flags #{:public}
-              :desc (conj (mapv java-layout arg-types)
-                          (java-layout ret-type))
+              :desc (conj (mapv mem/java-layout arg-types)
+                          (mem/java-layout ret-type))
               :emit [[:aload 0]
                      [:getfield :this "upcall_ifn" IFn]
                      (map-indexed
@@ -920,21 +341,21 @@
    "upcall"
    (method-type arg-types ret-type)))
 
-(defmethod primitive-type ::fn
+(defmethod mem/primitive-type ::fn
   [_type]
-  ::pointer)
+  ::mem/pointer)
 
 (defn- upcall-serde-wrapper
   "Creates a function that wraps `f` which deserializes the arguments and
   serializes the return type in the [[global-scope]]."
   [f arg-types ret-type]
   (fn [& args]
-    (serialize
-     (apply f (map deserialize args arg-types))
+    (mem/serialize
+     (apply f (map mem/deserialize args arg-types))
      ret-type
-     (global-scope))))
+     (mem/global-scope))))
 
-(defmethod serialize* ::fn
+(defmethod mem/serialize* ::fn
   [f [_fn arg-types ret-type & {:keys [raw-fn?]}] scope]
   (.upcallStub
    (CLinker/getInstance)
@@ -944,7 +365,7 @@
    (function-descriptor arg-types ret-type)
    scope))
 
-(defmethod deserialize* ::fn
+(defmethod mem/deserialize* ::fn
   [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
   (-> addr
       (downcall-handle
@@ -959,7 +380,7 @@
 (defn const
   "Gets the value of a constant stored in `symbol-or-addr`."
   [symbol-or-addr type]
-  (deserialize (ensure-address symbol-or-addr) [::pointer type]))
+  (mem/deserialize (ensure-address symbol-or-addr) [::mem/pointer type]))
 
 (deftype StaticVariable [addr type meta]
   Addressable
@@ -967,7 +388,7 @@
     addr)
   IDeref
   (deref [_]
-    (deserialize addr [::pointer type]))
+    (mem/deserialize addr [::mem/pointer type]))
 
   IObj
   (withMeta [_ meta-map]
@@ -984,10 +405,10 @@
 (defn freset!
   "Sets the value of `static-var` to `newval`, running it through [[serialize]]."
   [^StaticVariable static-var newval]
-  (serialize-into
+  (mem/serialize-into
    newval (.-type static-var)
-   (slice-global (.-addr static-var) (size-of (.-type static-var)))
-   (global-scope))
+   (mem/slice-global (.-addr static-var) (mem/size-of (.-type static-var)))
+   (mem/global-scope))
   newval)
 
 (defn fswap!
@@ -1070,13 +491,6 @@
   :args (s/cat :libspec ::libspec)
   :ret (s/map-of keyword? any?))
 
-(s/def ::type
-  (s/spec
-   (s/nonconforming
-    (s/or :simple-type qualified-keyword?
-          :complex-type (s/cat :base-type qualified-keyword?
-                               :type-args (s/* any?))))))
-
 (s/def ::defcfn-args
   (s/and
    (s/cat :name simple-symbol?
@@ -1085,7 +499,7 @@
           :symbol (s/nonconforming
                    (s/or :string string?
                          :symbol simple-symbol?))
-          :native-arglist (s/coll-of ::type :kind vector?)
+          :native-arglist (s/coll-of ::mem/type :kind vector?)
           :return-type qualified-keyword?
           :wrapper (s/?
                     (s/cat
@@ -1143,10 +557,10 @@
            ~ret-type ~(:return-type args)
            ~invoke (make-downcall ~(name (:symbol args)) ~args-types ~ret-type)
            ~(or (-> args :wrapper :native-fn) native-sym)
-           ~(if (and (every? #(= % (primitive-type %))
+           ~(if (and (every? #(= % (mem/primitive-type %))
                              (:native-arglist args))
                      (= (:return-type args)
-                        (primitive-type (:return-type args))))
+                        (mem/primitive-type (:return-type args))))
               invoke
               `(make-serde-wrapper ~invoke ~args-types ~ret-type))
            fun# ~(if (:wrapper args)
@@ -1169,35 +583,3 @@
          fun#))))
 (s/fdef defcfn
   :args ::defcfn-args)
-
-(defmacro defalias
-  "Defines a type alias from `new-type` to `aliased-type`.
-
-  This creates needed serialization and deserialization implementations for the
-  aliased type."
-  {:style/indent [:defn]}
-  [new-type aliased-type]
-  (if (primitive-type aliased-type)
-    `(let [aliased# ~aliased-type]
-       (defmethod primitive-type ~new-type
-         [_type#]
-         (primitive-type aliased#))
-       (defmethod serialize* ~new-type
-         [obj# _type# scope#]
-         (serialize* obj# aliased# scope#))
-       (defmethod deserialize* ~new-type
-         [obj# _type#]
-         (deserialize* obj# aliased#)))
-    `(let [aliased# ~aliased-type]
-       (defmethod c-layout ~new-type
-         [_type#]
-         (c-layout aliased#))
-       (defmethod serialize-into ~new-type
-         [obj# _type# segment# scope#]
-         (serialize-into obj# aliased# segment# scope#))
-       (defmethod deserialize-from ~new-type
-         [segment# _type#]
-         (deserialize-from segment# aliased#)))))
-(s/fdef defalias
-  :args (s/cat :new-type qualified-keyword?
-               :aliased-type ::type))
