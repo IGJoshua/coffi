@@ -31,8 +31,6 @@
     ResourceScope
     SegmentAllocator)))
 
-;; TODO(Joshua): Ensure all the serdes acquire the scopes they use
-
 (defn stack-scope
   "Constructs a new scope for use only in this thread.
 
@@ -104,15 +102,19 @@
   (.keepAlive ^ResourceScope source ^ResourceScope target))
 
 (defmacro with-acquired
-  "Acquires a `scope` to ensure it will not be released until the `body` completes.
+  "Acquires one or more `scopes` until the `body` completes.
 
   This is only necessary to do on shared scopes, however if you are operating on
   an arbitrary passed scope, it is best practice to wrap code that interacts
   with it wrapped in this."
-  [scope & body]
+  {:style/indent 1}
+  [scopes & body]
   `(with-open [scope# (stack-scope)]
-     (keep-alive scope# ~scope)
+     (run! (partial keep-alive scope#) ~scopes)
      ~@body))
+(s/fdef with-acquired
+  :args (s/cat :scopes any?
+               :body (s/* any?)))
 
 (defn address-of
   "Gets the address of a given segment.
@@ -176,14 +178,16 @@
 (defn copy-segment
   "Copies the content to `dest` from `src`"
   [dest src]
-  (.copyFrom ^MemorySegment dest ^MemorySegment src))
+  (with-acquired (map segment-scope [src dest])
+    (.copyFrom ^MemorySegment dest ^MemorySegment src)))
 
 (defn clone-segment
   "Clones the content of `segment` into a new segment of the same size."
   ([segment] (clone-segment segment (connected-scope)))
   ([segment scope]
-   (doto ^MemorySegment (alloc (.byteSize ^MemorySegment segment) scope)
-     (copy-segment segment))))
+   (with-acquired [(segment-scope segment) scope]
+     (doto ^MemorySegment (alloc (.byteSize ^MemorySegment segment) scope)
+       (copy-segment segment)))))
 
 (defn slice-segments
   "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
@@ -318,9 +322,10 @@
   [obj type scope]
   (when-not (null? obj)
     (if (sequential? type)
-      (let [segment (alloc-instance (second type) scope)]
-        (serialize-into obj (second type) segment scope)
-        (address-of segment))
+      (with-acquired [scope]
+        (let [segment (alloc-instance (second type) scope)]
+          (serialize-into obj (second type) segment scope)
+          (address-of segment)))
       obj)))
 
 (defmulti serialize-into
@@ -333,7 +338,10 @@
   override [[c-layout]].
 
   For any other type, this will serialize it as [[serialize*]] before writing
-  the result value into the `segment`."
+  the result value into the `segment`.
+
+  Implementations of this should be inside a [[with-acquired]] block for the
+  `scope` if they perform multiple memory operations."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [obj type segment scope]
@@ -342,7 +350,8 @@
 (defmethod serialize-into :default
   [obj type segment scope]
   (if-some [prim-layout (primitive-type type)]
-    (serialize-into (serialize* obj type scope) prim-layout segment scope)
+    (with-acquired [(segment-scope scope) scope]
+      (serialize-into (serialize* obj type scope) prim-layout segment scope))
     (throw (ex-info "Attempted to serialize an object to a type that has not been overriden"
                     {:type type
                      :object obj}))))
@@ -403,7 +412,10 @@
   "Deserializes the given segment into a Clojure data structure.
 
   For types that serialize to primitives, a default implementation will
-  deserialize the primitive before calling [[deserialize*]]."
+  deserialize the primitive before calling [[deserialize*]].
+
+  Implementations of this should be inside a [[with-acquired]] block for the the
+  `segment`'s scope if they perform multiple memory operations."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [segment type]
@@ -412,9 +424,10 @@
 (defmethod deserialize-from :default
   [segment type]
   (if-some [prim (primitive-type type)]
-    (-> segment
-        (deserialize-from prim)
-        (deserialize* type))
+    (with-acquired [(segment-scope segment)]
+      (-> segment
+          (deserialize-from prim)
+          (deserialize* type)))
     (throw (ex-info "Attempted to deserialize a non-primitive type that has not been overriden"
                     {:type type
                      :segment segment}))))
@@ -453,8 +466,9 @@
 
 (defmethod deserialize-from ::pointer
   [segment type]
-  (cond-> (MemoryAccess/getAddress segment)
-    (sequential? type) (deserialize* type)))
+  (with-acquired [(segment-scope segment)]
+    (cond-> (MemoryAccess/getAddress segment)
+      (sequential? type) (deserialize* type))))
 
 (defmulti deserialize*
   "Deserializes a primitive object into a Clojure data structure.
@@ -490,15 +504,15 @@
   a segment."
   [obj type]
   (when-not (identical? ::void type)
-    ((if (primitive-type type)
-       deserialize*
-       deserialize-from)
-     obj type)))
+    (if (primitive-type type)
+      (deserialize* obj type)
+      (deserialize-from obj type))))
 
 (defn seq-of
   "Constructs a lazy sequence of `type` elements deserialized from `segment`."
   [type segment]
-  (map #(deserialize % type) (slice-segments segment (size-of type))))
+  (with-acquired [(segment-scope segment)]
+    (map #(deserialize % type) (slice-segments segment (size-of type)))))
 
 ;;; C String type
 
