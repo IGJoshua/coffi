@@ -389,8 +389,12 @@
   (MemoryAccess/setDouble segment (double obj)))
 
 (defmethod serialize-into ::pointer
-  [obj _type segment _scope]
-  (MemoryAccess/setAddress segment obj))
+  [obj type segment scope]
+  (with-acquired [(segment-scope segment) scope]
+    (MemoryAccess/setAddress
+     segment
+     (cond-> obj
+       (sequential? type) (serialize* type scope)))))
 
 (defn serialize
   "Serializes an arbitrary type.
