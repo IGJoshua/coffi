@@ -98,6 +98,11 @@
   ([allocator size alignment]
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
+(defn keep-alive
+  "Ensures that the scope `target` is not released before `source`."
+  [source target]
+  (.keepAlive ^ResourceScope source ^ResourceScope target))
+
 (defmacro with-acquired
   "Acquires a `scope` to ensure it will not be released until the `body` completes.
 
@@ -105,10 +110,9 @@
   an arbitrary passed scope, it is best practice to wrap code that interacts
   with it wrapped in this."
   [scope & body]
-  `(let [scope# ~scope
-         handle# (.acquire ^ResourceScope scope#)]
-     (try ~@body
-          (finally (.release ^ResourceScope scope# handle#)))))
+  `(with-open [scope# (stack-scope)]
+     (keep-alive scope# ~scope)
+     ~@body))
 
 (defn address-of
   "Gets the address of a given segment.
