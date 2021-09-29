@@ -1,1 +1,2 @@
-{:hooks {:analyze-call {coffi.ffi/defcfn coffi.hooks/defcfn}}}
+{:hooks {:analyze-call {coffi.ffi/defcfn hooks.coffi/defcfn}}
+ :linters {:coffi.ffi/invalid-syntax {:level :error}}}

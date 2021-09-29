@@ -1,1 +1,1 @@
-{:config-dirs ["org.suskalo/coffi"]}
+{:config-paths ["org.suskalo/coffi"]}
