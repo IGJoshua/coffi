@@ -4,7 +4,7 @@
 
  :deps/prep-lib {:alias :build
                  :fn build/compile-java
-                 :ensure "classes"}
+                 :ensure "target/classes"}
 
  :aliases
  {:dev {:extra-paths ["."]
