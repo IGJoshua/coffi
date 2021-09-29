@@ -69,7 +69,10 @@
                         :connection "scm:git:git://github.com/IGJoshua/coffi.git"
                         :developerConnection "scm:git:ssh://git@github.com/IGJoshua/coffi.git"
                         :tag (str "v" version)}
-                  :src-dirs source-dirs}))
+                  :src-dirs source-dirs})
+    (b/copy-file {:src (b/pom-path {:lib lib-coord
+                                    :class-dir class-dir})
+                  :target (str target-dir "pom.xml")}))
   opts)
 
 (defn pom
