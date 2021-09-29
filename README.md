@@ -12,15 +12,12 @@ Clojure ones, however this doesn't remove the ability to write systems which
 minimize the cost of marshaling data and optimize for performance, to make use
 of the low-level access Panama gives us.
 
-NOTE: Right now this library is in early alpha, and has not yet been released to
-Clojars. This will be remedied soon.
-
 ## Installation
 This library is available on Clojars. Add the following entry to the `:deps` key
 of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.1.0-RC1"}
+org.suskalo/coffi {:mvn/version "0.1.0"}
 ```
 
 Coffi also includes support for the linter clj-kondo. If you use clj-kondo and

@@ -17,7 +17,7 @@
    [clojure.tools.build.api :as b]))
 
 (def lib-coord 'org.suskalo/coffi)
-(def version (format "0.1.%s-SNAPSHOT" (b/git-count-revs nil)))
+(def version (format "0.1.%s" (b/git-count-revs nil)))
 
 (def resource-dirs ["resources/"])
 
