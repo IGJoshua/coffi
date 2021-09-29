@@ -95,8 +95,11 @@
   This is a thin jar including only the sources."
   [opts]
   (write-pom opts)
+  (compile-java opts)
   (copy-resources opts)
   (when-not (exists? target-dir jar-file)
+    (b/copy-dir {:target-dir class-dir
+                 :src-dirs source-dirs})
     (b/jar {:class-dir class-dir
             :jar-file jar-file}))
   opts)
