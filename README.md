@@ -13,11 +13,19 @@ minimize the cost of marshaling data and optimize for performance, to make use
 of the low-level access Panama gives us.
 
 ## Installation
-This library is available on Clojars. Add the following entry to the `:deps` key
-of your `deps.edn`:
+This library is available on Clojars. Add one of the following entries to the
+`:deps` key of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.1.0"}
+org.suskalo/coffi {:mvn/version "0.1.169"}
+io.github.IGJoshua/coffi {:git/tag "0.1.169" :git/sha "7ec2748"}
+```
+
+If you use this library as a git dependency, you will need to prepare the
+library.
+
+```sh
+$ clj -X:deps prep
 ```
 
 Coffi also includes support for the linter clj-kondo. If you use clj-kondo and
