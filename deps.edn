@@ -27,8 +27,9 @@
           :exec-fn run-tasks}
   :install {:replace-deps {slipset/deps-deploy {:mvn/version "0.1.5"}}
             :exec-fn deps-deploy.deps-deploy/deploy
-            :exec-args {:installer :local :artifact "target/coffi.jar"}}
+            :exec-args {:installer :local :artifact "target/coffi.jar"
+                        :pom-file "target/pom.xml"}}
   :deploy {:replace-deps {slipset/deps-deploy {:mvn/version "0.1.5"}}
            :exec-fn deps-deploy.deps-deploy/deploy
            :exec-args {:installer :remote :artifact "target/coffi.jar"
-                       :sign-releases? true}}}}
+                       :pom-file "target/pom.xml" :sign-releases? true}}}}
