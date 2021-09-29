@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- Usage of `defcfn` without a docstring produced an invalid `def` form
 
 ## [0.1.169] - 2021-09-28
 ### Added

@@ -579,7 +579,8 @@
                                    (mapv (comp symbol name)
                                          (:native-arglist args)))))))
                    (:attr-map args)))
-         ~@(list (:doc args))
+         ~@(when-let [doc (:doc args)]
+             (list doc))
          fun#))))
 (s/fdef defcfn
   :args ::defcfn-args)
