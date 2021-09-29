@@ -1,6 +1,11 @@
 {:paths ["src/clj" "target/classes" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
         insn/insn {:mvn/version "0.2.1"}}
+
+ :deps/prep-lib {:alias :build
+                 :fn build/compile-java
+                 :ensure "classes"}
+
  :aliases
  {:dev {:extra-paths ["."]
         :extra-deps {io.github.clojure/tools.build {:git/tag "v0.3.0" :git/sha "e418fc9"}
