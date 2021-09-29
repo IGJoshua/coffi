@@ -1,6 +1,8 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
 ## [0.1.176] - 2021-09-29
 ### Fixed
 - Usage of `defcfn` without a docstring produced an invalid `def` form
@@ -15,5 +17,6 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[Unreleased]: https://github.com/IGJoshua/coffi/compare/v0.1.176...HEAD
 [0.1.176]: https://github.com/IGJoshua/coffi/compare/v0.1.169...v0.1.176
 [0.1.169]: https://github.com/IGJoshua/coffi/compare/16f56bc31d69142ec4d2fb61b15b069d78b127ca...v0.1.169
