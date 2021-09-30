@@ -314,8 +314,8 @@
                      [:return]]}
              {:name :upcall
               :flags #{:public}
-              :desc (conj (mapv mem/java-layout arg-types)
-                          (mem/java-layout ret-type))
+              :desc (conj (mapv insn-layout arg-types)
+                          (insn-layout ret-type))
               :emit [[:aload 0]
                      [:getfield :this "upcall_ifn" IFn]
                      (map-indexed
