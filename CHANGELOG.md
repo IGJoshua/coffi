@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Fixed
+- Upcall stubs with non-primitive arguments failed to compile
 - Upcall stubs had incorrect types
 
 ## [0.1.176] - 2021-09-29

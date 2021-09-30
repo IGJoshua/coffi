@@ -320,7 +320,7 @@
                      [:getfield :this "upcall_ifn" IFn]
                      (map-indexed
                       (fn [idx arg]
-                        [[(load-instructions arg) (inc idx)]
+                        [[(load-instructions arg :aload) (inc idx)]
                          (to-object-asm arg)])
                       arg-types)
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
