@@ -28,6 +28,17 @@ library.
 $ clj -X:deps prep
 ```
 
+Coffi requires usage of the module `jdk.incubator.foreign`, which means that the
+JVM must enable the usage of this module. In order to use coffi, add the
+following JVM arguments to your application.
+
+```sh
+--add-modules=jdk.incubator.foreign --enable-native-access=ALL-UNNAMED
+```
+
+JVM arguments can be added to your project with -J in the Clojure CLI arguments,
+or in the `:jvm-opts` key of an alias in your `deps.edn` file.
+
 Coffi also includes support for the linter clj-kondo. If you use clj-kondo and
 this library's macros are not linting correctly, you may need to install the
 config bundled with the library. You can do so with the following shell command:
