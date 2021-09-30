@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Fixed
+- Deserializing nullpointers as functions threw an exception
 - Upcall stubs with non-primitive arguments failed to compile
 - Upcall stubs had incorrect types
 
