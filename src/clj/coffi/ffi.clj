@@ -545,6 +545,7 @@
   (let [args (s/conform ::defcfn-args args)
         args-types (gensym "args-types")
         ret-type (gensym "ret-type")
+        address (gensym "symbol")
         invoke (gensym "invoke")
         native-sym (gensym "native")
         [arity fn-tail] (-> args :wrapper :fn-tail)
@@ -558,7 +559,8 @@
                               nil))]
     `(let [~args-types ~(:native-arglist args)
            ~ret-type ~(:return-type args)
-           ~invoke (make-downcall ~(name (:symbol args)) ~args-types ~ret-type)
+           ~address (find-symbol ~(name (:symbol args)))
+           ~invoke (make-downcall ~address ~args-types ~ret-type)
            ~(or (-> args :wrapper :native-fn) native-sym)
            ~(if (and (every? #(= % (mem/primitive-type %))
                              (:native-arglist args))
@@ -581,7 +583,8 @@
                                   (list
                                    (mapv (comp symbol name)
                                          (:native-arglist args)))))))
-                   (:attr-map args)))
+                   (assoc (:attr-map args)
+                          ::address address)))
          ~@(when-let [doc (:doc args)]
              (list doc))
          fun#))))

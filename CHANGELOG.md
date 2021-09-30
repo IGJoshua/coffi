@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Added
-- An `::ffi/address` key to deserialized function pointers' metadata
+- An `::ffi/address` key to wrapper functions' metadata
 
 ## [0.1.184] - 2021-09-30
 ### Fixed
