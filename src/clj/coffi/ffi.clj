@@ -314,13 +314,13 @@
                      [:return]]}
              {:name :upcall
               :flags #{:public}
-              :desc (conj (mapv mem/java-layout arg-types)
-                          (mem/java-layout ret-type))
+              :desc (conj (mapv insn-layout arg-types)
+                          (insn-layout ret-type))
               :emit [[:aload 0]
                      [:getfield :this "upcall_ifn" IFn]
                      (map-indexed
                       (fn [idx arg]
-                        [[(load-instructions arg) (inc idx)]
+                        [[(load-instructions arg :aload) (inc idx)]
                          (to-object-asm arg)])
                       arg-types)
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
@@ -367,13 +367,14 @@
 
 (defmethod mem/deserialize* ::fn
   [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
-  (-> addr
-      (downcall-handle
-       (method-type arg-types ret-type)
-       (function-descriptor arg-types ret-type))
-      (downcall-fn arg-types ret-type)
-      (cond->
-        (not raw-fn?) (make-serde-wrapper arg-types ret-type))))
+  (when-not (mem/null? addr)
+    (-> addr
+        (downcall-handle
+         (method-type arg-types ret-type)
+         (function-descriptor arg-types ret-type))
+        (downcall-fn arg-types ret-type)
+        (cond->
+            (not raw-fn?) (make-serde-wrapper arg-types ret-type)))))
 
 ;;; Static memory access
 
