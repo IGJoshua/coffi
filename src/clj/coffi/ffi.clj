@@ -368,13 +368,15 @@
 (defmethod mem/deserialize* ::fn
   [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
   (when-not (mem/null? addr)
-    (-> addr
-        (downcall-handle
-         (method-type arg-types ret-type)
-         (function-descriptor arg-types ret-type))
-        (downcall-fn arg-types ret-type)
-        (cond->
-            (not raw-fn?) (make-serde-wrapper arg-types ret-type)))))
+    (vary-meta
+      (-> addr
+          (downcall-handle
+           (method-type arg-types ret-type)
+           (function-descriptor arg-types ret-type))
+          (downcall-fn arg-types ret-type)
+          (cond->
+              (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
+      assoc ::address addr)))
 
 ;;; Static memory access
 

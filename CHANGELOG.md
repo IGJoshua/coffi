@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Added
+- An `::ffi/address` key to deserialized function pointers' metadata
 
 ## [0.1.184] - 2021-09-30
 ### Fixed
