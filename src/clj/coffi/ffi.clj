@@ -108,9 +108,10 @@
 (defn- insn-layout
   "Gets the type keyword or class for referring to the type in bytecode."
   [type]
-  (if (some-> (mem/primitive-type type) (not= ::mem/pointer))
-    (keyword (name type))
-    (mem/java-layout type)))
+  (when-some [prim (mem/primitive-type type)]
+    (if (not= prim ::mem/pointer)
+      (keyword (name prim))
+      (mem/java-layout type))))
 
 (def ^:private unbox-fn-for-type
   "Map from type name to the name of its unboxing function."
