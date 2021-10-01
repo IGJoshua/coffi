@@ -352,7 +352,7 @@
 (defmethod serialize-into :default
   [obj type segment scope]
   (if-some [prim-layout (primitive-type type)]
-    (with-acquired [(segment-scope scope) scope]
+    (with-acquired [(segment-scope segment) scope]
       (serialize-into (serialize* obj type scope) prim-layout segment scope))
     (throw (ex-info "Attempted to serialize an object to a type that has not been overriden"
                     {:type type
