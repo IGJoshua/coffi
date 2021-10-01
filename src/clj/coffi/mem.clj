@@ -323,13 +323,14 @@
 
 (defmethod serialize* ::pointer
   [obj type scope]
-  (when-not (null? obj)
+  (if-not (null? obj)
     (if (sequential? type)
       (with-acquired [scope]
         (let [segment (alloc-instance (second type) scope)]
           (serialize-into obj (second type) segment scope)
           (address-of segment)))
-      obj)))
+      obj)
+    (MemoryAddress/NULL)))
 
 (defmulti serialize-into
   "Writes a serialized version of the `obj` to the given `segment`.
