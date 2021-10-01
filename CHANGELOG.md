@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file. This change
 ### Added
 - An `::ffi/address` key to wrapper functions' metadata
 
+### Fixed
+- Usage of a method no longer in Panama that breaks `with-acquired`
+
 ## [0.1.184] - 2021-09-30
 ### Fixed
 - Deserializing nullpointers as functions threw an exception
