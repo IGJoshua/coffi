@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Fixed
+- Primitive-serializing types fail to load as arguments to upcall functions
 - Void return types on upcalls crash the JVM
 - Invalid implementation of serialize-into for primitive types
 
