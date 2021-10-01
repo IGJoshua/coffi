@@ -315,7 +315,8 @@
 (defmethod serialize* :default
   [obj type _scope]
   (if-let [prim (primitive-type type)]
-    ((primitive-cast prim) obj)
+    (when-not (= ::void prim)
+      ((primitive-cast prim) obj))
     (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
                     {:type type
                      :object obj}))))

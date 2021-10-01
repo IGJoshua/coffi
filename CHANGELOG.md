@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Fixed
+- Void return types on upcalls crash the JVM
 - Invalid implementation of serialize-into for primitive types
 
 ## [0.1.192] - 2021-09-30
