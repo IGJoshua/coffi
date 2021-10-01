@@ -128,7 +128,7 @@
 (defn null?
   "Checks if a memory address is null."
   [addr]
-  (.equals (MemoryAddress/NULL) addr))
+  (or (.equals (MemoryAddress/NULL) addr) (not addr)))
 
 (defn slice-global
   "Gets a slice of the global address space.
