@@ -29,6 +29,7 @@
     MemoryLayout
     MemorySegment
     ResourceScope
+    ResourceScope$Handle
     SegmentAllocator)))
 
 (defn stack-scope
@@ -96,11 +97,6 @@
   ([allocator size alignment]
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
-(defn keep-alive
-  "Ensures that the scope `target` is not released before `source`."
-  [source target]
-  (.keepAlive ^ResourceScope source ^ResourceScope target))
-
 (defmacro with-acquired
   "Acquires one or more `scopes` until the `body` completes.
 
@@ -109,9 +105,15 @@
   with it wrapped in this."
   {:style/indent 1}
   [scopes & body]
-  `(with-open [scope# (stack-scope)]
-     (run! (partial keep-alive scope#) ~scopes)
-     ~@body))
+  `(let [scopes# (vec ~scopes)
+         handles# (mapv #(.acquire ^ResourceScope %) scopes#)]
+     (try ~@body
+          (finally
+            (doseq [idx# (range (count scopes#))
+                    :let [scope# (nth scopes# idx#)
+                          handle# (nth handles# idx#)]]
+              (.release ^ResourceScope scope#
+                        ^ResourceScope$Handle handle#))))))
 (s/fdef with-acquired
   :args (s/cat :scopes any?
                :body (s/* any?)))

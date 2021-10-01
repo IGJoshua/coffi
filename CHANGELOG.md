@@ -1,6 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [0.1.192] - 2021-09-30
+### Added
+- An `::ffi/address` key to wrapper functions' metadata
+
+### Fixed
+- Usage of a method no longer in Panama that breaks `with-acquired`
+
 ## [0.1.184] - 2021-09-30
 ### Fixed
 - Deserializing nullpointers as functions threw an exception
@@ -21,6 +28,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[0.1.192]: https://github.com/IGJoshua/coffi/compare/v0.1.184...v0.1.192
 [0.1.184]: https://github.com/IGJoshua/coffi/compare/v0.1.176...v0.1.184
 [0.1.176]: https://github.com/IGJoshua/coffi/compare/v0.1.169...v0.1.176
 [0.1.169]: https://github.com/IGJoshua/coffi/compare/16f56bc31d69142ec4d2fb61b15b069d78b127ca...v0.1.169

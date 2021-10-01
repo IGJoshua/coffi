@@ -368,13 +368,15 @@
 (defmethod mem/deserialize* ::fn
   [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
   (when-not (mem/null? addr)
-    (-> addr
-        (downcall-handle
-         (method-type arg-types ret-type)
-         (function-descriptor arg-types ret-type))
-        (downcall-fn arg-types ret-type)
-        (cond->
-            (not raw-fn?) (make-serde-wrapper arg-types ret-type)))))
+    (vary-meta
+      (-> addr
+          (downcall-handle
+           (method-type arg-types ret-type)
+           (function-descriptor arg-types ret-type))
+          (downcall-fn arg-types ret-type)
+          (cond->
+              (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
+      assoc ::address addr)))
 
 ;;; Static memory access
 
@@ -543,6 +545,7 @@
   (let [args (s/conform ::defcfn-args args)
         args-types (gensym "args-types")
         ret-type (gensym "ret-type")
+        address (gensym "symbol")
         invoke (gensym "invoke")
         native-sym (gensym "native")
         [arity fn-tail] (-> args :wrapper :fn-tail)
@@ -556,7 +559,8 @@
                               nil))]
     `(let [~args-types ~(:native-arglist args)
            ~ret-type ~(:return-type args)
-           ~invoke (make-downcall ~(name (:symbol args)) ~args-types ~ret-type)
+           ~address (find-symbol ~(name (:symbol args)))
+           ~invoke (make-downcall ~address ~args-types ~ret-type)
            ~(or (-> args :wrapper :native-fn) native-sym)
            ~(if (and (every? #(= % (mem/primitive-type %))
                              (:native-arglist args))
@@ -579,7 +583,8 @@
                                   (list
                                    (mapv (comp symbol name)
                                          (:native-arglist args)))))))
-                   (:attr-map args)))
+                   (assoc (:attr-map args)
+                          ::address address)))
          ~@(when-let [doc (:doc args)]
              (list doc))
          fun#))))
