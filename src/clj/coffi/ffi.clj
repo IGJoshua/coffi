@@ -504,7 +504,7 @@
                    (s/or :string string?
                          :symbol simple-symbol?))
           :native-arglist (s/coll-of ::mem/type :kind vector?)
-          :return-type qualified-keyword?
+          :return-type ::mem/type
           :wrapper (s/?
                     (s/cat
                      :native-fn simple-symbol?
