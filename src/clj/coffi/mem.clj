@@ -130,6 +130,13 @@
   [addr]
   (or (.equals (MemoryAddress/NULL) addr) (not addr)))
 
+(defn address?
+  "Checks if an object is a memory address.
+
+  `nil` is considered an address."
+  [addr]
+  (or (nil? addr) (instance? MemoryAddress addr)))
+
 (defn slice-global
   "Gets a slice of the global address space.
 

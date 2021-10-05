@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Added
+- An `address?` predicate
+
 ### Fixed
 - `nil` was not considered a null pointer
 - Primitive-serializing types fail to compile as arguments to downcall handles
