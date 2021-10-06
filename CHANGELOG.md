@@ -1,6 +1,8 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
 ## [0.1.205] - 2021-10-06
 ### Added
 - An `address?` predicate
@@ -41,6 +43,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[Unreleased]: https://github.com/IGJoshua/coffi/compare/v0.1.205...HEAD
 [0.1.205]: https://github.com/IGJoshua/coffi/compare/v0.1.192...v0.1.205
 [0.1.192]: https://github.com/IGJoshua/coffi/compare/v0.1.184...v0.1.192
 [0.1.184]: https://github.com/IGJoshua/coffi/compare/v0.1.176...v0.1.184
