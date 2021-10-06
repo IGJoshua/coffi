@@ -108,9 +108,10 @@
 (defn- insn-layout
   "Gets the type keyword or class for referring to the type in bytecode."
   [type]
-  (if (some-> (mem/primitive-type type) (not= ::mem/pointer))
-    (keyword (name type))
-    (mem/java-layout type)))
+  (when-some [prim (mem/primitive-type type)]
+    (if (not= prim ::mem/pointer)
+      (keyword (name prim))
+      (mem/java-layout type))))
 
 (def ^:private unbox-fn-for-type
   "Map from type name to the name of its unboxing function."
@@ -320,7 +321,7 @@
                      [:getfield :this "upcall_ifn" IFn]
                      (map-indexed
                       (fn [idx arg]
-                        [[(load-instructions arg :aload) (inc idx)]
+                        [[(load-instructions (mem/primitive-type arg) :aload) (inc idx)]
                          (to-object-asm arg)])
                       arg-types)
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
@@ -503,7 +504,7 @@
                    (s/or :string string?
                          :symbol simple-symbol?))
           :native-arglist (s/coll-of ::mem/type :kind vector?)
-          :return-type qualified-keyword?
+          :return-type ::mem/type
           :wrapper (s/?
                     (s/cat
                      :native-fn simple-symbol?
@@ -581,7 +582,11 @@
                               (or old-list
                                   (seq arglists)
                                   (list
-                                   (mapv (comp symbol name)
+                                   (mapv (fn [type]
+                                           (-> (cond-> type
+                                                 (vector? type) first)
+                                               name
+                                               symbol))
                                          (:native-arglist args)))))))
                    (assoc (:attr-map args)
                           ::address address)))

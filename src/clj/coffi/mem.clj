@@ -128,7 +128,14 @@
 (defn null?
   "Checks if a memory address is null."
   [addr]
-  (.equals (MemoryAddress/NULL) addr))
+  (or (.equals (MemoryAddress/NULL) addr) (not addr)))
+
+(defn address?
+  "Checks if an object is a memory address.
+
+  `nil` is considered an address."
+  [addr]
+  (or (nil? addr) (instance? MemoryAddress addr)))
 
 (defn slice-global
   "Gets a slice of the global address space.
@@ -315,20 +322,22 @@
 (defmethod serialize* :default
   [obj type _scope]
   (if-let [prim (primitive-type type)]
-    ((primitive-cast prim) obj)
+    (when-not (= ::void prim)
+      ((primitive-cast prim) obj))
     (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
                     {:type type
                      :object obj}))))
 
 (defmethod serialize* ::pointer
   [obj type scope]
-  (when-not (null? obj)
+  (if-not (null? obj)
     (if (sequential? type)
       (with-acquired [scope]
         (let [segment (alloc-instance (second type) scope)]
           (serialize-into obj (second type) segment scope)
           (address-of segment)))
-      obj)))
+      obj)
+    (MemoryAddress/NULL)))
 
 (defmulti serialize-into
   "Writes a serialized version of the `obj` to the given `segment`.
@@ -352,7 +361,7 @@
 (defmethod serialize-into :default
   [obj type segment scope]
   (if-some [prim-layout (primitive-type type)]
-    (with-acquired [(segment-scope scope) scope]
+    (with-acquired [(segment-scope segment) scope]
       (serialize-into (serialize* obj type scope) prim-layout segment scope))
     (throw (ex-info "Attempted to serialize an object to a type that has not been overriden"
                     {:type type

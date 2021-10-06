@@ -1,6 +1,19 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [0.1.205]
+### Added
+- An `address?` predicate
+
+### Fixed
+- Compound types caused problems in arglists meta on expansion of `defcfn`
+- Compound types were not allowed as return types in `defcfn`
+- `nil` was not considered a null pointer
+- Primitive-serializing types fail to compile as arguments to downcall handles
+- Primitive-serializing types fail to load as arguments to upcall functions
+- Void return types on upcalls crash the JVM
+- Invalid implementation of serialize-into for primitive types
+
 ## [0.1.192] - 2021-09-30
 ### Added
 - An `::ffi/address` key to wrapper functions' metadata
@@ -28,6 +41,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[0.1.205]: https://github.com/IGJoshua/coffi/compare/v0.1.192...v0.1.205
 [0.1.192]: https://github.com/IGJoshua/coffi/compare/v0.1.184...v0.1.192
 [0.1.184]: https://github.com/IGJoshua/coffi/compare/v0.1.176...v0.1.184
 [0.1.176]: https://github.com/IGJoshua/coffi/compare/v0.1.169...v0.1.176
