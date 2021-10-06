@@ -582,7 +582,11 @@
                               (or old-list
                                   (seq arglists)
                                   (list
-                                   (mapv (comp symbol name)
+                                   (mapv (fn [type]
+                                           (-> (cond-> type
+                                                 (vector? type) first)
+                                               name
+                                               symbol))
                                          (:native-arglist args)))))))
                    (assoc (:attr-map args)
                           ::address address)))

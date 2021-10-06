@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. This change
 - An `address?` predicate
 
 ### Fixed
+- Compound types caused problems in arglists meta on expansion of `defcfn`
 - Compound types were not allowed as return types in `defcfn`
 - `nil` was not considered a null pointer
 - Primitive-serializing types fail to compile as arguments to downcall handles
