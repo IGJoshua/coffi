@@ -603,6 +603,7 @@ These features are planned for future releases.
 - Functions for wrapping structs in padding following various standards
 - Header parsing tool for generating a data model?
 - Generic type aliases
+- Helpers for generating enums & bitflags
 
 ## License
 
