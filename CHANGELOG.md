@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- Non-primitive argument types fail to link
 
 ## [0.1.205] - 2021-10-06
 ### Added

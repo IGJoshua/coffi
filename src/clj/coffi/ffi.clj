@@ -20,6 +20,7 @@
     CLinker
     FunctionDescriptor
     MemoryLayout
+    MemorySegment
     SegmentAllocator)))
 
 ;;; FFI Code loading and function access
@@ -108,10 +109,10 @@
 (defn- insn-layout
   "Gets the type keyword or class for referring to the type in bytecode."
   [type]
-  (when-some [prim (mem/primitive-type type)]
-    (if (not= prim ::mem/pointer)
-      (keyword (name prim))
-      (mem/java-layout type))))
+  (or (when-some [prim (mem/primitive-type type)]
+        (when (not= prim ::mem/pointer)
+          (keyword (name prim))))
+      (mem/java-layout type)))
 
 (def ^:private unbox-fn-for-type
   "Map from type name to the name of its unboxing function."
