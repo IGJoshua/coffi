@@ -604,6 +604,7 @@ These features are planned for future releases.
 - Header parsing tool for generating a data model?
 - Generic type aliases
 - Helpers for generating enums & bitflags
+- Helper macro for out arguments
 
 ## License
 
