@@ -605,6 +605,7 @@ These features are planned for future releases.
 - Generic type aliases
 - Helpers for generating enums & bitflags
 - Helper macro for out arguments
+- Improve error messages from defcfn macro
 
 ## License
 
