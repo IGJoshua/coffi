@@ -608,6 +608,24 @@ These features are planned for future releases.
 - Improve error messages from defcfn macro
 - Mapped memory
 
+### Future JDKs
+The purpose of coffi is to provide a wrapper for published versions of Project
+Panama, starting with JDK 17. As new JDKs are released, coffi will be ported to
+the newer versions of Panama. When JDK 18 is released, a tag will be added to
+mark the final release of coffi that is compatible with Java 17, as that is the
+LTS release of the JDK. Development of new features and fixes as well as support
+for new Panama idioms and features will continue with focus only on the latest
+JDK. If a particular feature is not specific to the newer JDK, PRs backporting
+it to versions of coffi supporting Java 17 will likely be accepted.
+
+### 1.0 Release
+Because the feature that coffi wraps in the JDK is an incubator feature (and
+likely in JDK 19 a [preview
+feature](https://mail.openjdk.java.net/pipermail/panama-dev/2021-September/014946.html))
+coffi itself will not be released in a 1.0.x version until the feature becomes a
+core part of the JDK, likely before or during the next LTS release, Java 21, in
+September 2023.
+
 ## License
 
 Copyright © 2021 Joshua Suskalo
