@@ -590,6 +590,35 @@ This functionality can be extended by specifying new types as implementations of
 the multimethod `reify-symbolspec`, although it's recommended that for any
 library authors who do so, namespaced keywords be used to name types.
 
+## Alternatives
+This library is not the only Clojure library providing access to native code. In
+addition the following libraries exist:
+
+- [dtype-next](https://github.com/cnuernber/dtype-next)
+- [tech.jna](https://github.com/techascent/tech.jna)
+- [clojure-jna](https://github.com/Chouser/clojure-jna)
+
+Dtype-next has support for Java versions 8-16 and GraalVM, but is focused
+strongly on array-based programming, and doesn't provide facilities for
+callbacks, as well as being focused on keeping memory in the native side rather
+than marshaling data to and from Clojure-native structures. In Java 16, this
+uses the first iteration of Panama, while in other Java versions it uses JNA.
+
+Tech.jna and clojure-jna both use the JNA library in all cases, and neither
+provide support for dealing with struct types or callbacks.
+
+An additional alternative to coffi is to directly use the JNI, which is the
+longest-standing method of wrapping native code in the JVM, but comes with the
+downside that it requires you to write both native and Java code to use, even if
+you only intend to use it from Clojure.
+
+If your application needs to be able to run in earlier versions of the JVM than
+17, or you don't want to use incubator functionality, you should consider these
+other options. Dtype-next provides the most robust support for native code, but
+if you are wrapping a simple library then the other libraries may be more
+appealing, as they have a smaller API surface area and it's easier to wrap
+functions.
+
 ## Known Issues
 The project author is aware of these issues and plans to fix them in a future
 release:
