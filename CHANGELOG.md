@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Fixed
+- Arrays deserialized to non-vector sequences
 - Non-primitive argument types fail to link
 
 ## [0.1.205] - 2021-10-06

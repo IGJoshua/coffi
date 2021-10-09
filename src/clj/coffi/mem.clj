@@ -643,9 +643,9 @@
 
 (defmethod deserialize-from ::array
   [segment [_array type count]]
-  (map #(deserialize-from % type)
-       (slice-segments (slice segment 0 (* count (size-of type)))
-                       (size-of type))))
+  (mapv #(deserialize-from % type)
+        (slice-segments (slice segment 0 (* count (size-of type)))
+                        (size-of type))))
 
 (s/def ::type
   (s/spec
