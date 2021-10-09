@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Fixed
+- All-primitive method types still used serialization when called from `cfn`
 - Arrays deserialized to non-vector sequences
 - Non-primitive argument types fail to link
 
