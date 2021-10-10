@@ -205,14 +205,6 @@
     (map #(slice segment (* % size) size)
          (range num-segments))))
 
-(def primitive-types
-  "A set of keywords representing all the primitive types which may be passed to
-  or returned from native functions."
-  #{::byte ::short ::int ::long ::long-long
-    ::char
-    ::float ::double
-    ::pointer ::void})
-
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
   [type]
@@ -274,18 +266,6 @@
   [_type]
   ::void)
 
-(def c-prim-layout
-  "Map of primitive type names to the [[CLinker]] types for a method handle."
-  {::byte CLinker/C_CHAR
-   ::short CLinker/C_SHORT
-   ::int CLinker/C_INT
-   ::long CLinker/C_LONG
-   ::long-long CLinker/C_LONG_LONG
-   ::char CLinker/C_CHAR
-   ::float CLinker/C_FLOAT
-   ::double CLinker/C_DOUBLE
-   ::pointer CLinker/C_POINTER})
-
 (defmulti c-layout
   "Gets the layout object for a given `type`.
 
@@ -295,10 +275,45 @@
   Otherwise, it should return a [[GroupLayout]] for the given type."
   type-dispatch)
 
-;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod c-layout :default
   [type]
-  (c-prim-layout (or (primitive-type type) type)))
+  (c-layout (primitive-type type)))
+
+(defmethod c-layout ::byte
+  [_type]
+  CLinker/C_CHAR)
+
+(defmethod c-layout ::short
+  [_type]
+  CLinker/C_SHORT)
+
+(defmethod c-layout ::int
+  [_type]
+  CLinker/C_INT)
+
+(defmethod c-layout ::long
+  [_type]
+  CLinker/C_LONG)
+
+(defmethod c-layout ::long-long
+  [_type]
+  CLinker/C_LONG_LONG)
+
+(defmethod c-layout ::char
+  [_type]
+  CLinker/C_CHAR)
+
+(defmethod c-layout ::float
+  [_type]
+  CLinker/C_FLOAT)
+
+(defmethod c-layout ::double
+  [_type]
+  CLinker/C_DOUBLE)
+
+(defmethod c-layout ::pointer
+  [_type]
+  CLinker/C_POINTER)
 
 (def java-prim-layout
   "Map of primitive type names to the Java types for a method handle."
