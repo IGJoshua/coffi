@@ -564,7 +564,6 @@
     [obj type]
     (type-dispatch type)))
 
-;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod deserialize* :default
   [obj type]
   (throw (ex-info "Attempted to deserialize a non-primitive type with primitive methods"
