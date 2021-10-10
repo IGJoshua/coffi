@@ -428,7 +428,6 @@
     [obj type segment scope]
     (type-dispatch type)))
 
-;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod serialize-into :default
   [obj type segment scope]
   (if-some [prim-layout (primitive-type type)]
@@ -507,14 +506,12 @@
     [segment type]
     (type-dispatch type)))
 
-;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod deserialize-from :default
   [segment type]
   (if-some [prim (primitive-type type)]
-    (with-acquired [(segment-scope segment)]
-      (-> segment
-          (deserialize-from prim)
-          (deserialize* type)))
+    (-> segment
+        (deserialize-from prim)
+        (deserialize* type))
     (throw (ex-info "Attempted to deserialize a non-primitive type that has not been overriden"
                     {:type type
                      :segment segment}))))
