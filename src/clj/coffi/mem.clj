@@ -230,6 +230,7 @@
   Returns nil for any type which does not have a primitive representation."
   type-dispatch)
 
+;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod primitive-type :default
   [type]
   (primitive-types type))
@@ -259,6 +260,7 @@
   Otherwise, it should return a [[GroupLayout]] for the given type."
   type-dispatch)
 
+;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod c-layout :default
   [type]
   (c-prim-layout (or (primitive-type type) type)))
@@ -319,6 +321,7 @@
    ::float float
    ::double double})
 
+;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod serialize* :default
   [obj type _scope]
   (if-let [prim (primitive-type type)]
@@ -358,6 +361,7 @@
     [obj type segment scope]
     (type-dispatch type)))
 
+;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod serialize-into :default
   [obj type segment scope]
   (if-some [prim-layout (primitive-type type)]
@@ -436,6 +440,7 @@
     [segment type]
     (type-dispatch type)))
 
+;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod deserialize-from :default
   [segment type]
   (if-some [prim (primitive-type type)]
@@ -495,6 +500,7 @@
     [obj type]
     (type-dispatch type)))
 
+;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod deserialize* :default
   [obj type]
   (if (primitive-type type)

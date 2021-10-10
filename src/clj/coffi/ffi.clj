@@ -231,6 +231,7 @@
      (let [args (concat required-args types)]
        (make-downcall symbol args ret)))))
 
+;; TODO(Joshua): Optimize this to not serialize things if possible
 (defn make-serde-wrapper
   "Constructs a wrapper function for the `downcall` which serializes the arguments
   and deserializes the return value."
