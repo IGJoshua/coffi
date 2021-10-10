@@ -567,11 +567,41 @@
 ;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod deserialize* :default
   [obj type]
-  (if (primitive-type type)
-    obj
-    (throw (ex-info "Attempted to deserialize a non-primitive type with primitive methods"
-                    {:type type
-                     :segment obj}))))
+  (throw (ex-info "Attempted to deserialize a non-primitive type with primitive methods"
+                  {:type type
+                   :segment obj})))
+
+(defmethod deserialize* ::byte
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::short
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::int
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::long
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::long-long
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::char
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::float
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::double
+  [obj _type]
+  obj)
 
 (defmethod deserialize* ::pointer
   [addr type]
@@ -580,6 +610,10 @@
       (deserialize-from (slice-global addr (size-of (second type)))
                         (second type))
       addr)))
+
+(defmethod deserialize* ::void
+  [_obj _type]
+  nil)
 
 (defn deserialize
   "Deserializes an arbitrary type.
