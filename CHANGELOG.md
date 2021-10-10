@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Performance
+- Added multimethod implementations for primitives in (de)serialization functions, rather than using the default
 
 ## [0.1.220] - 2021-10-09
 ### Fixed
