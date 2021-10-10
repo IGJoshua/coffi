@@ -360,26 +360,43 @@
     [obj type scope]
     (type-dispatch type)))
 
-(def ^:private primitive-cast
-  "Map from primitive type names to the function to cast it to a primitive."
-  {::byte byte
-   ::short short
-   ::int int
-   ::long long
-   ::long-long long
-   ::char char
-   ::float float
-   ::double double})
-
-;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod serialize* :default
   [obj type _scope]
-  (if-let [prim (primitive-type type)]
-    (when-not (= ::void prim)
-      ((primitive-cast prim) obj))
-    (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
-                    {:type type
-                     :object obj}))))
+  (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
+                  {:type type
+                   :object obj})))
+
+(defmethod serialize* ::byte
+  [obj _type _scope]
+  (byte obj))
+
+(defmethod serialize* ::short
+  [obj _type _scope]
+  (short obj))
+
+(defmethod serialize* ::int
+  [obj _type _scope]
+  (int obj))
+
+(defmethod serialize* ::long
+  [obj _type _scope]
+  (long obj))
+
+(defmethod serialize* ::long-long
+  [obj _type _scope]
+  (long obj))
+
+(defmethod serialize* ::char
+  [obj _type _scope]
+  (char obj))
+
+(defmethod serialize* ::float
+  [obj _type _scope]
+  (float obj))
+
+(defmethod serialize* ::double
+  [obj _type _scope]
+  (double obj))
 
 (defmethod serialize* ::pointer
   [obj type scope]
