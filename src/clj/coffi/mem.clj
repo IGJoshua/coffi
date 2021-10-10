@@ -230,14 +230,49 @@
   Returns nil for any type which does not have a primitive representation."
   type-dispatch)
 
-;; TODO(Joshua): For performance, turn this into a bunch of specific defmethods
 (defmethod primitive-type :default
-  [type]
-  (primitive-types type))
+  [_type]
+  nil)
+
+(defmethod primitive-type ::byte
+  [_type]
+  ::byte)
+
+(defmethod primitive-type ::short
+  [_type]
+  ::short)
+
+(defmethod primitive-type ::int
+  [_type]
+  ::int)
+
+(defmethod primitive-type ::long
+  [_type]
+  ::long)
+
+(defmethod primitive-type ::long-long
+  [_type]
+  ::long-long)
+
+(defmethod primitive-type ::char
+  [_type]
+  ::char)
+
+(defmethod primitive-type ::float
+  [_type]
+  ::float)
+
+(defmethod primitive-type ::double
+  [_type]
+  ::double)
 
 (defmethod primitive-type ::pointer
   [_type]
   ::pointer)
+
+(defmethod primitive-type ::void
+  [_type]
+  ::void)
 
 (def c-prim-layout
   "Map of primitive type names to the [[CLinker]] types for a method handle."
