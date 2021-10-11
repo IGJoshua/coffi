@@ -549,8 +549,6 @@
    :style/indent [:defn]}
   [& args]
   (let [args (s/conform ::defcfn-args args)
-        args-types (gensym "args-types")
-        ret-type (gensym "ret-type")
         address (gensym "symbol")
         native-sym (gensym "native")
         [arity fn-tail] (-> args :wrapper :fn-tail)
@@ -562,10 +560,8 @@
                               :single-arity [fn-tail]
                               :multi-arity fn-tail
                               nil))]
-    `(let [~args-types ~(:native-arglist args)
-           ~ret-type ~(:return-type args)
-           ~address (find-symbol ~(name (:symbol args)))
-           ~native-sym (cfn ~address ~args-types ~ret-type)
+    `(let [~address (find-symbol ~(name (:symbol args)))
+           ~native-sym (cfn ~address ~(:native-arglist args) ~(:return-type args))
            fun# ~(if (:wrapper args)
                    `(fn ~(:name args)
                       ~@fn-tail)
