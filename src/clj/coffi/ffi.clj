@@ -20,7 +20,6 @@
     CLinker
     FunctionDescriptor
     MemoryLayout
-    MemorySegment
     SegmentAllocator)))
 
 ;;; FFI Code loading and function access
