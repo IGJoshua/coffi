@@ -3,7 +3,11 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Performance
+- Added an `:inline` function to `make-serde-wrapper` to remove serialization overhead on primitives
 - Added multimethod implementations for primitives in (de)serialization functions, rather than using the default
+
+### Fixed
+- `cfn` didn't add serializers with non-primitive types in some cases
 
 ## [0.1.220] - 2021-10-09
 ### Fixed
