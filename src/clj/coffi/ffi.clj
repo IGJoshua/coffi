@@ -255,6 +255,7 @@
         scope (gensym "scope")]
     (if-not (seqable? arg-types)
       (let [args (gensym "args")
+            ret (gensym "ret")
             serialized-args `(map (fn [arg# type#] (mem/serialize arg# type# ~scope)) ~args ~arg-types)
             prim-call `(apply ~downcall ~serialized-args)
             non-prim-call `(apply ~downcall (mem/scope-allocator ~scope) ~serialized-args)]
@@ -267,24 +268,27 @@
               ~prim-call))
 
          const-ret?
-         `(fn ~'native-fn
-            [~'& ~args]
-            (with-open [~scope (mem/stack-scopee)]
-              ~(if (mem/primitive-type ret-type)
-                 `(mem/deserialize* ~prim-call ~ret-type)
-                 `(mem/deserialize-from ~non-prim-call ~ret-type))))
+         `(let [~ret ~ret-type]
+            (fn ~'native-fn
+              [~'& ~args]
+              (with-open [~scope (mem/stack-scopee)]
+                ~(if (mem/primitive-type ret-type)
+                   `(mem/deserialize* ~prim-call ~ret)
+                   `(mem/deserialize-from ~non-prim-call ~ret)))))
 
          :else
-         `(if (mem/primitive-type ~ret-type)
-            (fn ~'native-fn
-              [~'& ~args]
-              (with-open [~scope mem/stack-scope]
-                (mem/deserialize* ~prim-call ~ret-type)))
-            (fn ~'native-fn
-              [~'& ~args]
-              (with-open [~scope mem/stack-scope]
-                (mem/deserialize-from ~non-prim-call ~ret-type))))))
+         `(let [~ret ~ret-type]
+            (if (mem/primitive-type ~ret)
+              (fn ~'native-fn
+                [~'& ~args]
+                (with-open [~scope mem/stack-scope]
+                  (mem/deserialize* ~prim-call ~ret)))
+              (fn ~'native-fn
+                [~'& ~args]
+                (with-open [~scope mem/stack-scope]
+                  (mem/deserialize-from ~non-prim-call ~ret)))))))
       (let [arg-syms (repeatedly (count arg-types) #(gensym "arg"))
+            ret (gensym "ret")
             serialize-args (map (fn [sym type]
                                   (if (s/valid? ::mem/type type)
                                     (if-not (mem/primitive? type)
@@ -318,34 +322,35 @@
               native-fn)
 
           :else
-          (let [call (cons downcall arg-syms)
-                prim-call `(mem/deserialize* ~call ~ret-type)
-                non-prim-call `(mem/deserialize-from ~(list* (first call)
-                                                             `(mem/scope-allocator ~scope)
-                                                             (rest call))
-                                                     ~ret-type)]
-            (cond
-              (and none-to-serialize?
-                   const-ret?)
-              (native-fn (if (mem/primitive-type ret-type)
-                           prim-call
-                           non-prim-call))
+          `(let [~ret ~ret-type]
+             ~(let [call (cons downcall arg-syms)
+                    prim-call `(mem/deserialize* ~call ~ret)
+                    non-prim-call `(mem/deserialize-from ~(list* (first call)
+                                                                 `(mem/scope-allocator ~scope)
+                                                                 (rest call))
+                                                         ~ret)]
+                (cond
+                  (and none-to-serialize?
+                       const-ret?)
+                  (native-fn (if (mem/primitive-type ret-type)
+                               prim-call
+                               non-prim-call))
 
-              none-to-serialize?
-              `(if (mem/primitive-type ~ret-type)
-                 ~(native-fn prim-call)
-                 ~(native-fn non-prim-call))
+                  none-to-serialize?
+                  (if (mem/primitive-type ~ret)
+                    ~(native-fn prim-call)
+                    ~(native-fn non-prim-call))
 
-              const-ret?
-              (native-fn (wrap-serialize
-                          (if (mem/primitive-type ret-type)
-                            prim-call
-                            non-prim-call)))
+                  const-ret?
+                  (native-fn (wrap-serialize
+                              (if (mem/primitive-type ret-type)
+                                prim-call
+                                non-prim-call)))
 
-              :else
-              `(if (mem/primitive-type ~ret-type)
-                 ~(native-fn (wrap-serialize prim-call))
-                 ~(native-fn (wrap-serialize non-prim-call))))))))))
+                  :else
+                  `(if (mem/primitive-type ~ret)
+                     ~(native-fn (wrap-serialize prim-call))
+                     ~(native-fn (wrap-serialize non-prim-call)))))))))))
 
 (defn make-serde-wrapper
   "Constructs a wrapper function for the `downcall` which serializes the arguments
