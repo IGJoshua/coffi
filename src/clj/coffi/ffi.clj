@@ -685,8 +685,10 @@
                               :multi-arity fn-tail
                               nil))]
     `(let [~address (find-symbol ~(name (:symbol args)))
-           ~native-sym (-> (make-downcall ~address ~(:native-arglist args) ~(:return-type args))
-                           (make-serde-wrapper ~(:native-arglist args) ~(:return-type args)))
+           ~(or (-> args :wrapper :native-fn)
+                native-sym)
+           (-> (make-downcall ~address ~(:native-arglist args) ~(:return-type args))
+               (make-serde-wrapper ~(:native-arglist args) ~(:return-type args)))
            fun# ~(if (:wrapper args)
                    `(fn ~(:name args)
                       ~@fn-tail)
