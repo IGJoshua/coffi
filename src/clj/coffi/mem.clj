@@ -224,6 +224,9 @@
   but which need additional logic to be performed during serialization and
   deserialization.
 
+  Implementations of this method should take into account that type arguments
+  may not always be evaluated before passing to this function.
+
   Returns nil for any type which does not have a primitive representation."
   type-dispatch)
 
