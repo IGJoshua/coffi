@@ -212,6 +212,11 @@
     (qualified-keyword? type) type
     (sequential? type) (keyword (first type))))
 
+(def primitive?
+  "A set of all primitive types."
+  #{::byte ::short ::int ::long ::long-long
+    ::char ::float ::double ::pointer})
+
 (defmulti primitive-type
   "Gets the primitive type that is used to pass as an argument for the `type`.
 
