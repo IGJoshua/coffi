@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+### Fixed
+- Incorrect inline expansion of `make-serde-wrapper` in cases where a function has no arguments
+
 ## [0.1.241] - 2021-10-14
 ### Performance
 - Added an `:inline` function to `make-serde-wrapper` to remove serialization overhead on primitives
@@ -55,6 +59,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[Unreleased]: https://github.com/IGJoshua/coffi/compare/v0.1.241...HEAD
 [0.1.241]: https://github.com/IGJoshua/coffi/compare/v0.1.220...v0.1.241
 [0.1.220]: https://github.com/IGJoshua/coffi/compare/v0.1.205...v0.1.220
 [0.1.205]: https://github.com/IGJoshua/coffi/compare/v0.1.192...v0.1.205

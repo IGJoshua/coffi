@@ -305,10 +305,12 @@
                                             nil))
                                         (list sym `(mem/serialize ~sym ~type ~scope))))
                                     arg-syms arg-types)
+                wrap-scope (fn [expr]
+                             `(with-open [~scope (mem/stack-scope)]
+                                ~expr))
                 wrap-serialize (fn [expr]
-                                 `(with-open [~scope (mem/stack-scope)]
-                                    (let [~@(mapcat identity serialize-args)]
-                                      ~expr)))
+                                 `(let [~@(mapcat identity serialize-args)]
+                                    ~expr))
                 native-fn (fn [expr]
                             `(fn ~'native-fn [~@arg-syms]
                                ~expr))
@@ -321,6 +323,7 @@
               primitive-ret?
               (-> (cons downcall-sym arg-syms)
                   wrap-serialize
+                  wrap-scope
                   native-fn)
 
               :else
@@ -336,12 +339,12 @@
                            const-ret?)
                       (native-fn (if (mem/primitive-type ret-type)
                                    prim-call
-                                   non-prim-call))
+                                   (wrap-scope non-prim-call)))
 
                       none-to-serialize?
-                      (if (mem/primitive-type ~ret)
-                        ~(native-fn prim-call)
-                        ~(native-fn non-prim-call))
+                      `(if (mem/primitive-type ~ret)
+                         ~(native-fn prim-call)
+                         ~(native-fn (wrap-scope non-prim-call)))
 
                       const-ret?
                       (native-fn (wrap-serialize
