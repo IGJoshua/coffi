@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- Bug with the inline expansion of `make-serde-wrapper`, make it more maintainable
 
 ## [0.1.246] - 2021-10-14
 ### Fixed
