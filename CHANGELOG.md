@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.1.251] - 2021-10-14
 ### Fixed
 - Bug with the inline expansion of `make-serde-wrapper`, make it more maintainable
 
@@ -63,7 +63,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
-[Unreleased]: https://github.com/IGJoshua/coffi/compare/v0.1.246...HEAD
+[0.1.251]: https://github.com/IGJoshua/coffi/compare/v0.1.246...v0.1.251
 [0.1.246]: https://github.com/IGJoshua/coffi/compare/v0.1.241...v0.1.246
 [0.1.241]: https://github.com/IGJoshua/coffi/compare/v0.1.220...v0.1.241
 [0.1.220]: https://github.com/IGJoshua/coffi/compare/v0.1.205...v0.1.220
