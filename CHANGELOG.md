@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- Incorrect inline expansion of `make-serde-wrapper` in cases where a function has no arguments
 
 ## [0.1.241] - 2021-10-14
 ### Performance
