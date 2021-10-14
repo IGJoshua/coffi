@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [0.1.241] - 2021-10-14
+### Performance
+- Added an `:inline` function to `make-serde-wrapper` to remove serialization overhead on primitives
+- Added multimethod implementations for primitives in (de)serialization functions, rather than using the default
+
+### Fixed
+- `cfn` didn't add serializers with non-primitive types in some cases
+
 ## [0.1.220] - 2021-10-09
 ### Fixed
 - All-primitive method types still used serialization when called from `cfn`
@@ -47,6 +55,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[0.1.241]: https://github.com/IGJoshua/coffi/compare/v0.1.220...v0.1.241
 [0.1.220]: https://github.com/IGJoshua/coffi/compare/v0.1.205...v0.1.220
 [0.1.205]: https://github.com/IGJoshua/coffi/compare/v0.1.192...v0.1.205
 [0.1.192]: https://github.com/IGJoshua/coffi/compare/v0.1.184...v0.1.192

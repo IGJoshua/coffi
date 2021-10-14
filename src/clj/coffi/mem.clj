@@ -205,20 +205,17 @@
     (map #(slice segment (* % size) size)
          (range num-segments))))
 
-(def primitive-types
-  "A set of keywords representing all the primitive types which may be passed to
-  or returned from native functions."
-  #{::byte ::short ::int ::long ::long-long
-    ::char
-    ::float ::double
-    ::pointer ::void})
-
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
   [type]
   (cond
     (qualified-keyword? type) type
     (sequential? type) (keyword (first type))))
+
+(def primitive?
+  "A set of all primitive types."
+  #{::byte ::short ::int ::long ::long-long
+    ::char ::float ::double ::pointer})
 
 (defmulti primitive-type
   "Gets the primitive type that is used to pass as an argument for the `type`.
@@ -227,28 +224,55 @@
   but which need additional logic to be performed during serialization and
   deserialization.
 
+  Implementations of this method should take into account that type arguments
+  may not always be evaluated before passing to this function.
+
   Returns nil for any type which does not have a primitive representation."
   type-dispatch)
 
 (defmethod primitive-type :default
-  [type]
-  (primitive-types type))
+  [_type]
+  nil)
+
+(defmethod primitive-type ::byte
+  [_type]
+  ::byte)
+
+(defmethod primitive-type ::short
+  [_type]
+  ::short)
+
+(defmethod primitive-type ::int
+  [_type]
+  ::int)
+
+(defmethod primitive-type ::long
+  [_type]
+  ::long)
+
+(defmethod primitive-type ::long-long
+  [_type]
+  ::long-long)
+
+(defmethod primitive-type ::char
+  [_type]
+  ::char)
+
+(defmethod primitive-type ::float
+  [_type]
+  ::float)
+
+(defmethod primitive-type ::double
+  [_type]
+  ::double)
 
 (defmethod primitive-type ::pointer
   [_type]
   ::pointer)
 
-(def c-prim-layout
-  "Map of primitive type names to the [[CLinker]] types for a method handle."
-  {::byte CLinker/C_CHAR
-   ::short CLinker/C_SHORT
-   ::int CLinker/C_INT
-   ::long CLinker/C_LONG
-   ::long-long CLinker/C_LONG_LONG
-   ::char CLinker/C_CHAR
-   ::float CLinker/C_FLOAT
-   ::double CLinker/C_DOUBLE
-   ::pointer CLinker/C_POINTER})
+(defmethod primitive-type ::void
+  [_type]
+  ::void)
 
 (defmulti c-layout
   "Gets the layout object for a given `type`.
@@ -261,7 +285,43 @@
 
 (defmethod c-layout :default
   [type]
-  (c-prim-layout (or (primitive-type type) type)))
+  (c-layout (primitive-type type)))
+
+(defmethod c-layout ::byte
+  [_type]
+  CLinker/C_CHAR)
+
+(defmethod c-layout ::short
+  [_type]
+  CLinker/C_SHORT)
+
+(defmethod c-layout ::int
+  [_type]
+  CLinker/C_INT)
+
+(defmethod c-layout ::long
+  [_type]
+  CLinker/C_LONG)
+
+(defmethod c-layout ::long-long
+  [_type]
+  CLinker/C_LONG_LONG)
+
+(defmethod c-layout ::char
+  [_type]
+  CLinker/C_CHAR)
+
+(defmethod c-layout ::float
+  [_type]
+  CLinker/C_FLOAT)
+
+(defmethod c-layout ::double
+  [_type]
+  CLinker/C_DOUBLE)
+
+(defmethod c-layout ::pointer
+  [_type]
+  CLinker/C_POINTER)
 
 (def java-prim-layout
   "Map of primitive type names to the Java types for a method handle."
@@ -308,25 +368,43 @@
     [obj type scope]
     (type-dispatch type)))
 
-(def ^:private primitive-cast
-  "Map from primitive type names to the function to cast it to a primitive."
-  {::byte byte
-   ::short short
-   ::int int
-   ::long long
-   ::long-long long
-   ::char char
-   ::float float
-   ::double double})
-
 (defmethod serialize* :default
   [obj type _scope]
-  (if-let [prim (primitive-type type)]
-    (when-not (= ::void prim)
-      ((primitive-cast prim) obj))
-    (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
-                    {:type type
-                     :object obj}))))
+  (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
+                  {:type type
+                   :object obj})))
+
+(defmethod serialize* ::byte
+  [obj _type _scope]
+  (byte obj))
+
+(defmethod serialize* ::short
+  [obj _type _scope]
+  (short obj))
+
+(defmethod serialize* ::int
+  [obj _type _scope]
+  (int obj))
+
+(defmethod serialize* ::long
+  [obj _type _scope]
+  (long obj))
+
+(defmethod serialize* ::long-long
+  [obj _type _scope]
+  (long obj))
+
+(defmethod serialize* ::char
+  [obj _type _scope]
+  (char obj))
+
+(defmethod serialize* ::float
+  [obj _type _scope]
+  (float obj))
+
+(defmethod serialize* ::double
+  [obj _type _scope]
+  (double obj))
 
 (defmethod serialize* ::pointer
   [obj type scope]
@@ -439,10 +517,9 @@
 (defmethod deserialize-from :default
   [segment type]
   (if-some [prim (primitive-type type)]
-    (with-acquired [(segment-scope segment)]
-      (-> segment
-          (deserialize-from prim)
-          (deserialize* type)))
+    (-> segment
+        (deserialize-from prim)
+        (deserialize* type))
     (throw (ex-info "Attempted to deserialize a non-primitive type that has not been overriden"
                     {:type type
                      :segment segment}))))
@@ -497,11 +574,41 @@
 
 (defmethod deserialize* :default
   [obj type]
-  (if (primitive-type type)
-    obj
-    (throw (ex-info "Attempted to deserialize a non-primitive type with primitive methods"
-                    {:type type
-                     :segment obj}))))
+  (throw (ex-info "Attempted to deserialize a non-primitive type with primitive methods"
+                  {:type type
+                   :segment obj})))
+
+(defmethod deserialize* ::byte
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::short
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::int
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::long
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::long-long
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::char
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::float
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::double
+  [obj _type]
+  obj)
 
 (defmethod deserialize* ::pointer
   [addr type]
@@ -510,6 +617,10 @@
       (deserialize-from (slice-global addr (size-of (second type)))
                         (second type))
       addr)))
+
+(defmethod deserialize* ::void
+  [_obj _type]
+  nil)
 
 (defn deserialize
   "Deserializes an arbitrary type.
