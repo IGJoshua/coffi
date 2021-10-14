@@ -250,112 +250,143 @@
   primitive, the `downcall` is returned directly. In cases where arguments must
   be serialized, a new [[mem/stack-scope]] is generated."
   [downcall arg-types ret-type]
-  (let [const-ret? (s/valid? ::mem/type ret-type)
-        primitive-ret? (mem/primitive? ret-type)
-        scope (gensym "scope")
-        downcall-sym (gensym "downcall")]
-    `(let [~downcall-sym ~downcall]
-       ~(if-not (seqable? arg-types)
-          (let [args (gensym "args")
-                ret (gensym "ret")
-                serialized-args `(map (fn [arg# type#] (mem/serialize arg# type# ~scope)) ~args ~arg-types)
-                prim-call `(apply ~downcall-sym ~serialized-args)
-                non-prim-call `(apply ~downcall-sym (mem/scope-allocator ~scope) ~serialized-args)]
-            (cond
-              (and const-ret?
-                   primitive-ret?)
-              `(fn ~'native-fn
-                 [~'& ~args]
-                 (with-open [~scope (mem/stack-scope)]
-                   ~prim-call))
+  (let [;; Complexity of types
+        const-args? (or (vector? arg-types) (nil? arg-types))
+        simple-args? (when const-args?
+                       (every? mem/primitive? arg-types))
+        const-ret? (s/valid? ::mem/type ret-type)
+        primitive-ret? (and const-ret? (or (mem/primitive? ret-type)
+                                           (#{::mem/void} ret-type)))
+        simple-ret? (and const-ret? (mem/primitive-type ret-type))
+        no-serde? (and const-args? (empty? arg-types)
+                       primitive-ret?)]
+    (if no-serde?
+      `(let [downcall# ~downcall]
+         ;; NOTE(Joshua): These are here to ensure that evaluation order is
+         ;; preserved as equivalent to a function call.
+         ~arg-types
+         ~ret-type
+         downcall#)
+      (let [;; All our symbols
+            scope (gensym "scope")
+            downcall-sym (gensym "downcall")
+            args-sym (when-not const-args?
+                       (gensym "args"))
+            args-types-sym (when-not const-args?
+                             (gensym "args-types"))
+            arg-syms (when const-args?
+                       (repeatedly (count arg-types) #(gensym "arg")))
+            arg-type-syms (when const-args?
+                            (repeatedly (count arg-types) #(gensym "arg-type")))
+            ret-type-sym (gensym "ret-type")
 
-              const-ret?
-              `(let [~ret ~ret-type]
-                 (fn ~'native-fn
-                   [~'& ~args]
-                   (with-open [~scope (mem/stack-scopee)]
-                     ~(if (mem/primitive-type ret-type)
-                        `(mem/deserialize* ~prim-call ~ret)
-                        `(mem/deserialize-from ~non-prim-call ~ret)))))
+            ;; Helper Functions
+            make-serialized-binding
+            ;; Given a symbol and its type, make a partial binding to serialize and shadow it
+            (fn [sym type type-sym]
+              (some->>
+               (cond
+                 (not (s/valid? ::mem/type type))
+                 `(mem/serialize ~sym ~type-sym ~scope)
 
-              :else
-              `(let [~ret ~ret-type]
-                 (if (mem/primitive-type ~ret)
-                   (fn ~'native-fn
-                     [~'& ~args]
-                     (with-open [~scope (mem/stack-scope)]
-                       (mem/deserialize* ~prim-call ~ret)))
-                   (fn ~'native-fn
-                     [~'& ~args]
-                     (with-open [~scope (mem/stack-scope)]
-                       (mem/deserialize-from ~non-prim-call ~ret)))))))
-          (let [arg-syms (repeatedly (count arg-types) #(gensym "arg"))
-                ret (gensym "ret")
-                serialize-args (map (fn [sym type]
-                                      (if (s/valid? ::mem/type type)
-                                        (if-not (mem/primitive? type)
-                                          (list sym
-                                                (if (mem/primitive-type type)
-                                                  `(mem/serialize* ~sym ~type ~scope)
-                                                  `(let [alloc# (mem/alloc-instance ~type ~scope)]
-                                                     (mem/serialize-into ~sym ~type alloc# ~scope)
-                                                     alloc#)))
-                                          (if (primitive-cast-sym type)
-                                            (list sym (list (primitive-cast-sym type) sym))
-                                            nil))
-                                        (list sym `(mem/serialize ~sym ~type ~scope))))
-                                    arg-syms arg-types)
-                wrap-scope (fn [expr]
-                             `(with-open [~scope (mem/stack-scope)]
-                                ~expr))
-                wrap-serialize (fn [expr]
-                                 `(let [~@(mapcat identity serialize-args)]
-                                    ~expr))
-                native-fn (fn [expr]
-                            `(fn ~'native-fn [~@arg-syms]
-                               ~expr))
-                none-to-serialize? (zero? (count (filter some? serialize-args)))]
-            (cond
-              (and none-to-serialize?
-                   primitive-ret?)
-              downcall-sym
+                 (and (mem/primitive? type)
+                      (not (#{::mem/pointer} type)))
+                 (list (primitive-cast-sym type) sym)
 
-              primitive-ret?
-              (-> (cons downcall-sym arg-syms)
-                  wrap-serialize
-                  wrap-scope
-                  native-fn)
+                 (#{::mem/pointer} type)
+                 nil
 
-              :else
-              `(let [~ret ~ret-type]
-                 ~(let [call (cons downcall-sym arg-syms)
-                        prim-call `(mem/deserialize* ~call ~ret)
-                        non-prim-call `(mem/deserialize-from ~(list* (first call)
-                                                                     `(mem/scope-allocator ~scope)
-                                                                     (rest call))
-                                                             ~ret)]
-                    (cond
-                      (and none-to-serialize?
-                           const-ret?)
-                      (native-fn (if (mem/primitive-type ret-type)
-                                   prim-call
-                                   (wrap-scope non-prim-call)))
+                 (mem/primitive-type type)
+                 `(mem/serialize* ~sym ~type-sym ~scope)
 
-                      none-to-serialize?
-                      `(if (mem/primitive-type ~ret)
-                         ~(native-fn prim-call)
-                         ~(native-fn (wrap-scope non-prim-call)))
+                 :else
+                 `(let [alloc# (mem/alloc-instance ~type-sym)]
+                    (mem/serialize-into ~sym ~type-sym alloc# ~scope)
+                    alloc#))
+               (list sym)))
 
-                      const-ret?
-                      (native-fn (wrap-serialize
-                                  (if (mem/primitive-type ret-type)
-                                    prim-call
-                                    non-prim-call)))
+            arg-serializers
+            ;; Binding forms that rebind the arg symbols to their serialized counterparts
+            (when const-args?
+              (->> (map make-serialized-binding
+                        arg-syms arg-types arg-type-syms)
+                   (filter some?)))
 
-                      :else
-                      `(if (mem/primitive-type ~ret)
-                         ~(native-fn (wrap-serialize prim-call))
-                         ~(native-fn (wrap-serialize non-prim-call))))))))))))
+            wrap-serialize
+            ;; Wrap an expression to shadow args to their serialized counterparts
+            (fn [expr]
+              (cond
+                (and const-args?
+                     (zero? (count arg-types)))
+                expr
+
+                const-args?
+                (if (seq arg-serializers)
+                  `(let [~@(mapcat identity arg-serializers)]
+                     ~expr)
+                  expr)
+
+                :else
+                `(let [~args-sym (map (fn [obj# type#]
+                                        (mem/serialize obj# type# ~scope))
+                                      ~args-sym ~args-types-sym)]
+                   ~expr)))
+
+            make-call (fn [args & {:keys [allocator?]}]
+                        ;; NOTE(Joshua): If `args` is a symbol, that means we're
+                        ;; taking restargs, and so the downcall must be applied
+                        (-> `(~@(when (symbol? args) [`apply])
+                              ~downcall-sym
+                              ~@(when allocator? [`(mem/scope-allocator ~scope)])
+                              ~@(if (symbol? args)
+                                  [args]
+                                  args))
+                            wrap-serialize))
+
+            deserialize-prim (fn [expr]
+                               `(mem/deserialize* ~expr ~ret-type-sym))
+            deserialize-segment (fn [expr]
+                                  `(mem/deserialize-from ~expr ~ret-type-sym))
+            deserialize-ret (fn [expr]
+                              (cond
+                                (or (mem/primitive? ret-type)
+                                    (#{::mem/void} ret-type))
+                                expr
+
+                                (mem/primitive-type ret-type)
+                                (deserialize-prim expr)
+
+                                :else
+                                (deserialize-segment expr)))
+
+            wrap-scope (fn [expr]
+                         `(with-open [~scope (mem/stack-scope)]
+                            ~expr))
+            wrap-fn (fn [call needs-scope?]
+                      `(fn [~@(if const-args? arg-syms ['& args-sym])]
+                         ~(cond-> call needs-scope? wrap-scope)))]
+        `(let [;; NOTE(Joshua): To ensure all arguments are evaluated once and
+               ;; in-order, they must be bound here
+               ~downcall-sym ~downcall
+               ~@(if const-args?
+                   (mapcat vector arg-type-syms arg-types)
+                   [args-types-sym arg-types])
+               ~ret-type-sym ~ret-type]
+           ~(if const-ret?
+              (-> (make-call (if const-args? arg-syms args-sym)
+                             :allocator? (not (mem/primitive-type ret-type)))
+                  deserialize-ret
+                  (wrap-fn (or (not simple-args?)
+                               (not simple-ret?))))
+              (let [prim-call (-> (make-call (if const-args? arg-syms args-sym)
+                                             :allocator? false)
+                                  deserialize-prim)
+                    non-prim-call (-> (make-call (if const-args? arg-syms args-sym)
+                                                 :allocator? true)
+                                      deserialize-segment)]
+                `(if (mem/primitive-type ~ret-type-sym)
+                   ~(wrap-fn prim-call (not simple-args?))
+                   ~(wrap-fn non-prim-call true)))))))))
 
 (defn make-serde-wrapper
   "Constructs a wrapper function for the `downcall` which serializes the arguments
