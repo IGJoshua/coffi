@@ -538,8 +538,7 @@
            (method-type arg-types ret-type)
            (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
-          (cond->
-              (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
+          (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
       assoc ::address addr)))
 
 ;;; Static memory access
