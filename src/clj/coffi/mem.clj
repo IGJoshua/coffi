@@ -417,6 +417,10 @@
       obj)
     (MemoryAddress/NULL)))
 
+(defmethod serialize* ::void
+  [_obj _type _scope]
+  nil)
+
 (defmulti serialize-into
   "Writes a serialized version of the `obj` to the given `segment`.
 

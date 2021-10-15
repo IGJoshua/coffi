@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- Void return types on upcalls would crash on serialization
 
 ## [0.1.251] - 2021-10-14
 ### Fixed
