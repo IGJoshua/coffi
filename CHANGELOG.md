@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.2.259] - 2021-10-16
 ### Fixed
 - Long and double arguments to upcalls failed to compile in some cases
 - Void return types on upcalls would crash on serialization
