@@ -21,6 +21,19 @@
          :jvm-opts ["--add-modules=jdk.incubator.foreign" "--enable-native-access=ALL-UNNAMED"]
          :exec-fn cognitect.test-runner.api/test}
 
+  :codox {:extra-deps {codox/codox {:mvn/version "0.10.7"}}
+          :exec-fn codox.main/generate-docs
+          :exec-args {:source-paths  ["src/clj"]
+                      :output-path "docs"
+                      :project
+                      {:name "coffi"
+                       :version "v0.2.259"
+                       :description "A Foreign Function Interface in Clojure for JDK 17."}
+                      :source-uri "https://github.com/IGJoshua/coffi/blob/{git-commit}/{filepath}#L{line}"
+                      :metadata {:doc/format :markdown}}
+          :jvm-opts ["--add-modules=jdk.incubator.foreign"
+                     "--add-opens" "java.base/java.lang=ALL-UNNAMED"]}
+
   :build {:replace-deps {org.clojure/clojure {:mvn/version "1.10.3"}
                          io.github.clojure/tools.build {:git/tag "v0.3.0" :git/sha "e418fc9"}}
           :ns-default build
