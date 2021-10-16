@@ -459,6 +459,10 @@
    ::mem/double :dreturn
    ::mem/void :return})
 
+(def ^:private double-sized?
+  "Set of primitive types which require 2 indices in the constant pool."
+  #{::mem/double ::mem/long ::mem/long-long})
+
 (defn- upcall-class
   "Constructs a class definition for a class with a single method, `upcall`, which
   boxes any primitives passed to it and calls a closed over [[IFn]]."
@@ -482,11 +486,18 @@
                           (insn-layout ret-type))
               :emit [[:aload 0]
                      [:getfield :this "upcall_ifn" IFn]
-                     (map-indexed
-                      (fn [idx arg]
-                        [[(load-instructions (mem/primitive-type arg) :aload) (inc idx)]
-                         (to-object-asm arg)])
-                      arg-types)
+                     (loop [types arg-types
+                            acc []
+                            idx 1]
+                       (if (seq types)
+                         (let [prim (mem/primitive-type (first types))]
+                           (recur (rest types)
+                                  (conj acc [[(load-instructions prim) idx]
+                                             (to-object-asm (first types))])
+                                  (cond-> (inc idx)
+                                    (double-sized? prim)
+                                    inc)))
+                         acc))
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
                      (to-prim-asm ret-type)
                      [(return-for-type ret-type :areturn)]]}]})

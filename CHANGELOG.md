@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Fixed
+- Long and double arguments to upcalls failed to compile in some cases
 - Void return types on upcalls would crash on serialization
 
 ## [0.1.251] - 2021-10-14
