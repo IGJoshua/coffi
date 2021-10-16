@@ -1,7 +1,5 @@
 (ns coffi.ffi
-  "Functions for managing native allocations and resource scopes, creating handles
-  to native functions, serializing and deserializing Clojure data to native
-  structures, and loading native libraries."
+  "Functions for creating handles to native functions and loading native libraries."
   (:require
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
