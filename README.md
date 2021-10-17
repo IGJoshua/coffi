@@ -1,5 +1,4 @@
 # coffi
-[![cljdoc badge](https://cljdoc.org/badge/org.suskalo/coffi)](https://cljdoc.org/d/org.suskalo/coffi/CURRENT)
 [![Clojars Project](https://img.shields.io/clojars/v/org.suskalo/coffi.svg)](https://clojars.org/org.suskalo/coffi)
 
 Coffi is a foreign function interface library for Clojure, using the new
@@ -17,8 +16,8 @@ This library is available on Clojars. Add one of the following entries to the
 `:deps` key of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.1.251"}
-io.github.IGJoshua/coffi {:git/tag "v0.1.251" :git/sha "e760a32"}
+org.suskalo/coffi {:mvn/version "0.2.259"}
+io.github.IGJoshua/coffi {:git/tag "v0.2.259" :git/sha "ee5805c"}
 ```
 
 If you use this library as a git dependency, you will need to prepare the
@@ -270,8 +269,8 @@ Clojure code to make this easier.
   native-fn
   [ints]
   (let [arr-len (count ints)
-        int-array (serialize ints [::mem/array ::mem/int arr-len]
-    (native-fn (mem/address-of int-array) arr-len))]))
+        int-array (serialize ints [::mem/array ::mem/int arr-len])]
+    (native-fn (mem/address-of int-array) arr-len)))
 ```
 
 The symbol `native-fn` can be any unqualified symbol, and names the native
