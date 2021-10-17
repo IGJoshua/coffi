@@ -598,10 +598,10 @@ addition the following libraries exist:
 - [clojure-jna](https://github.com/Chouser/clojure-jna)
 
 Dtype-next has support for Java versions 8-16 and GraalVM, but is focused
-strongly on array-based programming, and doesn't provide facilities for
-callbacks, as well as being focused on keeping memory in the native side rather
-than marshaling data to and from Clojure-native structures. In Java 16, this
-uses the first iteration of Panama, while in other Java versions it uses JNA.
+strongly on array-based programming, as well as being focused on keeping memory
+in the native side rather than marshaling data to and from Clojure-native
+structures. In Java 16, this uses the first iteration of Panama, while in other
+Java versions it uses JNA.
 
 Tech.jna and clojure-jna both use the JNA library in all cases, and neither
 provide support for dealing with struct types or callbacks.
@@ -863,7 +863,8 @@ closely.
 #### dtype-next
 The library dtype-next replaced tech.jna in the toolkit of the group working on
 machine learning and array-based programming, and it includes support for
-composite data types including structs, as well as primitive functions.
+composite data types including structs, as well as primitive functions and
+callbacks.
 
 In addition, dtype-next has two different ffi backends. First is JNA, which is
 usable on any JDK version, and is what we'll use for the first benchmark. Second
