@@ -490,7 +490,7 @@
                        (if (seq types)
                          (let [prim (mem/primitive-type (first types))]
                            (recur (rest types)
-                                  (conj acc [[(load-instructions prim) idx]
+                                  (conj acc [[(load-instructions prim :aload) idx]
                                              (to-object-asm (first types))])
                                   (cond-> (inc idx)
                                     (double-sized? prim)
