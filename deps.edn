@@ -24,7 +24,7 @@
   :codox {:extra-deps {codox/codox {:mvn/version "0.10.7"}}
           :exec-fn codox.main/generate-docs
           :exec-args {:name "coffi"
-                      :version "v0.2.259"
+                      :version "v0.2.277"
                       :description "A Foreign Function Interface in Clojure for JDK 17."
                       :source-paths  ["src/clj"]
                       :output-path "docs"
