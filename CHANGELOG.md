@@ -2,12 +2,14 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- Non-primitive arguments on upcalls would generate invalid bytecode with `nil` instructions
+
 
 ## [0.2.259] - 2021-10-16
 ### Fixed
 - Long and double arguments to upcalls failed to compile in some cases
 - Void return types on upcalls would crash on serialization
-- Non-primitive types on upcalls was unsupported and would generate invalid bytecode with `nil` instructions
 
 ## [0.1.251] - 2021-10-14
 ### Fixed
