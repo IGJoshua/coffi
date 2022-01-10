@@ -170,6 +170,34 @@ macro `defalias` is used to define a struct alias.
   "zero" [] ::point)
 ```
 
+Struct definitions do not include any padding by default. Functions for
+transforming struct types to include padding conforming to various standards can
+be found in `coffi.layout`.
+
+``` clojure
+(require '[coffi.layout :as layout])
+
+(defalias ::needs-padding
+  (layout/with-c-layout
+   [::mem/struct
+    [[:a ::mem/char]
+     [:x ::mem/float]]]))
+
+(mem/size-of ::needs-padding))
+;; => 8
+
+(mem/align-of ::needs-padding)
+;; => 4
+```
+
+Values deserialized with types produced from layout functions may include an
+extra `:coffi.layout/padding` key with a nil value.
+
+A limitation of the `defcfn` macro in its current form is that types provided to
+it must be provided in a literal form, not as an expression that evaluates to a
+type. This means that if you wish to use a layout function on a struct you must
+define an alias for it before the type can be used as a type in `defcfn`.
+
 In cases where a pointer to some data is required to pass as an argument to a
 native function, but dosn't need to be read back in, the `pointer` primitive
 type can take a type argument.
