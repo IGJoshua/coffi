@@ -889,6 +889,8 @@ coming from, but I'll admit that I haven't looked at their implementations very
 closely.
 
 #### dtype-next
+**BENCHMARKS FOR DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE COMING SHORTLY**
+
 The library dtype-next replaced tech.jna in the toolkit of the group working on
 machine learning and array-based programming, and it includes support for
 composite data types including structs, as well as primitive functions and
