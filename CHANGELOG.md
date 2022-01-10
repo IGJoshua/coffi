@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- C-characters were being read as UTF-16 rather than ASCII code points
 
 ## [0.2.277] - 2021-10-25
 ### Fixed
