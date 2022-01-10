@@ -349,6 +349,11 @@
   [type]
   (.byteSize ^MemoryLayout (c-layout type)))
 
+(defn align-of
+  "The alignment in bytes of the given `type`."
+  [type]
+  (.byteAlignment ^MemoryLayout (c-layout type)))
+
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
   ([type] (alloc-instance type (connected-scope)))
