@@ -349,6 +349,11 @@
   [type]
   (.byteSize ^MemoryLayout (c-layout type)))
 
+(defn align-of
+  "The alignment in bytes of the given `type`."
+  [type]
+  (.byteAlignment ^MemoryLayout (c-layout type)))
+
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
   ([type] (alloc-instance type (connected-scope)))
@@ -550,7 +555,7 @@
 
 (defmethod deserialize-from ::char
   [segment _type]
-  (MemoryAccess/getChar segment))
+  (char (Byte/toUnsignedInt (MemoryAccess/getByte segment))))
 
 (defmethod deserialize-from ::float
   [segment _type]
@@ -776,7 +781,8 @@
   aliased type."
   {:style/indent [:defn]}
   [new-type aliased-type]
-  (if (primitive-type aliased-type)
+  (if (and (s/valid? ::type aliased-type)
+           (primitive-type aliased-type))
     `(let [aliased# ~aliased-type]
        (defmethod primitive-type ~new-type
          [_type#]
@@ -799,4 +805,4 @@
          (deserialize-from segment# aliased#)))))
 (s/fdef defalias
   :args (s/cat :new-type qualified-keyword?
-               :aliased-type ::type))
+               :aliased-type any?))

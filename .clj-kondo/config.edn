@@ -1,1 +1,2 @@
-{:config-paths ["org.suskalo/coffi"]}
+{:config-paths ["org.suskalo/coffi"]
+ :linters {:clojure-lsp/unused-public-var {:level :off}}}
