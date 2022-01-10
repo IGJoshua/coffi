@@ -16,8 +16,8 @@ This library is available on Clojars. Add one of the following entries to the
 `:deps` key of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.2.277"}
-io.github.IGJoshua/coffi {:git/tag "v0.2.277" :git/sha "2eec1b1"}
+org.suskalo/coffi {:mvn/version "0.3.298"}
+io.github.IGJoshua/coffi {:git/tag "v0.3.298" :git/sha "1bbb8a7"}
 ```
 
 If you use this library as a git dependency, you will need to prepare the
