@@ -781,7 +781,8 @@
   aliased type."
   {:style/indent [:defn]}
   [new-type aliased-type]
-  (if (primitive-type aliased-type)
+  (if (and (s/valid? ::type aliased-type)
+           (primitive-type aliased-type))
     `(let [aliased# ~aliased-type]
        (defmethod primitive-type ~new-type
          [_type#]
@@ -804,4 +805,4 @@
          (deserialize-from segment# aliased#)))))
 (s/fdef defalias
   :args (s/cat :new-type qualified-keyword?
-               :aliased-type ::type))
+               :aliased-type any?))
