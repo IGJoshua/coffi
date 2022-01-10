@@ -550,7 +550,7 @@
 
 (defmethod deserialize-from ::char
   [segment _type]
-  (MemoryAccess/getChar segment))
+  (char (Byte/toUnsignedInt (MemoryAccess/getByte segment))))
 
 (defmethod deserialize-from ::float
   [segment _type]
