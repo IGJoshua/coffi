@@ -199,7 +199,7 @@ type. This means that if you wish to use a layout function on a struct you must
 define an alias for it before the type can be used as a type in `defcfn`.
 
 In cases where a pointer to some data is required to pass as an argument to a
-native function, but dosn't need to be read back in, the `pointer` primitive
+native function, but doesn't need to be read back in, the `pointer` primitive
 type can take a type argument.
 
 ```clojure
