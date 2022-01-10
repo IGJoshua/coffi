@@ -1,8 +1,9 @@
 (ns coffi.ffi-test
   (:require
    [clojure.test :as t]
-   [coffi.mem :as mem]
-   [coffi.ffi :as ffi]))
+   [coffi.ffi :as ffi]
+   [coffi.layout :as layout]
+   [coffi.mem :as mem]))
 
 (ffi/load-library "target/ffi_test.so")
 
@@ -30,3 +31,16 @@
   (t/is (= ((ffi/cfn "upcall_test" [[::ffi/fn [] ::mem/c-string]] ::mem/c-string)
             (fn [] "hello"))
            "hello")))
+
+(mem/defalias ::alignment-test
+  (layout/with-c-layout
+    [::mem/struct
+     [[:a ::mem/char]
+      [:x ::mem/double]
+      [:y ::mem/float]]]))
+
+(t/deftest padding-matches
+  (t/is (= (dissoc ((ffi/cfn "get_struct" [] ::alignment-test)) ::layout/padding)
+           {:a \x
+            :x 3.14
+            :y 42.0})))

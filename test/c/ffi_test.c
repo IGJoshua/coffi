@@ -48,3 +48,18 @@ StringFactory get_downcall(int whichString) {
         return 0;
     }
 }
+
+typedef struct alignment_test {
+    char a;
+    double x;
+    float y;
+} AlignmentTest;
+
+AlignmentTest get_struct() {
+    AlignmentTest ret = {};
+    ret.a = 'x';
+    ret.x = 3.14;
+    ret.y = 42.0;
+
+    return ret;
+}
