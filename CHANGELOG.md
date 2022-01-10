@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Added
+- New `coffi.layout` namespace with support for forcing C layout rules on structs
+
 ### Fixed
 - C-characters were being read as UTF-16 rather than ASCII code points
 
