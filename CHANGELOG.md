@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.3.298] - 2022-01-10
 ### Added
 - New `coffi.layout` namespace with support for forcing C layout rules on structs
 
@@ -80,7 +80,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
-[Unreleased]: https://github.com/IGJoshua/coffi/compare/v0.2.277...HEAD
+[0.3.298]: https://github.com/IGJoshua/coffi/compare/v0.2.277...v0.3.298
 [0.2.277]: https://github.com/IGJoshua/coffi/compare/v0.2.259...v0.2.277
 [0.2.259]: https://github.com/IGJoshua/coffi/compare/v0.1.251...v0.2.259
 [0.1.251]: https://github.com/IGJoshua/coffi/compare/v0.1.246...v0.1.251
