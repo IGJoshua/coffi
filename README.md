@@ -578,6 +578,47 @@ return types, so for functions with only primitive argument and return types
 there is no performance reason to choose unwrapped native handles over the
 convenience macro.
 
+### Manual (De)Serialization
+Coffi uses multimethods to dispatch to (de)serialization functions to enable
+code that's generic over the types it operates on. However, in cases where you
+know the exact types that you will be (de)serializing and the multimethod
+dispatch overhead is too high a cost, it may be appropriate to manually handle
+(de)serializing data. This will often be done paired with [Unwrapped Native
+Handles](#unwrapped-native-handles).
+
+Convenience functions are provided to both read and write all primitive types
+and addresses, including byte order.
+
+As an example, when wrapping a function that returns an array of floats, the
+following code might be used.
+
+``` clojure
+(let [function-handle (ffi/make-downcall "returns_float_array" [::mem/pointer] ::mem/int)
+      release-floats (ffi/make-downcall "releases_float_array" [::mem/pointer] ::mem/void)
+      pointer-size (mem/size-of ::mem/pointer)
+      float-size (mem/size-of ::mem/float)]
+  (defn returns-float-array
+    []
+    (with-open [scope (mem/stack-scope)]
+      (let [out-floats (mem/alloc pointer-size scope)
+            num-floats (function-handle (mem/address-of out-floats))
+            floats-addr (mem/read-address out-floats)
+            floats-slice (mem/slice-global floats-addr (unchecked-multiply-int float-size num-floats))
+            ret (loop [floats (transient [])
+                       index 0]
+                  (if (>= index num-floats)
+                    (persistent! floats)
+                    (recur (conj! floats (mem/read-float floats-slice (unchecked-multiply-int index float-size)))
+                           (inc index))))]
+        (release-floats floats-addr)
+        ret))))
+```
+
+The above code manually performs all memory operations rather than relying on
+coffi's dispatch. This will be more performant, but because multimethod overhead
+is usually relatively low, it's recommended to use the multimethod variants for
+convenience in colder functions.
+
 ### Data Model
 In addition to the macros and functions provided to build a Clojure API for
 native libraries, facilities are provided for taking data and loading all the
