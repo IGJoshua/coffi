@@ -326,39 +326,39 @@
 
 (defmethod c-layout ::byte
   [_type]
-  CLinker/C_CHAR)
+  byte-layout)
 
 (defmethod c-layout ::short
   [_type]
-  CLinker/C_SHORT)
+  short-layout)
 
 (defmethod c-layout ::int
   [_type]
-  CLinker/C_INT)
+  int-layout)
 
 (defmethod c-layout ::long
   [_type]
-  CLinker/C_LONG)
+  long-layout)
 
 (defmethod c-layout ::long-long
   [_type]
-  CLinker/C_LONG_LONG)
+  long-long-layout)
 
 (defmethod c-layout ::char
   [_type]
-  CLinker/C_CHAR)
+  char-layout)
 
 (defmethod c-layout ::float
   [_type]
-  CLinker/C_FLOAT)
+  float-layout)
 
 (defmethod c-layout ::double
   [_type]
-  CLinker/C_DOUBLE)
+  double-layout)
 
 (defmethod c-layout ::pointer
   [_type]
-  CLinker/C_POINTER)
+  pointer-layout)
 
 (def java-prim-layout
   "Map of primitive type names to the Java types for a method handle."
