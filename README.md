@@ -46,9 +46,6 @@ config bundled with the library. You can do so with the following shell command:
 $ clj-kondo --copy-configs --dependencies --lint "$(clojure -Spath)"
 ```
 
-And then adding `"org.suskalo/coffi"` to the `:config-paths` key in your
-`.clj-kondo/config.edn` file.
-
 ## Usage
 There are two major components to coffi and interacting with native code:
 manipulating off-heap memory, and loading native code for use with Clojure.
