@@ -385,6 +385,19 @@
   (^double [^MemorySegment segment ^long offset ^ByteOrder byte-order]
    (MemoryAccess/getDoubleAtOffset segment offset byte-order)))
 
+(defn read-address
+  "Reads a [[MemoryAddress]] from the `segment`, at an optional `offset`."
+  {:inline
+   (fn read-address-inline
+     ([segment]
+      `(MemoryAccess/getAddress ~segment))
+     ([segment offset]
+      `(MemoryAccess/getAddressAtOffset ~segment ~offset)))}
+  (^MemoryAddress [^MemorySegment segment]
+   (MemoryAccess/getAddress segment))
+  (^MemoryAddress [^MemorySegment segment ^long offset]
+   (MemoryAccess/getAddressAtOffset segment offset)))
+
 (defn write-byte
   "Writes a [[byte]] to the `segment`, at an optional `offset`."
   {:inline
@@ -510,6 +523,19 @@
    (MemoryAccess/setDoubleAtOffset segment offset value))
   (^double [^MemorySegment segment ^long offset ^ByteOrder byte-order ^double value]
    (MemoryAccess/setDoubleAtOffset segment offset byte-order value)))
+
+(defn write-address
+  "Writes a [[MemoryAddress]] to the `segment`, at an optional `offset`."
+  {:inline
+   (fn write-address-inline
+     ([segment value]
+      `(MemoryAccess/setAddress ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setAddressAtOffset ~segment ~offset ~value)))}
+  (^MemoryAddress [^MemorySegment segment ^MemoryAddress value]
+   (MemoryAccess/setAddress segment value))
+  (^MemoryAddress [^MemorySegment segment ^long offset ^MemoryAddress value]
+   (MemoryAccess/setAddressAtOffset segment offset value)))
 
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
