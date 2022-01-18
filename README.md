@@ -611,7 +611,7 @@ floats, the following code might be used.
                     (recur (conj! floats (mem/read-float floats-slice
                                                          (unchecked-multiply-int index float-size)
                                                          mem/big-endian))
-                           (inc index))))]
+                           (unchecked-inc-int index))))]
         (release-floats floats-addr)
         ret))))
 ```
