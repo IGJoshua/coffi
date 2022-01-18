@@ -31,7 +31,8 @@
     MemorySegment
     ResourceScope
     ResourceScope$Handle
-    SegmentAllocator)))
+    SegmentAllocator
+    ValueLayout)))
 
 (defn stack-scope
   "Constructs a new scope for use only in this thread.
@@ -209,57 +210,57 @@
     (map #(slice segment (* % size) size)
          (range num-segments))))
 
-(def big-endian
+(def ^ByteOrder big-endian
   "The big-endian [[ByteOrder]].
 
   See [[little-endian]], [[native-endian]]."
   ByteOrder/BIG_ENDIAN)
 
-(def little-endian
+(def ^ByteOrder little-endian
   "The little-endian [[ByteOrder]].
 
   See [[big-endian]], [[native-endian]]"
   ByteOrder/LITTLE_ENDIAN)
 
-(def native-endian
+(def ^ByteOrder native-endian
   "The [[ByteOrder]] for the native endianness of the current hardware.
 
   See [[big-endian]], [[little-endian]]."
   (ByteOrder/nativeOrder))
 
-(def byte-layout
+(def ^ValueLayout byte-layout
   "The [[MemoryLayout]] for a byte in [[native-endian]] [[ByteOrder]]."
   CLinker/C_CHAR)
 
-(def short-layout
+(def ^ValueLayout short-layout
   "The [[MemoryLayout]] for a c-sized short in [[native-endian]] [[ByteOrder]]."
   CLinker/C_SHORT)
 
-(def int-layout
+(def ^ValueLayout int-layout
   "The [[MemoryLayout]] for a c-sized int in [[native-endian]] [[ByteOrder]]."
   CLinker/C_INT)
 
-(def long-layout
+(def ^ValueLayout long-layout
   "The [[MemoryLayout]] for a c-sized long in [[native-endian]] [[ByteOrder]]."
   CLinker/C_LONG)
 
-(def long-long-layout
+(def ^ValueLayout long-long-layout
   "The [[MemoryLayout]] for a c-sized long-long in [[native-endian]] [[ByteOrder]]."
   CLinker/C_LONG_LONG)
 
-(def char-layout
+(def ^ValueLayout char-layout
   "The [[MemoryLayout]] for a c-sized char in [[native-endian]] [[ByteOrder]]."
   CLinker/C_CHAR)
 
-(def float-layout
+(def ^ValueLayout float-layout
   "The [[MemoryLayout]] for a c-sized float in [[native-endian]] [[ByteOrder]]."
   CLinker/C_FLOAT)
 
-(def double-layout
+(def ^ValueLayout double-layout
   "The [[MemoryLayout]] for a c-sized double in [[native-endian]] [[ByteOrder]]."
   CLinker/C_DOUBLE)
 
-(def pointer-layout
+(def ^ValueLayout pointer-layout
   "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
   CLinker/C_POINTER)
 
