@@ -534,12 +534,14 @@ to the user to call `deserialize-from` on that segment with the appropriate
 type.
 
 ### Unwrapped Native Handles
-Sometimes the overhead brought by the automatic serialization and
-deserialization from the methods explained so far is too much. In cases like
-these, unwrapped native handles are desirable.
+Some native libraries work with handles to large amounts of data at once, making
+it undesirable to marshal data back and forth from Clojure, both because it's
+not necessary to work with the data in Clojure directly, or also because of the
+high (de)serialization costs associated with marshaling. In cases like these,
+unwrapped native handles are desirable.
 
-The functions `make-downcall` and `make-varargs-factory` are provided to create
-these raw handles.
+The functions `make-downcall` and `make-varargs-factory` are also provided to
+create raw function handles.
 
 ```clojure
 (def raw-strlen (ffi/make-downcall "strlen" [::mem/c-string] ::mem/long))
@@ -547,7 +549,7 @@ these raw handles.
 ;; => 5
 ```
 
-In these cases, the argument types are expected to exactly match the types
+With raw handles, the argument types are expected to exactly match the types
 expected by the native function. For primitive types, those are primitives. For
 addresses, that is `MemoryAddress`, and for composite types like structs and
 unions, that is `MemorySegment`. Both `MemoryAddress` and `MemorySegment` come
@@ -568,6 +570,13 @@ manner:
 Clojure functions serialized to this type will have their arguments and return
 value exactly match the types specified and will not perform any serialization
 or deserialization at their boundaries.
+
+One important caveat to consider when writing wrappers for performance-sensitive
+functions is that the convenience macro `defcfn` that coffi provides will
+already perform no serialization or deserialization on primitive arguments and
+return types, so for functions with only primitive argument and return types
+there is no performance reason to choose unwrapped native handles over the
+convenience macro.
 
 ### Data Model
 In addition to the macros and functions provided to build a Clojure API for
