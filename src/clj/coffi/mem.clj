@@ -21,6 +21,7 @@
   (:require
    [clojure.spec.alpha :as s])
   (:import
+   (java.nio ByteOrder)
    (jdk.incubator.foreign
     Addressable
     CLinker
@@ -204,6 +205,24 @@
   (let [num-segments (quot (.byteSize ^MemorySegment segment) size)]
     (map #(slice segment (* % size) size)
          (range num-segments))))
+
+(def big-endian
+  "The big-endian [[ByteOrder]].
+
+  See [[little-endian]], [[native-endian]]."
+  ByteOrder/BIG_ENDIAN)
+
+(def little-endian
+  "The little-endian [[ByteOrder]].
+
+  See [[big-endian]], [[native-endian]]"
+  ByteOrder/LITTLE_ENDIAN)
+
+(def native-endian
+  "The [[ByteOrder]] for the native endianness of the current hardware.
+
+  See [[big-endian]], [[little-endian]]."
+  (ByteOrder/nativeOrder))
 
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
