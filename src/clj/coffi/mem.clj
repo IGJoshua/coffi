@@ -224,6 +224,24 @@
   See [[big-endian]], [[little-endian]]."
   (ByteOrder/nativeOrder))
 
+(def byte-layout CLinker/C_CHAR)
+
+(def short-layout CLinker/C_SHORT)
+
+(def int-layout CLinker/C_INT)
+
+(def long-layout CLinker/C_LONG)
+
+(def long-long-layout CLinker/C_LONG_LONG)
+
+(def char-layout CLinker/C_CHAR)
+
+(def float-layout CLinker/C_FLOAT)
+
+(def double-layout CLinker/C_DOUBLE)
+
+(def pointer-layout CLinker/C_POINTER)
+
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
   [type]
