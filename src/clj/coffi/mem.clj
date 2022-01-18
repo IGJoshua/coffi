@@ -765,35 +765,47 @@
 
 (defmethod serialize-into ::byte
   [obj _type segment _scope]
-  (MemoryAccess/setByte segment (byte obj)))
+  (write-byte segment (byte obj)))
 
 (defmethod serialize-into ::short
-  [obj _type segment _scope]
-  (MemoryAccess/setShort segment (short obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-short segment 0 (second type) (short obj))
+    (write-short segment (short obj))))
 
 (defmethod serialize-into ::int
-  [obj _type segment _scope]
-  (MemoryAccess/setInt segment (int obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-int segment 0 (second type) (int obj))
+    (write-int segment (int obj))))
 
 (defmethod serialize-into ::long
-  [obj _type segment _scope]
-  (MemoryAccess/setLong segment (long obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-long segment 0 (second type) (long obj))
+    (write-long segment (long obj))))
 
 (defmethod serialize-into ::long-long
-  [obj _type segment _scope]
-  (MemoryAccess/setLong segment (long obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-long segment 0 (second type) (long obj))
+    (write-long segment (long obj))))
 
 (defmethod serialize-into ::char
   [obj _type segment _scope]
-  (MemoryAccess/setChar segment (char obj)))
+  (write-char segment (char obj)))
 
 (defmethod serialize-into ::float
-  [obj _type segment _scope]
-  (MemoryAccess/setFloat segment (float obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-float segment 0 (second type) (float obj))
+    (write-float segment (float obj))))
 
 (defmethod serialize-into ::double
-  [obj _type segment _scope]
-  (MemoryAccess/setDouble segment (double obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-double segment 0 (second type) (double obj))
+    (write-double segment (double obj))))
 
 (defmethod serialize-into ::pointer
   [obj type segment scope]
@@ -844,35 +856,47 @@
 
 (defmethod deserialize-from ::byte
   [segment _type]
-  (MemoryAccess/getByte segment))
+  (read-byte segment))
 
 (defmethod deserialize-from ::short
-  [segment _type]
-  (MemoryAccess/getShort segment))
+  [segment type]
+  (if (sequential? type)
+    (read-short segment 0 (second type))
+    (read-short segment)))
 
 (defmethod deserialize-from ::int
-  [segment _type]
-  (MemoryAccess/getInt segment))
+  [segment type]
+  (if (sequential? type)
+    (read-int segment 0 (second type))
+    (read-int segment)))
 
 (defmethod deserialize-from ::long
-  [segment _type]
-  (MemoryAccess/getLong segment))
+  [segment type]
+  (if (sequential? type)
+    (read-long segment 0 (second type))
+    (read-long segment)))
 
 (defmethod deserialize-from ::long-long
-  [segment _type]
-  (MemoryAccess/getLong segment))
+  [segment type]
+  (if (sequential? type)
+    (read-long segment 0 (second type))
+    (read-long segment)))
 
 (defmethod deserialize-from ::char
   [segment _type]
-  (char (Byte/toUnsignedInt (MemoryAccess/getByte segment))))
+  (read-char segment))
 
 (defmethod deserialize-from ::float
-  [segment _type]
-  (MemoryAccess/getFloat segment))
+  [segment type]
+  (if (sequential? type)
+    (read-float segment 0 (second type))
+    (read-float segment)))
 
 (defmethod deserialize-from ::double
-  [segment _type]
-  (MemoryAccess/getDouble segment))
+  [segment type]
+  (if (sequential? type)
+    (read-double segment 0 (second type))
+    (read-double segment)))
 
 (defmethod deserialize-from ::pointer
   [segment type]
