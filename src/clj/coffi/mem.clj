@@ -378,18 +378,22 @@
 
   If a type serializes to a primitive it returns return a Java primitive type.
   Otherwise, it returns [[MemorySegment]]."
-  [type]
+  ^Class [type]
   (java-prim-layout (or (primitive-type type) type) MemorySegment))
 
 (defn size-of
   "The size in bytes of the given `type`."
-  [type]
-  (.byteSize ^MemoryLayout (c-layout type)))
+  ^long [type]
+  (let [t (cond-> type
+            (not (instance? MemoryLayout type)) c-layout)]
+    (.byteSize ^MemoryLayout t)))
 
 (defn align-of
   "The alignment in bytes of the given `type`."
-  [type]
-  (.byteAlignment ^MemoryLayout (c-layout type)))
+  ^long [type]
+  (let [t (cond-> type
+            (not (instance? MemoryLayout type)) c-layout)]
+    (.byteAlignment ^MemoryLayout t)))
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
