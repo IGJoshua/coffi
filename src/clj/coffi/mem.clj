@@ -518,10 +518,15 @@
     (sequential? type) (keyword (first type))
     :else (throw (ex-info "Invalid type object" {:type type}))))
 
-(def primitive?
+(def primitive-types
   "A set of all primitive types."
   #{::byte ::short ::int ::long ::long-long
     ::char ::float ::double ::pointer})
+
+(defn primitive?
+  "A predicate to determine if a given type is primitive."
+  [type]
+  (contains? primitive-types (type-dispatch type)))
 
 (defmulti primitive-type
   "Gets the primitive type that is used to pass as an argument for the `type`.
