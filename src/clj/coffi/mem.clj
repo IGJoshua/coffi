@@ -397,8 +397,8 @@
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
-  ([type] (alloc-instance type (connected-scope)))
-  ([type scope] (MemorySegment/allocateNative (long (size-of type)) ^ResourceScope scope)))
+  (^MemorySegment [type] (alloc-instance type (connected-scope)))
+  (^MemorySegment [type scope] (MemorySegment/allocateNative ^long (size-of type) ^ResourceScope scope)))
 
 (declare serialize serialize-into)
 
