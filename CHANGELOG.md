@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Added
+- Support for non-native byte orders of primitive types
+- Functions for reading and writing primitive types (e.g. `coffi.mem/read-float`, `coffi.mem/write-long`, etc.)
+- Layout objects may now be passed to `coffi.mem/size-of` and `coffi.mem/align-of`
+- Constants for native-order primitive layouts
+- Constants for byte orders
+
+### Changed
+- The `coffi.mem/primitive?` predicate is now actually a function instead of a set
 
 ## [0.3.298] - 2022-01-10
 ### Added
