@@ -515,7 +515,8 @@
   [type]
   (cond
     (qualified-keyword? type) type
-    (sequential? type) (keyword (first type))))
+    (sequential? type) (keyword (first type))
+    :else (throw (ex-info "Invalid type object" {:type type}))))
 
 (def primitive?
   "A set of all primitive types."
