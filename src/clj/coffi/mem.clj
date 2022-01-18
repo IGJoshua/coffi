@@ -88,14 +88,14 @@
   "Allocates `size` bytes.
 
   If a `scope` is provided, the allocation will be reclaimed when it is closed."
-  ([size] (alloc size (connected-scope)))
-  ([size scope] (MemorySegment/allocateNative (long size) ^ResourceScope scope)))
+  (^MemorySegment [size] (alloc size (connected-scope)))
+  (^MemorySegment [size scope] (MemorySegment/allocateNative (long size) ^ResourceScope scope)))
 
 (defn alloc-with
   "Allocates `size` bytes using the `allocator`."
-  ([allocator size]
+  (^MemorySegment [allocator size]
    (.allocate ^SegmentAllocator allocator (long size)))
-  ([allocator size alignment]
+  (^MemorySegment [allocator size alignment]
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
 (defmacro with-acquired
@@ -123,7 +123,7 @@
   "Gets the address of a given segment.
 
   This value can be used as an argument to functions which take a pointer."
-  [addressable]
+  ^MemoryAddress [addressable]
   (.address ^Addressable addressable))
 
 (defn null?
@@ -144,27 +144,27 @@
   Because this fetches from the global segment, it has no associated scope, and
   therefore the reference created here cannot prevent the value from being
   freed. Be careful to ensure that you are not retaining an object incorrectly."
-  [address size]
+  ^MemorySegment [address size]
   (.asSlice (MemorySegment/globalNativeSegment)
             ^MemoryAddress address (long size)))
 
 (defn slice
   "Get a slice over the `segment` with the given `offset`."
-  ([segment offset]
+  (^MemorySegment [segment offset]
    (.asSlice ^MemorySegment segment (long offset)))
-  ([segment offset size]
+  (^MemorySegment [segment offset size]
    (.asSlice ^MemorySegment segment (long offset) (long size))))
 
 (defn slice-into
   "Get a slice into the `segment` starting at the `address`."
-  ([address segment]
+  (^MemorySegment [address segment]
    (.asSlice ^MemorySegment segment ^MemoryAddress address))
-  ([address segment size]
+  (^MemorySegment [address segment size]
    (.asSlice ^MemorySegment segment ^MemoryAddress address (long size))))
 
 (defn with-offset
   "Get a new address `offset` from the old `address`."
-  [address offset]
+  ^MemoryAddress [address offset]
   (.addOffset ^MemoryAddress address (long offset)))
 
 (defn as-segment
@@ -175,34 +175,37 @@
   cleanup in a way that doesn't require modifying the code at the point of
   freeing, and allows shared or garbage collected resources to be freed
   correctly."
-  ([address size scope]
-   (.asSegment ^MemoryAddress address size scope))
-  ([address size scope cleanup]
-   (.asSegment ^MemoryAddress address size cleanup scope)))
+  (^MemorySegment [^MemoryAddress address size scope]
+   (.asSegment address (long size) scope))
+  (^MemorySegment [^MemoryAddress address size ^ResourceScope scope cleanup]
+   (.asSegment address (long size) cleanup scope)))
 
 (defn add-close-action!
   "Adds a 0-arity function to be run when the `scope` closes."
-  [scope action]
-  (.addCloseAction ^ResourceScope scope action))
+  [^ResourceScope scope ^Runnable action]
+  (.addCloseAction scope action)
+  nil)
 
 (defn copy-segment
-  "Copies the content to `dest` from `src`"
-  [dest src]
+  "Copies the content to `dest` from `src`.
+
+  Returns `dest`."
+  ^MemorySegment [^MemorySegment dest ^MemorySegment src]
   (with-acquired (map segment-scope [src dest])
-    (.copyFrom ^MemorySegment dest ^MemorySegment src)))
+    (.copyFrom dest src)
+    dest))
 
 (defn clone-segment
   "Clones the content of `segment` into a new segment of the same size."
-  ([segment] (clone-segment segment (connected-scope)))
-  ([segment scope]
+  (^MemorySegment [segment] (clone-segment segment (connected-scope)))
+  (^MemorySegment [^MemorySegment segment scope]
    (with-acquired [(segment-scope segment) scope]
-     (doto ^MemorySegment (alloc (.byteSize ^MemorySegment segment) scope)
-       (copy-segment segment)))))
+     (copy-segment ^MemorySegment (alloc (.byteSize segment) scope) segment))))
 
 (defn slice-segments
   "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
-  [segment size]
-  (let [num-segments (quot (.byteSize ^MemorySegment segment) size)]
+  [^MemorySegment segment size]
+  (let [num-segments (quot (.byteSize segment) size)]
     (map #(slice segment (* % size) size)
          (range num-segments))))
 
