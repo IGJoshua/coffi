@@ -589,8 +589,8 @@ Handles](#unwrapped-native-handles).
 Convenience functions are provided to both read and write all primitive types
 and addresses, including byte order.
 
-As an example, when wrapping a function that returns an array of floats, the
-following code might be used.
+As an example, when wrapping a function that returns an array of big-endian
+floats, the following code might be used.
 
 ``` clojure
 (let [function-handle (ffi/make-downcall "returns_float_array" [::mem/pointer] ::mem/int)
@@ -608,7 +608,9 @@ following code might be used.
                        index 0]
                   (if (>= index num-floats)
                     (persistent! floats)
-                    (recur (conj! floats (mem/read-float floats-slice (unchecked-multiply-int index float-size)))
+                    (recur (conj! floats (mem/read-float floats-slice
+                                                         (unchecked-multiply-int index float-size)
+                                                         mem/big-endian))
                            (inc index))))]
         (release-floats floats-addr)
         ret))))
