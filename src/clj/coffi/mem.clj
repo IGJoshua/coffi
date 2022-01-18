@@ -604,32 +604,44 @@
   byte-layout)
 
 (defmethod c-layout ::short
-  [_type]
-  short-layout)
+  [type]
+  (if (sequential? type)
+    (.withOrder short-layout (second type))
+    short-layout))
 
 (defmethod c-layout ::int
-  [_type]
-  int-layout)
+  [type]
+  (if (sequential? type)
+    (.withOrder int-layout (second type))
+    int-layout))
 
 (defmethod c-layout ::long
-  [_type]
-  long-layout)
+  [type]
+  (if (sequential? type)
+    (.withOrder long-layout (second type))
+    long-layout))
 
 (defmethod c-layout ::long-long
-  [_type]
-  long-long-layout)
+  [type]
+  (if (sequential? type)
+    (.withOrder long-long-layout (second type))
+    long-long-layout))
 
 (defmethod c-layout ::char
   [_type]
   char-layout)
 
 (defmethod c-layout ::float
-  [_type]
-  float-layout)
+  [type]
+  (if (sequential? type)
+    (.withOrder float-layout (second type))
+    float-layout))
 
 (defmethod c-layout ::double
-  [_type]
-  double-layout)
+  [type]
+  (if (sequential? type)
+    (.withOrder double-layout (second type))
+    double-layout))
 
 (defmethod c-layout ::pointer
   [_type]
