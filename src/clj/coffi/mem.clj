@@ -263,6 +263,253 @@
   "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
   CLinker/C_POINTER)
 
+(defn read-byte
+  "Reads a [[byte]] from the `segment`, at an optional `offset`."
+  {:inline
+   (fn read-byte-inline
+     ([segment]
+      `(MemoryAccess/getByte ~segment))
+     ([segment offset]
+      `(MemoryAccess/getByteAtOffset ~segment ~offset)))}
+  ([^MemorySegment segment]
+   (MemoryAccess/getByte segment))
+  ([^MemorySegment segment ^long offset]
+   (MemoryAccess/getByteAtOffset segment offset)))
+
+(defn read-short
+  "Reads a [[short]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-short-inline
+     ([segment]
+      `(MemoryAccess/getShort ~segment))
+     ([segment offset]
+      `(MemoryAccess/getShortAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getShortAtOffset ~segment ~offset ~byte-order)))}
+  ([^MemorySegment segment]
+   (MemoryAccess/getShort segment))
+  ([^MemorySegment segment ^long offset]
+   (MemoryAccess/getShortAtOffset segment offset))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getShortAtOffset segment offset byte-order)))
+
+(defn read-int
+  "Reads a [[int]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-int-inline
+     ([segment]
+      `(MemoryAccess/getInt ~segment))
+     ([segment offset]
+      `(MemoryAccess/getIntAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getIntAtOffset ~segment ~offset ~byte-order)))}
+  ([^MemorySegment segment]
+   (MemoryAccess/getInt segment))
+  ([^MemorySegment segment ^long offset]
+   (MemoryAccess/getIntAtOffset segment offset))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getIntAtOffset segment offset byte-order)))
+
+(defn read-long
+  "Reads a [[long]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-long-inline
+     ([segment]
+      `(MemoryAccess/getLong ~segment))
+     ([segment offset]
+      `(MemoryAccess/getLongAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getLongAtOffset ~segment ~offset ~byte-order)))}
+  (^long [^MemorySegment segment]
+   (MemoryAccess/getLong segment))
+  (^long [^MemorySegment segment ^long offset]
+   (MemoryAccess/getLongAtOffset segment offset))
+  (^long [^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getLongAtOffset segment offset byte-order)))
+
+(defn read-char
+  "Reads a [[char]] from the `segment`, at an optional `offset`."
+  {:inline
+   (fn read-char-inline
+     ([segment]
+      `(char (Byte/toUnsignedInt (MemoryAccess/getByte ~segment))))
+     ([segment offset]
+      `(char (Byte/toUnsignedInt (MemoryAccess/getByteAtOffset ~segment ~offset)))))}
+  ([^MemorySegment segment]
+   (char (Byte/toUnsignedInt (MemoryAccess/getByte segment))))
+  ([^MemorySegment segment ^long offset]
+   (char (Byte/toUnsignedInt (MemoryAccess/getByteAtOffset segment offset)))))
+
+(defn read-float
+  "Reads a [[float]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-float-inline
+     ([segment]
+      `(MemoryAccess/getFloat ~segment))
+     ([segment offset]
+      `(MemoryAccess/getFloatAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getFloatAtOffset ~segment ~offset ~byte-order)))}
+  ([^MemorySegment segment]
+   (MemoryAccess/getFloat segment))
+  ([^MemorySegment segment ^long offset]
+   (MemoryAccess/getFloatAtOffset segment offset))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getFloatAtOffset segment offset byte-order)))
+
+(defn read-double
+  "Reads a [[double]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-double-inline
+     ([segment]
+      `(MemoryAccess/getDouble ~segment))
+     ([segment offset]
+      `(MemoryAccess/getDoubleAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getDoubleAtOffset ~segment ~offset ~byte-order)))}
+  (^double [^MemorySegment segment]
+   (MemoryAccess/getDouble segment))
+  (^double [^MemorySegment segment ^long offset]
+   (MemoryAccess/getDoubleAtOffset segment offset))
+  (^double [^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getDoubleAtOffset segment offset byte-order)))
+
+(defn write-byte
+  "Writes a [[byte]] to the `segment`, at an optional `offset`."
+  {:inline
+   (fn write-byte-inline
+     ([segment value]
+      `(MemoryAccess/setByte ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setByteAtOffset ~segment ~offset ~value)))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setByte segment ^byte value))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setByteAtOffset segment offset ^byte value)))
+
+(defn write-short
+  "Writes a [[short]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-short-inline
+     ([segment value]
+      `(MemoryAccess/setShort ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setShortAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setShortAtOffset ~segment ~offset ~byte-order ~value)))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setShort segment ^short value))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setShortAtOffset segment offset ^short value))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (MemoryAccess/setShortAtOffset segment offset byte-order ^short value)))
+
+(defn write-int
+  "Writes a [[int]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-int-inline
+     ([segment value]
+      `(MemoryAccess/setInt ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setIntAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setIntAtOffset ~segment ~offset ~byte-order ~value)))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setInt segment ^int value))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setIntAtOffset segment offset ^int value))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (MemoryAccess/setIntAtOffset segment offset byte-order ^int value)))
+
+(defn write-long
+  "Writes a [[long]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-long-inline
+     ([segment value]
+      `(MemoryAccess/setLong ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setLongAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setLongAtOffset ~segment ~offset ~byte-order ~value)))}
+  (^long [^MemorySegment segment ^long value]
+   (MemoryAccess/setLong segment value))
+  (^long [^MemorySegment segment ^long offset ^long value]
+   (MemoryAccess/setLongAtOffset segment offset value))
+  (^long [^MemorySegment segment ^long offset ^ByteOrder byte-order ^long value]
+   (MemoryAccess/setLongAtOffset segment offset byte-order value)))
+
+(defn write-char
+  "Writes a [[char]] to the `segment`, at an optional `offset`."
+  {:inline
+   (fn write-char-inline
+     ([segment value]
+      `(MemoryAccess/setByte ~segment (unchecked-byte (unchecked-int ~value))))
+     ([segment offset value]
+      `(MemoryAccess/setByteAtOffset ~segment ~offset (unchecked-byte (unchecked-int ~value)))))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setByte
+    segment
+    ;; HACK(Joshua): The Clojure runtime doesn't have an unchecked-byte cast for
+    ;;               characters, so this double cast is necessary unless I emit
+    ;;               my own bytecode with insn.
+    (unchecked-byte (unchecked-int ^char value))))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setByteAtOffset segment offset (unchecked-byte (unchecked-int ^char value)))))
+
+(defn write-float
+  "Writes a [[float]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-float-inline
+     ([segment value]
+      `(MemoryAccess/setFloat ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setFloatAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setFloatAtOffset ~segment ~offset ~byte-order ~value)))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setFloat segment ^float value))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setFloatAtOffset segment offset ^float value))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (MemoryAccess/setFloatAtOffset segment offset byte-order ^float value)))
+
+(defn write-double
+  "Writes a [[double]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-double-inline
+     ([segment value]
+      `(MemoryAccess/setDouble ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setDoubleAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setDoubleAtOffset ~segment ~offset ~byte-order ~value)))}
+  (^double [^MemorySegment segment ^double value]
+   (MemoryAccess/setDouble segment value))
+  (^double [^MemorySegment segment ^long offset ^double value]
+   (MemoryAccess/setDoubleAtOffset segment offset value))
+  (^double [^MemorySegment segment ^long offset ^ByteOrder byte-order ^double value]
+   (MemoryAccess/setDoubleAtOffset segment offset byte-order value)))
+
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
   [type]
