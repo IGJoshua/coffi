@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Added
+- Constants for size and alignment of primitive types
 - Support for non-native byte orders of primitive types
 - Functions for reading and writing primitive types (e.g. `coffi.mem/read-float`, `coffi.mem/write-long`, etc.)
 - Layout objects may now be passed to `coffi.mem/size-of` and `coffi.mem/align-of`
