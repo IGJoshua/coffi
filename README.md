@@ -593,27 +593,29 @@ As an example, when wrapping a function that returns an array of big-endian
 floats, the following code might be used.
 
 ``` clojure
-(let [function-handle (ffi/make-downcall "returns_float_array" [::mem/pointer] ::mem/int)
-      release-floats (ffi/make-downcall "releases_float_array" [::mem/pointer] ::mem/void)
-      pointer-size (mem/size-of ::mem/pointer)
-      float-size (mem/size-of ::mem/float)]
-  (defn returns-float-array
-    []
-    (with-open [scope (mem/stack-scope)]
-      (let [out-floats (mem/alloc pointer-size scope)
-            num-floats (function-handle (mem/address-of out-floats))
-            floats-addr (mem/read-address out-floats)
-            floats-slice (mem/slice-global floats-addr (unchecked-multiply-int float-size num-floats))
-            ret (loop [floats (transient [])
-                       index 0]
-                  (if (>= index num-floats)
-                    (persistent! floats)
-                    (recur (conj! floats (mem/read-float floats-slice
-                                                         (unchecked-multiply-int index float-size)
-                                                         mem/big-endian))
-                           (unchecked-inc-int index))))]
-        (release-floats floats-addr)
-        ret))))
+(def ^:private returns-float-array* (ffi/make-downcall "returns_float_array" [::mem/pointer] ::mem/int))
+(def ^:private release-floats* (ffi/make-downcall "releases_float_array" [::mem/pointer] ::mem/void))
+
+(defn returns-float-array
+  []
+  (with-open [scope (mem/stack-scope)]
+    (let [out-floats (mem/alloc mem/pointer-size scope)
+          num-floats (function-handle (mem/address-of out-floats))
+          floats-addr (mem/read-address out-floats)
+          floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
+      ;; Using a try/finally to perform an operation when the stack frame exits,
+      ;; but not to try to catch anything.
+      (try
+        (loop [floats (transient [])
+               index 0]
+          (if (>= index num-floats)
+            (persistent! floats)
+            (recur (conj! floats (mem/read-float floats-slice
+                                                 (unchecked-multiply-int index mem/float-size)
+                                                 mem/big-endian))
+                   (unchecked-inc-int index))))
+        (finally
+          (release-floats floats-addr))))))
 ```
 
 The above code manually performs all memory operations rather than relying on
