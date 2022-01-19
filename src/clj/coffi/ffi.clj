@@ -347,8 +347,9 @@
                                   `(mem/deserialize-from ~expr ~ret-type-sym))
             deserialize-ret (fn [expr]
                               (cond
-                                (or (mem/primitive? ret-type)
-                                    (#{::mem/void} ret-type))
+                                (and (or (mem/primitive? ret-type)
+                                         (#{::mem/void} ret-type))
+                                     (not (#{::mem/pointer} (mem/primitive-type ret-type))))
                                 expr
 
                                 (mem/primitive-type ret-type)
