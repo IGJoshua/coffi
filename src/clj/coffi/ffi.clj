@@ -288,8 +288,8 @@
                  `(mem/serialize ~sym ~type-sym ~scope)
 
                  (and (mem/primitive? type)
-                      (not (#{::mem/pointer} type)))
-                 (list (primitive-cast-sym type) sym)
+                      (not (#{::mem/pointer} (mem/primitive-type type))))
+                 (list (primitive-cast-sym (mem/primitive-type type)) sym)
 
                  (#{::mem/pointer} type)
                  nil
