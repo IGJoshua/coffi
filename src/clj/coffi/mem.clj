@@ -264,6 +264,62 @@
   "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
   CLinker/C_POINTER)
 
+(def short-size
+  "The size in bytes of a c-sized short."
+  (.byteSize short-layout))
+
+(def int-size
+  "The size in bytes of a c-sized int."
+  (.byteSize int-layout))
+
+(def long-size
+  "The size in bytes of a c-sized long."
+  (.byteSize long-layout))
+
+(def long-long-size
+  "The size in bytes of a c-sized long long."
+  (.byteSize long-long-layout))
+
+(def float-size
+  "The size in bytes of a c-sized float."
+  (.byteSize float-layout))
+
+(def double-size
+  "The size in bytes of a c-sized double."
+  (.byteSize double-layout))
+
+(def pointer-size
+  "The size in bytes of a c-sized pointer."
+  (.byteSize pointer-layout))
+
+(def short-alignment
+  "The alignment in bytes of a c-sized short."
+  (.byteAlignment short-layout))
+
+(def int-alignment
+  "The alignment in bytes of a c-sized int."
+  (.byteAlignment int-layout))
+
+(def long-alignment
+  "The alignment in bytes of a c-sized long."
+  (.byteAlignment long-layout))
+
+(def long-long-alignment
+  "The alignment in bytes of a c-sized long long."
+  (.byteAlignment long-long-layout))
+
+(def float-alignment
+  "The alignment in bytes of a c-sized float."
+  (.byteAlignment float-layout))
+
+(def double-alignment
+  "The alignment in bytes of a c-sized double."
+  (.byteAlignment double-layout))
+
+(def pointer-alignment
+  "The alignment in bytes of a c-sized pointer."
+  (.byteAlignment pointer-layout))
+
 (defn read-byte
   "Reads a [[byte]] from the `segment`, at an optional `offset`."
   {:inline
