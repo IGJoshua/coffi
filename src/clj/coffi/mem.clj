@@ -21,6 +21,7 @@
   (:require
    [clojure.spec.alpha :as s])
   (:import
+   (java.nio ByteOrder)
    (jdk.incubator.foreign
     Addressable
     CLinker
@@ -30,7 +31,8 @@
     MemorySegment
     ResourceScope
     ResourceScope$Handle
-    SegmentAllocator)))
+    SegmentAllocator
+    ValueLayout)))
 
 (defn stack-scope
   "Constructs a new scope for use only in this thread.
@@ -87,14 +89,14 @@
   "Allocates `size` bytes.
 
   If a `scope` is provided, the allocation will be reclaimed when it is closed."
-  ([size] (alloc size (connected-scope)))
-  ([size scope] (MemorySegment/allocateNative (long size) ^ResourceScope scope)))
+  (^MemorySegment [size] (alloc size (connected-scope)))
+  (^MemorySegment [size scope] (MemorySegment/allocateNative (long size) ^ResourceScope scope)))
 
 (defn alloc-with
   "Allocates `size` bytes using the `allocator`."
-  ([allocator size]
+  (^MemorySegment [allocator size]
    (.allocate ^SegmentAllocator allocator (long size)))
-  ([allocator size alignment]
+  (^MemorySegment [allocator size alignment]
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
 (defmacro with-acquired
@@ -122,7 +124,7 @@
   "Gets the address of a given segment.
 
   This value can be used as an argument to functions which take a pointer."
-  [addressable]
+  ^MemoryAddress [addressable]
   (.address ^Addressable addressable))
 
 (defn null?
@@ -143,27 +145,27 @@
   Because this fetches from the global segment, it has no associated scope, and
   therefore the reference created here cannot prevent the value from being
   freed. Be careful to ensure that you are not retaining an object incorrectly."
-  [address size]
+  ^MemorySegment [address size]
   (.asSlice (MemorySegment/globalNativeSegment)
             ^MemoryAddress address (long size)))
 
 (defn slice
   "Get a slice over the `segment` with the given `offset`."
-  ([segment offset]
+  (^MemorySegment [segment offset]
    (.asSlice ^MemorySegment segment (long offset)))
-  ([segment offset size]
+  (^MemorySegment [segment offset size]
    (.asSlice ^MemorySegment segment (long offset) (long size))))
 
 (defn slice-into
   "Get a slice into the `segment` starting at the `address`."
-  ([address segment]
+  (^MemorySegment [address segment]
    (.asSlice ^MemorySegment segment ^MemoryAddress address))
-  ([address segment size]
+  (^MemorySegment [address segment size]
    (.asSlice ^MemorySegment segment ^MemoryAddress address (long size))))
 
 (defn with-offset
   "Get a new address `offset` from the old `address`."
-  [address offset]
+  ^MemoryAddress [address offset]
   (.addOffset ^MemoryAddress address (long offset)))
 
 (defn as-segment
@@ -174,48 +176,440 @@
   cleanup in a way that doesn't require modifying the code at the point of
   freeing, and allows shared or garbage collected resources to be freed
   correctly."
-  ([address size scope]
-   (.asSegment ^MemoryAddress address size scope))
-  ([address size scope cleanup]
-   (.asSegment ^MemoryAddress address size cleanup scope)))
+  (^MemorySegment [^MemoryAddress address size scope]
+   (.asSegment address (long size) scope))
+  (^MemorySegment [^MemoryAddress address size ^ResourceScope scope cleanup]
+   (.asSegment address (long size) cleanup scope)))
 
 (defn add-close-action!
   "Adds a 0-arity function to be run when the `scope` closes."
-  [scope action]
-  (.addCloseAction ^ResourceScope scope action))
+  [^ResourceScope scope ^Runnable action]
+  (.addCloseAction scope action)
+  nil)
 
 (defn copy-segment
-  "Copies the content to `dest` from `src`"
-  [dest src]
+  "Copies the content to `dest` from `src`.
+
+  Returns `dest`."
+  ^MemorySegment [^MemorySegment dest ^MemorySegment src]
   (with-acquired (map segment-scope [src dest])
-    (.copyFrom ^MemorySegment dest ^MemorySegment src)))
+    (.copyFrom dest src)
+    dest))
 
 (defn clone-segment
   "Clones the content of `segment` into a new segment of the same size."
-  ([segment] (clone-segment segment (connected-scope)))
-  ([segment scope]
+  (^MemorySegment [segment] (clone-segment segment (connected-scope)))
+  (^MemorySegment [^MemorySegment segment scope]
    (with-acquired [(segment-scope segment) scope]
-     (doto ^MemorySegment (alloc (.byteSize ^MemorySegment segment) scope)
-       (copy-segment segment)))))
+     (copy-segment ^MemorySegment (alloc (.byteSize segment) scope) segment))))
 
 (defn slice-segments
   "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
-  [segment size]
-  (let [num-segments (quot (.byteSize ^MemorySegment segment) size)]
+  [^MemorySegment segment size]
+  (let [num-segments (quot (.byteSize segment) size)]
     (map #(slice segment (* % size) size)
          (range num-segments))))
+
+(def ^ByteOrder big-endian
+  "The big-endian [[ByteOrder]].
+
+  See [[little-endian]], [[native-endian]]."
+  ByteOrder/BIG_ENDIAN)
+
+(def ^ByteOrder little-endian
+  "The little-endian [[ByteOrder]].
+
+  See [[big-endian]], [[native-endian]]"
+  ByteOrder/LITTLE_ENDIAN)
+
+(def ^ByteOrder native-endian
+  "The [[ByteOrder]] for the native endianness of the current hardware.
+
+  See [[big-endian]], [[little-endian]]."
+  (ByteOrder/nativeOrder))
+
+(def ^ValueLayout byte-layout
+  "The [[MemoryLayout]] for a byte in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_CHAR)
+
+(def ^ValueLayout short-layout
+  "The [[MemoryLayout]] for a c-sized short in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_SHORT)
+
+(def ^ValueLayout int-layout
+  "The [[MemoryLayout]] for a c-sized int in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_INT)
+
+(def ^ValueLayout long-layout
+  "The [[MemoryLayout]] for a c-sized long in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_LONG)
+
+(def ^ValueLayout long-long-layout
+  "The [[MemoryLayout]] for a c-sized long-long in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_LONG_LONG)
+
+(def ^ValueLayout char-layout
+  "The [[MemoryLayout]] for a c-sized char in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_CHAR)
+
+(def ^ValueLayout float-layout
+  "The [[MemoryLayout]] for a c-sized float in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_FLOAT)
+
+(def ^ValueLayout double-layout
+  "The [[MemoryLayout]] for a c-sized double in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_DOUBLE)
+
+(def ^ValueLayout pointer-layout
+  "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
+  CLinker/C_POINTER)
+
+(def ^long short-size
+  "The size in bytes of a c-sized short."
+  (.byteSize short-layout))
+
+(def ^long int-size
+  "The size in bytes of a c-sized int."
+  (.byteSize int-layout))
+
+(def ^long long-size
+  "The size in bytes of a c-sized long."
+  (.byteSize long-layout))
+
+(def ^long long-long-size
+  "The size in bytes of a c-sized long long."
+  (.byteSize long-long-layout))
+
+(def ^long float-size
+  "The size in bytes of a c-sized float."
+  (.byteSize float-layout))
+
+(def ^long double-size
+  "The size in bytes of a c-sized double."
+  (.byteSize double-layout))
+
+(def ^long pointer-size
+  "The size in bytes of a c-sized pointer."
+  (.byteSize pointer-layout))
+
+(def ^long short-alignment
+  "The alignment in bytes of a c-sized short."
+  (.byteAlignment short-layout))
+
+(def ^long int-alignment
+  "The alignment in bytes of a c-sized int."
+  (.byteAlignment int-layout))
+
+(def ^long long-alignment
+  "The alignment in bytes of a c-sized long."
+  (.byteAlignment long-layout))
+
+(def ^long long-long-alignment
+  "The alignment in bytes of a c-sized long long."
+  (.byteAlignment long-long-layout))
+
+(def ^long float-alignment
+  "The alignment in bytes of a c-sized float."
+  (.byteAlignment float-layout))
+
+(def ^long double-alignment
+  "The alignment in bytes of a c-sized double."
+  (.byteAlignment double-layout))
+
+(def ^long pointer-alignment
+  "The alignment in bytes of a c-sized pointer."
+  (.byteAlignment pointer-layout))
+
+(defn read-byte
+  "Reads a [[byte]] from the `segment`, at an optional `offset`."
+  {:inline
+   (fn read-byte-inline
+     ([segment]
+      `(MemoryAccess/getByte ~segment))
+     ([segment offset]
+      `(MemoryAccess/getByteAtOffset ~segment ~offset)))}
+  ([^MemorySegment segment]
+   (MemoryAccess/getByte segment))
+  ([^MemorySegment segment ^long offset]
+   (MemoryAccess/getByteAtOffset segment offset)))
+
+(defn read-short
+  "Reads a [[short]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-short-inline
+     ([segment]
+      `(MemoryAccess/getShort ~segment))
+     ([segment offset]
+      `(MemoryAccess/getShortAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getShortAtOffset ~segment ~offset ~byte-order)))}
+  ([^MemorySegment segment]
+   (MemoryAccess/getShort segment))
+  ([^MemorySegment segment ^long offset]
+   (MemoryAccess/getShortAtOffset segment offset))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getShortAtOffset segment offset byte-order)))
+
+(defn read-int
+  "Reads a [[int]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-int-inline
+     ([segment]
+      `(MemoryAccess/getInt ~segment))
+     ([segment offset]
+      `(MemoryAccess/getIntAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getIntAtOffset ~segment ~offset ~byte-order)))}
+  ([^MemorySegment segment]
+   (MemoryAccess/getInt segment))
+  ([^MemorySegment segment ^long offset]
+   (MemoryAccess/getIntAtOffset segment offset))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getIntAtOffset segment offset byte-order)))
+
+(defn read-long
+  "Reads a [[long]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-long-inline
+     ([segment]
+      `(MemoryAccess/getLong ~segment))
+     ([segment offset]
+      `(MemoryAccess/getLongAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getLongAtOffset ~segment ~offset ~byte-order)))}
+  (^long [^MemorySegment segment]
+   (MemoryAccess/getLong segment))
+  (^long [^MemorySegment segment ^long offset]
+   (MemoryAccess/getLongAtOffset segment offset))
+  (^long [^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getLongAtOffset segment offset byte-order)))
+
+(defn read-char
+  "Reads a [[char]] from the `segment`, at an optional `offset`."
+  {:inline
+   (fn read-char-inline
+     ([segment]
+      `(char (Byte/toUnsignedInt (MemoryAccess/getByte ~segment))))
+     ([segment offset]
+      `(char (Byte/toUnsignedInt (MemoryAccess/getByteAtOffset ~segment ~offset)))))}
+  ([^MemorySegment segment]
+   (char (Byte/toUnsignedInt (MemoryAccess/getByte segment))))
+  ([^MemorySegment segment ^long offset]
+   (char (Byte/toUnsignedInt (MemoryAccess/getByteAtOffset segment offset)))))
+
+(defn read-float
+  "Reads a [[float]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-float-inline
+     ([segment]
+      `(MemoryAccess/getFloat ~segment))
+     ([segment offset]
+      `(MemoryAccess/getFloatAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getFloatAtOffset ~segment ~offset ~byte-order)))}
+  ([^MemorySegment segment]
+   (MemoryAccess/getFloat segment))
+  ([^MemorySegment segment ^long offset]
+   (MemoryAccess/getFloatAtOffset segment offset))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getFloatAtOffset segment offset byte-order)))
+
+(defn read-double
+  "Reads a [[double]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-double-inline
+     ([segment]
+      `(MemoryAccess/getDouble ~segment))
+     ([segment offset]
+      `(MemoryAccess/getDoubleAtOffset ~segment ~offset))
+     ([segment offset byte-order]
+      `(MemoryAccess/getDoubleAtOffset ~segment ~offset ~byte-order)))}
+  (^double [^MemorySegment segment]
+   (MemoryAccess/getDouble segment))
+  (^double [^MemorySegment segment ^long offset]
+   (MemoryAccess/getDoubleAtOffset segment offset))
+  (^double [^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (MemoryAccess/getDoubleAtOffset segment offset byte-order)))
+
+(defn read-address
+  "Reads a [[MemoryAddress]] from the `segment`, at an optional `offset`."
+  {:inline
+   (fn read-address-inline
+     ([segment]
+      `(MemoryAccess/getAddress ~segment))
+     ([segment offset]
+      `(MemoryAccess/getAddressAtOffset ~segment ~offset)))}
+  (^MemoryAddress [^MemorySegment segment]
+   (MemoryAccess/getAddress segment))
+  (^MemoryAddress [^MemorySegment segment ^long offset]
+   (MemoryAccess/getAddressAtOffset segment offset)))
+
+(defn write-byte
+  "Writes a [[byte]] to the `segment`, at an optional `offset`."
+  {:inline
+   (fn write-byte-inline
+     ([segment value]
+      `(MemoryAccess/setByte ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setByteAtOffset ~segment ~offset ~value)))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setByte segment ^byte value))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setByteAtOffset segment offset ^byte value)))
+
+(defn write-short
+  "Writes a [[short]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-short-inline
+     ([segment value]
+      `(MemoryAccess/setShort ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setShortAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setShortAtOffset ~segment ~offset ~byte-order ~value)))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setShort segment ^short value))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setShortAtOffset segment offset ^short value))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (MemoryAccess/setShortAtOffset segment offset byte-order ^short value)))
+
+(defn write-int
+  "Writes a [[int]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-int-inline
+     ([segment value]
+      `(MemoryAccess/setInt ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setIntAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setIntAtOffset ~segment ~offset ~byte-order ~value)))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setInt segment ^int value))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setIntAtOffset segment offset ^int value))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (MemoryAccess/setIntAtOffset segment offset byte-order ^int value)))
+
+(defn write-long
+  "Writes a [[long]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-long-inline
+     ([segment value]
+      `(MemoryAccess/setLong ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setLongAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setLongAtOffset ~segment ~offset ~byte-order ~value)))}
+  (^long [^MemorySegment segment ^long value]
+   (MemoryAccess/setLong segment value))
+  (^long [^MemorySegment segment ^long offset ^long value]
+   (MemoryAccess/setLongAtOffset segment offset value))
+  (^long [^MemorySegment segment ^long offset ^ByteOrder byte-order ^long value]
+   (MemoryAccess/setLongAtOffset segment offset byte-order value)))
+
+(defn write-char
+  "Writes a [[char]] to the `segment`, at an optional `offset`."
+  {:inline
+   (fn write-char-inline
+     ([segment value]
+      `(MemoryAccess/setByte ~segment (unchecked-byte (unchecked-int ~value))))
+     ([segment offset value]
+      `(MemoryAccess/setByteAtOffset ~segment ~offset (unchecked-byte (unchecked-int ~value)))))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setByte
+    segment
+    ;; HACK(Joshua): The Clojure runtime doesn't have an unchecked-byte cast for
+    ;;               characters, so this double cast is necessary unless I emit
+    ;;               my own bytecode with insn.
+    (unchecked-byte (unchecked-int ^char value))))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setByteAtOffset segment offset (unchecked-byte (unchecked-int ^char value)))))
+
+(defn write-float
+  "Writes a [[float]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-float-inline
+     ([segment value]
+      `(MemoryAccess/setFloat ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setFloatAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setFloatAtOffset ~segment ~offset ~byte-order ~value)))}
+  ([^MemorySegment segment value]
+   (MemoryAccess/setFloat segment ^float value))
+  ([^MemorySegment segment ^long offset value]
+   (MemoryAccess/setFloatAtOffset segment offset ^float value))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (MemoryAccess/setFloatAtOffset segment offset byte-order ^float value)))
+
+(defn write-double
+  "Writes a [[double]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-double-inline
+     ([segment value]
+      `(MemoryAccess/setDouble ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setDoubleAtOffset ~segment ~offset ~value))
+     ([segment offset byte-order value]
+      `(MemoryAccess/setDoubleAtOffset ~segment ~offset ~byte-order ~value)))}
+  (^double [^MemorySegment segment ^double value]
+   (MemoryAccess/setDouble segment value))
+  (^double [^MemorySegment segment ^long offset ^double value]
+   (MemoryAccess/setDoubleAtOffset segment offset value))
+  (^double [^MemorySegment segment ^long offset ^ByteOrder byte-order ^double value]
+   (MemoryAccess/setDoubleAtOffset segment offset byte-order value)))
+
+(defn write-address
+  "Writes a [[MemoryAddress]] to the `segment`, at an optional `offset`."
+  {:inline
+   (fn write-address-inline
+     ([segment value]
+      `(MemoryAccess/setAddress ~segment ~value))
+     ([segment offset value]
+      `(MemoryAccess/setAddressAtOffset ~segment ~offset ~value)))}
+  (^MemoryAddress [^MemorySegment segment ^MemoryAddress value]
+   (MemoryAccess/setAddress segment value))
+  (^MemoryAddress [^MemorySegment segment ^long offset ^MemoryAddress value]
+   (MemoryAccess/setAddressAtOffset segment offset value)))
 
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
   [type]
   (cond
     (qualified-keyword? type) type
-    (sequential? type) (keyword (first type))))
+    (sequential? type) (keyword (first type))
+    :else (throw (ex-info "Invalid type object" {:type type}))))
 
-(def primitive?
+(def primitive-types
   "A set of all primitive types."
   #{::byte ::short ::int ::long ::long-long
     ::char ::float ::double ::pointer})
+
+(defn primitive?
+  "A predicate to determine if a given type is primitive."
+  [type]
+  (contains? primitive-types (type-dispatch type)))
 
 (defmulti primitive-type
   "Gets the primitive type that is used to pass as an argument for the `type`.
@@ -289,39 +683,51 @@
 
 (defmethod c-layout ::byte
   [_type]
-  CLinker/C_CHAR)
+  byte-layout)
 
 (defmethod c-layout ::short
-  [_type]
-  CLinker/C_SHORT)
+  [type]
+  (if (sequential? type)
+    (.withOrder short-layout (second type))
+    short-layout))
 
 (defmethod c-layout ::int
-  [_type]
-  CLinker/C_INT)
+  [type]
+  (if (sequential? type)
+    (.withOrder int-layout (second type))
+    int-layout))
 
 (defmethod c-layout ::long
-  [_type]
-  CLinker/C_LONG)
+  [type]
+  (if (sequential? type)
+    (.withOrder long-layout (second type))
+    long-layout))
 
 (defmethod c-layout ::long-long
-  [_type]
-  CLinker/C_LONG_LONG)
+  [type]
+  (if (sequential? type)
+    (.withOrder long-long-layout (second type))
+    long-long-layout))
 
 (defmethod c-layout ::char
   [_type]
-  CLinker/C_CHAR)
+  char-layout)
 
 (defmethod c-layout ::float
-  [_type]
-  CLinker/C_FLOAT)
+  [type]
+  (if (sequential? type)
+    (.withOrder float-layout (second type))
+    float-layout))
 
 (defmethod c-layout ::double
-  [_type]
-  CLinker/C_DOUBLE)
+  [type]
+  (if (sequential? type)
+    (.withOrder double-layout (second type))
+    double-layout))
 
 (defmethod c-layout ::pointer
   [_type]
-  CLinker/C_POINTER)
+  pointer-layout)
 
 (def java-prim-layout
   "Map of primitive type names to the Java types for a method handle."
@@ -341,23 +747,27 @@
 
   If a type serializes to a primitive it returns return a Java primitive type.
   Otherwise, it returns [[MemorySegment]]."
-  [type]
+  ^Class [type]
   (java-prim-layout (or (primitive-type type) type) MemorySegment))
 
 (defn size-of
   "The size in bytes of the given `type`."
-  [type]
-  (.byteSize ^MemoryLayout (c-layout type)))
+  ^long [type]
+  (let [t (cond-> type
+            (not (instance? MemoryLayout type)) c-layout)]
+    (.byteSize ^MemoryLayout t)))
 
 (defn align-of
   "The alignment in bytes of the given `type`."
-  [type]
-  (.byteAlignment ^MemoryLayout (c-layout type)))
+  ^long [type]
+  (let [t (cond-> type
+            (not (instance? MemoryLayout type)) c-layout)]
+    (.byteAlignment ^MemoryLayout t)))
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
-  ([type] (alloc-instance type (connected-scope)))
-  ([type scope] (MemorySegment/allocateNative (long (size-of type)) ^ResourceScope scope)))
+  (^MemorySegment [type] (alloc-instance type (connected-scope)))
+  (^MemorySegment [type scope] (MemorySegment/allocateNative ^long (size-of type) ^ResourceScope scope)))
 
 (declare serialize serialize-into)
 
@@ -456,35 +866,47 @@
 
 (defmethod serialize-into ::byte
   [obj _type segment _scope]
-  (MemoryAccess/setByte segment (byte obj)))
+  (write-byte segment (byte obj)))
 
 (defmethod serialize-into ::short
-  [obj _type segment _scope]
-  (MemoryAccess/setShort segment (short obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-short segment 0 (second type) (short obj))
+    (write-short segment (short obj))))
 
 (defmethod serialize-into ::int
-  [obj _type segment _scope]
-  (MemoryAccess/setInt segment (int obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-int segment 0 (second type) (int obj))
+    (write-int segment (int obj))))
 
 (defmethod serialize-into ::long
-  [obj _type segment _scope]
-  (MemoryAccess/setLong segment (long obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-long segment 0 (second type) (long obj))
+    (write-long segment (long obj))))
 
 (defmethod serialize-into ::long-long
-  [obj _type segment _scope]
-  (MemoryAccess/setLong segment (long obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-long segment 0 (second type) (long obj))
+    (write-long segment (long obj))))
 
 (defmethod serialize-into ::char
   [obj _type segment _scope]
-  (MemoryAccess/setChar segment (char obj)))
+  (write-char segment (char obj)))
 
 (defmethod serialize-into ::float
-  [obj _type segment _scope]
-  (MemoryAccess/setFloat segment (float obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-float segment 0 (second type) (float obj))
+    (write-float segment (float obj))))
 
 (defmethod serialize-into ::double
-  [obj _type segment _scope]
-  (MemoryAccess/setDouble segment (double obj)))
+  [obj type segment _scope]
+  (if (sequential? type)
+    (write-double segment 0 (second type) (double obj))
+    (write-double segment (double obj))))
 
 (defmethod serialize-into ::pointer
   [obj type segment scope]
@@ -535,35 +957,47 @@
 
 (defmethod deserialize-from ::byte
   [segment _type]
-  (MemoryAccess/getByte segment))
+  (read-byte segment))
 
 (defmethod deserialize-from ::short
-  [segment _type]
-  (MemoryAccess/getShort segment))
+  [segment type]
+  (if (sequential? type)
+    (read-short segment 0 (second type))
+    (read-short segment)))
 
 (defmethod deserialize-from ::int
-  [segment _type]
-  (MemoryAccess/getInt segment))
+  [segment type]
+  (if (sequential? type)
+    (read-int segment 0 (second type))
+    (read-int segment)))
 
 (defmethod deserialize-from ::long
-  [segment _type]
-  (MemoryAccess/getLong segment))
+  [segment type]
+  (if (sequential? type)
+    (read-long segment 0 (second type))
+    (read-long segment)))
 
 (defmethod deserialize-from ::long-long
-  [segment _type]
-  (MemoryAccess/getLong segment))
+  [segment type]
+  (if (sequential? type)
+    (read-long segment 0 (second type))
+    (read-long segment)))
 
 (defmethod deserialize-from ::char
   [segment _type]
-  (char (Byte/toUnsignedInt (MemoryAccess/getByte segment))))
+  (read-char segment))
 
 (defmethod deserialize-from ::float
-  [segment _type]
-  (MemoryAccess/getFloat segment))
+  [segment type]
+  (if (sequential? type)
+    (read-float segment 0 (second type))
+    (read-float segment)))
 
 (defmethod deserialize-from ::double
-  [segment _type]
-  (MemoryAccess/getDouble segment))
+  [segment type]
+  (if (sequential? type)
+    (read-double segment 0 (second type))
+    (read-double segment)))
 
 (defmethod deserialize-from ::pointer
   [segment type]

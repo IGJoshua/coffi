@@ -1,6 +1,18 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [0.4.341] - 2022-01-23
+### Added
+- Constants for size and alignment of primitive types
+- Support for non-native byte orders of primitive types
+- Functions for reading and writing primitive types (e.g. `coffi.mem/read-float`, `coffi.mem/write-long`, etc.)
+- Layout objects may now be passed to `coffi.mem/size-of` and `coffi.mem/align-of`
+- Constants for native-order primitive layouts
+- Constants for byte orders
+
+### Changed
+- The `coffi.mem/primitive?` predicate is now actually a function instead of a set
+
 ## [0.3.298] - 2022-01-10
 ### Added
 - New `coffi.layout` namespace with support for forcing C layout rules on structs
@@ -11,7 +23,6 @@ All notable changes to this project will be documented in this file. This change
 ## [0.2.277] - 2021-10-25
 ### Fixed
 - Non-primitive arguments on upcalls would generate invalid bytecode with `nil` instructions
-
 
 ## [0.2.259] - 2021-10-16
 ### Fixed
@@ -80,6 +91,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[0.4.341]: https://github.com/IGJoshua/coffi/compare/v0.3.298...v0.4.341
 [0.3.298]: https://github.com/IGJoshua/coffi/compare/v0.2.277...v0.3.298
 [0.2.277]: https://github.com/IGJoshua/coffi/compare/v0.2.259...v0.2.277
 [0.2.259]: https://github.com/IGJoshua/coffi/compare/v0.1.251...v0.2.259

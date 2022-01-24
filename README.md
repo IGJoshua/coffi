@@ -16,8 +16,8 @@ This library is available on Clojars. Add one of the following entries to the
 `:deps` key of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.3.298"}
-io.github.IGJoshua/coffi {:git/tag "v0.3.298" :git/sha "1bbb8a7"}
+org.suskalo/coffi {:mvn/version "0.4.341"}
+io.github.IGJoshua/coffi {:git/tag "v0.4.341" :git/sha "09b8195"}
 ```
 
 If you use this library as a git dependency, you will need to prepare the
@@ -534,12 +534,14 @@ to the user to call `deserialize-from` on that segment with the appropriate
 type.
 
 ### Unwrapped Native Handles
-Sometimes the overhead brought by the automatic serialization and
-deserialization from the methods explained so far is too much. In cases like
-these, unwrapped native handles are desirable.
+Some native libraries work with handles to large amounts of data at once, making
+it undesirable to marshal data back and forth from Clojure, both because it's
+not necessary to work with the data in Clojure directly, or also because of the
+high (de)serialization costs associated with marshaling. In cases like these,
+unwrapped native handles are desirable.
 
-The functions `make-downcall` and `make-varargs-factory` are provided to create
-these raw handles.
+The functions `make-downcall` and `make-varargs-factory` are also provided to
+create raw function handles.
 
 ```clojure
 (def raw-strlen (ffi/make-downcall "strlen" [::mem/c-string] ::mem/long))
@@ -547,7 +549,7 @@ these raw handles.
 ;; => 5
 ```
 
-In these cases, the argument types are expected to exactly match the types
+With raw handles, the argument types are expected to exactly match the types
 expected by the native function. For primitive types, those are primitives. For
 addresses, that is `MemoryAddress`, and for composite types like structs and
 unions, that is `MemorySegment`. Both `MemoryAddress` and `MemorySegment` come
@@ -568,6 +570,58 @@ manner:
 Clojure functions serialized to this type will have their arguments and return
 value exactly match the types specified and will not perform any serialization
 or deserialization at their boundaries.
+
+One important caveat to consider when writing wrappers for performance-sensitive
+functions is that the convenience macro `defcfn` that coffi provides will
+already perform no serialization or deserialization on primitive arguments and
+return types, so for functions with only primitive argument and return types
+there is no performance reason to choose unwrapped native handles over the
+convenience macro.
+
+### Manual (De)Serialization
+Coffi uses multimethods to dispatch to (de)serialization functions to enable
+code that's generic over the types it operates on. However, in cases where you
+know the exact types that you will be (de)serializing and the multimethod
+dispatch overhead is too high a cost, it may be appropriate to manually handle
+(de)serializing data. This will often be done paired with [Unwrapped Native
+Handles](#unwrapped-native-handles).
+
+Convenience functions are provided to both read and write all primitive types
+and addresses, including byte order.
+
+As an example, when wrapping a function that returns an array of big-endian
+floats, the following code might be used.
+
+``` clojure
+(def ^:private returns-float-array* (ffi/make-downcall "returns_float_array" [::mem/pointer] ::mem/int))
+(def ^:private release-floats* (ffi/make-downcall "releases_float_array" [::mem/pointer] ::mem/void))
+
+(defn returns-float-array
+  []
+  (with-open [scope (mem/stack-scope)]
+    (let [out-floats (mem/alloc mem/pointer-size scope)
+          num-floats (function-handle (mem/address-of out-floats))
+          floats-addr (mem/read-address out-floats)
+          floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
+      ;; Using a try/finally to perform an operation when the stack frame exits,
+      ;; but not to try to catch anything.
+      (try
+        (loop [floats (transient [])
+               index 0]
+          (if (>= index num-floats)
+            (persistent! floats)
+            (recur (conj! floats (mem/read-float floats-slice
+                                                 (unchecked-multiply-int index mem/float-size)
+                                                 mem/big-endian))
+                   (unchecked-inc-int index))))
+        (finally
+          (release-floats floats-addr))))))
+```
+
+The above code manually performs all memory operations rather than relying on
+coffi's dispatch. This will be more performant, but because multimethod overhead
+is usually relatively low, it's recommended to use the multimethod variants for
+convenience in colder functions.
 
 ### Data Model
 In addition to the macros and functions provided to build a Clojure API for
@@ -1054,6 +1108,6 @@ September 2023.
 
 ## License
 
-Copyright © 2021 Joshua Suskalo
+Copyright © 2022 Joshua Suskalo
 
 Distributed under the Eclipse Public License version 1.0.

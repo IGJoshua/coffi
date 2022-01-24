@@ -288,8 +288,8 @@
                  `(mem/serialize ~sym ~type-sym ~scope)
 
                  (and (mem/primitive? type)
-                      (not (#{::mem/pointer} type)))
-                 (list (primitive-cast-sym type) sym)
+                      (not (#{::mem/pointer} (mem/primitive-type type))))
+                 (list (primitive-cast-sym (mem/primitive-type type)) sym)
 
                  (#{::mem/pointer} type)
                  nil
@@ -347,8 +347,9 @@
                                   `(mem/deserialize-from ~expr ~ret-type-sym))
             deserialize-ret (fn [expr]
                               (cond
-                                (or (mem/primitive? ret-type)
-                                    (#{::mem/void} ret-type))
+                                (and (or (mem/primitive? ret-type)
+                                         (#{::mem/void} ret-type))
+                                     (not (#{::mem/pointer} (mem/primitive-type ret-type))))
                                 expr
 
                                 (mem/primitive-type ret-type)
