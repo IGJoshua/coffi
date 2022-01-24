@@ -24,7 +24,6 @@ All notable changes to this project will be documented in this file. This change
 ### Fixed
 - Non-primitive arguments on upcalls would generate invalid bytecode with `nil` instructions
 
-
 ## [0.2.259] - 2021-10-16
 ### Fixed
 - Long and double arguments to upcalls failed to compile in some cases
