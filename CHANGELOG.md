@@ -1,6 +1,8 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
 ## [0.4.341] - 2022-01-23
 ### Added
 - Constants for size and alignment of primitive types
@@ -91,6 +93,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[Unreleased]: https://github.com/IGJoshua/coffi/compare/v0.4.341...develop
 [0.4.341]: https://github.com/IGJoshua/coffi/compare/v0.3.298...v0.4.341
 [0.3.298]: https://github.com/IGJoshua/coffi/compare/v0.2.277...v0.3.298
 [0.2.277]: https://github.com/IGJoshua/coffi/compare/v0.2.259...v0.2.277
