@@ -1084,6 +1084,8 @@ These features are planned for future releases.
 - Header parsing tool for generating a data model?
 - Generic type aliases
 - Helpers for generating enums & bitflags
+- Unsigned integer types
+- Record-based struct types
 - Helper macro for out arguments
 - Improve error messages from defcfn macro
 - Mapped memory
