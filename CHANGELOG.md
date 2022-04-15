@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Changed
+- JDK version from 17 to 18
 
 ## [0.4.341] - 2022-01-23
 ### Added
