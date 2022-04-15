@@ -17,7 +17,9 @@
     Addressable
     CLinker
     FunctionDescriptor
+    MemoryAddress
     MemoryLayout
+    NativeSymbol
     SegmentAllocator)))
 
 ;;; FFI Code loading and function access
@@ -33,18 +35,9 @@
   (Loader/loadLibrary (.getAbsolutePath (io/file path))))
 
 (defn find-symbol
-  "Gets the [[MemoryAddress]] of a symbol from the loaded libraries."
+  "Gets the [[NativeSymbol]] of a symbol from the loaded libraries."
   [sym]
-  (let [sym (name sym)]
-    (Loader/findSymbol sym)))
-
-(defn- method-type
-  "Gets the [[MethodType]] for a set of `args` and `ret` types."
-  ([args] (method-type args ::mem/void))
-  ([args ret]
-   (MethodType/methodType
-    ^Class (mem/java-layout ret)
-    ^"[Ljava.lang.Class;" (into-array Class (map mem/java-layout args)))))
+  (Loader/findSymbol (name sym)))
 
 (defn- function-descriptor
   "Gets the [[FunctionDescriptor]] for a set of `args` and `ret` types."
@@ -60,8 +53,8 @@
 
 (defn- downcall-handle
   "Gets the [[MethodHandle]] for the function at the `address`."
-  [address method-type function-descriptor]
-  (.downcallHandle (CLinker/getInstance) address method-type function-descriptor))
+  [sym function-descriptor]
+  (.downcallHandle (CLinker/systemCLinker) sym function-descriptor))
 
 (def ^:private load-instructions
   "Mapping from primitive types to the instruction used to load them onto the stack."
@@ -138,6 +131,15 @@
          [:invokevirtual (prim-classes prim-type) (unbox-fn-for-type prim-type) [prim]]]
         []))))
 
+(defn- coerce-addressable
+  "If the passed `type` is [[MemoryAddress]], returns [[Addressable]], otherwise returns `type`.
+
+  This is used to declare the return types of upcall stubs."
+  [type]
+  (if (= type MemoryAddress)
+    Addressable
+    type))
+
 (defn- downcall-class
   "Class definition for an implementation of [[IFn]] which calls a closed over
   method handle without reflection, unboxing primitives when needed."
@@ -174,7 +176,7 @@
                        args)
                       [:invokevirtual MethodHandle "invokeExact"
                        (cond->>
-                           (conj (mapv insn-layout args)
+                           (conj (mapv (comp coerce-addressable insn-layout) args)
                                  (insn-layout ret))
                          (not (mem/primitive-type ret)) (cons SegmentAllocator))]
                       (to-object-asm ret)
@@ -185,12 +187,12 @@
   [handle args ret]
   (insn/new-instance (downcall-class args ret) ^MethodHandle handle))
 
-(defn- ensure-address
+(defn- ensure-symbol
   "Gets the address if the argument is [[Addressable]], otherwise
   calls [[find-symbol]] on it."
-  [symbol-or-addr]
-  (if (instance? Addressable symbol-or-addr)
-    (mem/address-of symbol-or-addr)
+  ^NativeSymbol [symbol-or-addr]
+  (if (instance? NativeSymbol symbol-or-addr)
+    symbol-or-addr
     (find-symbol symbol-or-addr)))
 
 (defn make-downcall
@@ -205,10 +207,8 @@
   first argument of a [[SegmentAllocator]]."
   [symbol-or-addr args ret]
   (-> symbol-or-addr
-      ensure-address
-      (downcall-handle
-       (method-type args ret)
-       (function-descriptor args ret))
+      ensure-symbol
+      (downcall-handle (function-descriptor args ret))
       (downcall-fn args ret)))
 
 (defn make-varargs-factory
@@ -440,7 +440,7 @@
   arguments."
   [symbol required-args ret]
   (-> symbol
-      ensure-address
+      ensure-symbol
       (make-varargs-factory required-args ret)
       (make-serde-varargs-wrapper required-args ret)))
 
@@ -452,7 +452,6 @@
    ::mem/short :sreturn
    ::mem/int :ireturn
    ::mem/long :lreturn
-   ::mem/long-long :lreturn
    ::mem/char :creturn
    ::mem/float :freturn
    ::mem/double :dreturn
@@ -460,7 +459,7 @@
 
 (def ^:private double-sized?
   "Set of primitive types which require 2 indices in the constant pool."
-  #{::mem/double ::mem/long ::mem/long-long})
+  #{::mem/double ::mem/long})
 
 (defn- upcall-class
   "Constructs a class definition for a class with a single method, `upcall`, which
@@ -482,7 +481,7 @@
              {:name :upcall
               :flags #{:public}
               :desc (conj (mapv insn-layout arg-types)
-                          (insn-layout ret-type))
+                          (coerce-addressable (insn-layout ret-type)))
               :emit [[:aload 0]
                      [:getfield :this "upcall_ifn" IFn]
                      (loop [types arg-types
@@ -498,13 +497,24 @@
                                     inc)))
                          acc))
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
-                     (to-prim-asm ret-type)
+                     (to-prim-asm (coerce-addressable ret-type))
                      [(return-for-type ret-type :areturn)]]}]})
 
 (defn- upcall
   "Constructs an instance of [[upcall-class]], closing over `f`."
   [f arg-types ret-type]
   (insn/new-instance (upcall-class arg-types ret-type) ^IFn f))
+
+(defn- method-type
+  "Gets the [[MethodType]] for a set of `args` and `ret` types."
+  ([args] (method-type args ::mem/void))
+  ([args ret]
+   (MethodType/methodType
+    ^Class (let [r (mem/java-layout ret)]
+             (if (= r MemoryAddress)
+               Addressable
+               r))
+    ^"[Ljava.lang.Class;" (into-array Class (map mem/java-layout args)))))
 
 (defn- upcall-handle
   "Constructs a method handle for invoking `f`, a function of `arg-count` args."
@@ -532,7 +542,7 @@
 (defmethod mem/serialize* ::fn
   [f [_fn arg-types ret-type & {:keys [raw-fn?]}] scope]
   (.upcallStub
-   (CLinker/getInstance)
+   (CLinker/systemCLinker)
    (cond-> f
      (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
      :always (upcall-handle arg-types ret-type))
@@ -544,9 +554,8 @@
   (when-not (mem/null? addr)
     (vary-meta
       (-> addr
-          (downcall-handle
-           (method-type arg-types ret-type)
-           (function-descriptor arg-types ret-type))
+          (as-> addr (NativeSymbol/ofAddress "coffi_upcall_symbol" addr (mem/connected-scope)))
+          (downcall-handle (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
           (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
       assoc ::address addr)))
@@ -556,19 +565,16 @@
 (defn const
   "Gets the value of a constant stored in `symbol-or-addr`."
   [symbol-or-addr type]
-  (mem/deserialize (ensure-address symbol-or-addr) [::mem/pointer type]))
+  (mem/deserialize (.address (ensure-symbol symbol-or-addr)) [::mem/pointer type]))
 
-(deftype StaticVariable [addr type meta]
-  Addressable
-  (address [_]
-    addr)
+(deftype StaticVariable [seg type meta]
   IDeref
   (deref [_]
-    (mem/deserialize addr [::mem/pointer type]))
+    (mem/deserialize seg type))
 
   IObj
   (withMeta [_ meta-map]
-    (StaticVariable. addr type (atom meta-map)))
+    (StaticVariable. seg type (atom meta-map)))
   IMeta
   (meta [_]
     @meta)
@@ -583,7 +589,7 @@
   [^StaticVariable static-var newval]
   (mem/serialize-into
    newval (.-type static-var)
-   (mem/slice-global (.-addr static-var) (mem/size-of (.-type static-var)))
+   (.-seg static-var)
    (mem/global-scope))
   newval)
 
@@ -603,7 +609,10 @@
 
   See [[freset!]], [[fswap!]]."
   [symbol-or-addr type]
-  (StaticVariable. (ensure-address symbol-or-addr) type (atom nil)))
+  (StaticVariable. (mem/as-segment (.address (ensure-symbol symbol-or-addr))
+                                   (mem/size-of type)
+                                   (mem/global-scope))
+                   type (atom nil)))
 
 (s/def :coffi.ffi.symbolspec/symbol string?)
 (s/def :coffi.ffi.symbolspec/type keyword?)
