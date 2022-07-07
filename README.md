@@ -1110,6 +1110,7 @@ These features are planned for future releases.
 - Helper macro for out arguments
 - Improve error messages from defcfn macro
 - Mapped memory
+- Helper macros for custom serde implementations for composite data types
 
 ### Future JDKs
 The purpose of coffi is to provide a wrapper for published versions of Project
