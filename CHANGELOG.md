@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.5.357] - 2022-07-07
 ### Removed
 - `:coffi.mem/long-long` primitive type
 - `coffi.mem/slice-into`; the function no longer has an equivalent in panama, but see 2-arity of `coffi.mem/as-segment` for an alternative
