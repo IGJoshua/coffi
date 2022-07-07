@@ -3,7 +3,7 @@
 
 Coffi is a foreign function interface library for Clojure, using the new
 [Project Panama](https://openjdk.java.net/projects/panama/) that's a part of the
-incubator in Java 17. This allows calling native code directly from Clojure
+incubator in Java 18. This allows calling native code directly from Clojure
 without the need for either Java or native code specific to the library, as e.g.
 the JNI does. Coffi focuses on ease of use, including functions and macros for
 creating wrappers to allow the resulting native functions to act just like
@@ -16,8 +16,8 @@ This library is available on Clojars. Add one of the following entries to the
 `:deps` key of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.4.341"}
-io.github.IGJoshua/coffi {:git/tag "v0.4.341" :git/sha "09b8195"}
+org.suskalo/coffi {:mvn/version "0.5.357"}
+io.github.IGJoshua/coffi {:git/tag "v0.5.357" :git/sha "a9e3ed0"}
 ```
 
 If you use this library as a git dependency, you will need to prepare the
@@ -1107,12 +1107,12 @@ These features are planned for future releases.
 ### Future JDKs
 The purpose of coffi is to provide a wrapper for published versions of Project
 Panama, starting with JDK 17. As new JDKs are released, coffi will be ported to
-the newer versions of Panama. When JDK 18 is released, a tag will be added to
-mark the final release of coffi that is compatible with Java 17, as that is the
-LTS release of the JDK. Development of new features and fixes as well as support
-for new Panama idioms and features will continue with focus only on the latest
-JDK. If a particular feature is not specific to the newer JDK, PRs backporting
-it to versions of coffi supporting Java 17 will likely be accepted.
+the newer versions of Panama. Version `0.4.341` is the last version compatible
+with JDK 17. Bugfixes, and potential backports of newer coffi features may be
+found on the `jdk17-lts` branch. Development of new features and fixes as well
+as support for new Panama idioms and features will continue with focus only on
+the latest JDK. If a particular feature is not specific to the newer JDK, PRs
+backporting it to versions of coffi supporting Java 17 will likely be accepted.
 
 ### 1.0 Release
 Because the feature that coffi wraps in the JDK is an incubator feature (and
