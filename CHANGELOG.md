@@ -3,7 +3,8 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Removed
-- `coffi.mem/slice-into` function no longer has an equivalent in panama, but see 2-arity of `coffi.mem/as-segment` for an alternative
+- `:coffi.mem/long-long` primitive type
+- `coffi.mem/slice-into`; the function no longer has an equivalent in panama, but see 2-arity of `coffi.mem/as-segment` for an alternative
 
 ### Changed
 - `coffi.mem/as-segment` no longer has a close action arity
