@@ -600,8 +600,7 @@
 (defn static-variable
   "Constructs a reference to a mutable value stored in `symbol-or-addr`.
 
-  The returned value can be dereferenced, and has metadata, and the address of
-  the value can be queried with [[address-of]].
+  The returned value can be dereferenced, and has metadata.
 
   See [[freset!]], [[fswap!]]."
   [symbol-or-addr type]
