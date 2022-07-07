@@ -185,7 +185,7 @@
   (insn/new-instance (downcall-class args ret) ^MethodHandle handle))
 
 (defn- ensure-symbol
-  "Gets the address if the argument is [[Addressable]], otherwise
+  "Returns the argument if it is a [[NativeSymbol]], otherwise
   calls [[find-symbol]] on it."
   ^NativeSymbol [symbol-or-addr]
   (if (instance? NativeSymbol symbol-or-addr)
