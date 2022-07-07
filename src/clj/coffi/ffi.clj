@@ -52,7 +52,7 @@
         args-arr)))))
 
 (defn- downcall-handle
-  "Gets the [[MethodHandle]] for the function at the `address`."
+  "Gets the [[MethodHandle]] for the function at the `sym`."
   [sym function-descriptor]
   (.downcallHandle (CLinker/systemCLinker) sym function-descriptor))
 
