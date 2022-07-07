@@ -19,6 +19,7 @@
     FunctionDescriptor
     MemoryAddress
     MemoryLayout
+    MemorySegment
     NativeSymbol
     SegmentAllocator)))
 
@@ -593,6 +594,14 @@
   putting the value into `static-var`."
   [static-var f & args]
   (freset! static-var (apply f @static-var args)))
+
+(defn static-variable-segment
+  "Gets the backing [[MemorySegment]] from `static-var`.
+
+  This is primarily useful when you need to pass the static variable's address
+  to a native function which takes an [[Addressable]]."
+  ^MemorySegment [static-var]
+  (.-seg ^StaticVariable static-var))
 
 (defn static-variable
   "Constructs a reference to a mutable value stored in `symbol-or-addr`.
