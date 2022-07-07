@@ -110,7 +110,6 @@ Coffi defines a basic set of primitive types:
 - short
 - int
 - long
-- long-long
 - char
 - float
 - double

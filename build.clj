@@ -52,8 +52,8 @@
   (b/process {:command-args ["javac" "--add-modules=jdk.incubator.foreign"
                              "src/java/coffi/ffi/Loader.java"
                              "-d" class-dir
-                             "-target" "17"
-                             "-source" "17"]})
+                             "-target" "18"
+                             "-source" "18"]})
   opts)
 
 (defn- write-pom

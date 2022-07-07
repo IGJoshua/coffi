@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Removed
+- `:coffi.mem/long-long` primitive type
+- `coffi.mem/slice-into`; the function no longer has an equivalent in panama, but see 2-arity of `coffi.mem/as-segment` for an alternative
+
+### Changed
+- `coffi.mem/as-segment` no longer has a close action arity
+- JDK version from 17 to 18
 
 ## [0.4.341] - 2022-01-23
 ### Added

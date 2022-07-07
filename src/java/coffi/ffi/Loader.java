@@ -36,8 +36,8 @@ public class Loader {
      *
      * @param symbol The name of the symbol to load from a library.
      */
-    public static MemoryAddress findSymbol(String symbol) {
-        return CLinker.systemLookup().lookup(symbol)
+    public static NativeSymbol findSymbol(String symbol) {
+        return CLinker.systemCLinker().lookup(symbol)
             .orElseGet(() -> SymbolLookup.loaderLookup().lookup(symbol).orElse(null));
     }
 }
