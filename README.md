@@ -35,8 +35,23 @@ following JVM arguments to your application.
 --add-modules=jdk.incubator.foreign --enable-native-access=ALL-UNNAMED
 ```
 
-JVM arguments can be added to your project with -J in the Clojure CLI arguments,
-or in the `:jvm-opts` key of an alias in your `deps.edn` file.
+You can specify JVM arguments in a particular invocation of the Clojure CLI with
+the -J flag like so:
+
+``` sh
+clj -J--add-modules=jdk.incubator.foreign -J--enable-native-access=ALL-UNNAMED
+```
+
+You can also specify them in an alias in your `deps.edn` file under the
+`:jvm-opts` key (see the next example) and then invoking the CLI with that alias
+using `-M`, `-A`, or `-X`.
+
+``` clojure
+{:aliases {:dev {:jvm-opts ["--add-modules=jdk.incubator.foreign" "--enable-native-access=ALL-UNNAMED"]}}}
+```
+
+Other build tools should provide similar functionality if you check their
+documentation.
 
 Coffi also includes support for the linter clj-kondo. If you use clj-kondo and
 this library's macros are not linting correctly, you may need to install the
