@@ -1260,13 +1260,14 @@
   [variants]
   (if (map? variants)
     variants
-    (reduce
-     (fn [[m next-id] variant]
-       (if (vector? variant)
-         [(conj m variant) (inc (second variant))]
-         [(assoc m variant next-id) (inc next-id)]))
-     [{} 0]
-     variants)))
+    (first
+     (reduce
+      (fn [[m next-id] variant]
+        (if (vector? variant)
+          [(conj m variant) (inc (second variant))]
+          [(assoc m variant next-id) (inc next-id)]))
+      [{} 0]
+      variants))))
 
 (defmethod serialize* ::enum
   [obj [_enum variants & {:keys [repr]}] scope]
