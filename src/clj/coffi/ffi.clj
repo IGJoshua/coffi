@@ -62,7 +62,6 @@
    ::mem/short :sload
    ::mem/int :iload
    ::mem/long :lload
-   ::mem/long-long :lload
    ::mem/char :cload
    ::mem/float :fload
    ::mem/double :dload
@@ -74,7 +73,6 @@
    ::mem/short Short
    ::mem/int Integer
    ::mem/long Long
-   ::mem/long-long Long
    ::mem/char Character
    ::mem/float Float
    ::mem/double Double})
@@ -110,7 +108,6 @@
    ::mem/short "shortValue"
    ::mem/int "intValue"
    ::mem/long "longValue"
-   ::mem/long-long "longValue"
    ::mem/char "charValue"
    ::mem/float "floatValue"
    ::mem/double "doubleValue"})
@@ -235,7 +232,6 @@
    ::mem/short `short
    ::mem/int `int
    ::mem/long `long
-   ::mem/long-long `long
    ::mem/char `char
    ::mem/float `float
    ::mem/double `double})
