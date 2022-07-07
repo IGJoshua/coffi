@@ -17,7 +17,7 @@
    [clojure.tools.build.api :as b]))
 
 (def lib-coord 'org.suskalo/coffi)
-(def version (format "0.4.%s" (b/git-count-revs nil)))
+(def version (format "0.5.%s" (b/git-count-revs nil)))
 
 (def resource-dirs ["resources/"])
 
@@ -52,8 +52,8 @@
   (b/process {:command-args ["javac" "--add-modules=jdk.incubator.foreign"
                              "src/java/coffi/ffi/Loader.java"
                              "-d" class-dir
-                             "-target" "17"
-                             "-source" "17"]})
+                             "-target" "18"
+                             "-source" "18"]})
   opts)
 
 (defn- write-pom
