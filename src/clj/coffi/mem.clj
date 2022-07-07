@@ -19,6 +19,7 @@
   use [[with-acquired]] on the [[segment-scope]] in order to ensure it won't be
   released during its manipulation."
   (:require
+   [clojure.set :as set]
    [clojure.spec.alpha :as s])
   (:import
    (java.nio ByteOrder)
@@ -1234,6 +1235,48 @@
   (mapv #(deserialize-from % type)
         (slice-segments (slice segment 0 (* count (size-of type)))
                         (size-of type))))
+
+;;; Enum types
+
+(defmethod primitive-type ::enum
+  [[_enum _variants & {:keys [repr]}]]
+  (if repr
+    (primitive-type repr)
+    ::int))
+
+(defn- enum-variants-map
+  "Constructs a map from enum variant objects to their native representations.
+
+  Enums are mappings from Clojure objects to numbers, with potential default
+  values for each element based on order.
+
+  If `variants` is a map, then every variant has a value provided already (a
+  guarantee of maps in Clojure's syntax) and we are done.
+
+  If `variants` is a vector then we assume C-style implicit enum values,
+  counting from 0. If an element of `variants` itself is a vector, it must be a
+  vector tuple of the variant object to the native representation, with further
+  counting continuing from that value."
+  [variants]
+  (if (map? variants)
+    variants
+    (reduce
+     (fn [[m next-id] variant]
+       (if (vector? variant)
+         [(conj m variant) (inc (second variant))]
+         [(assoc m variant next-id) (inc next-id)]))
+     [{} 0]
+     variants)))
+
+(defmethod serialize* ::enum
+  [obj [_enum variants & {:keys [repr]}] scope]
+  (serialize* ((enum-variants-map variants) obj)
+              (or repr ::int)
+              scope))
+
+(defmethod deserialize* ::enum
+  [obj [_enum variants & {:keys [_repr]}]]
+  ((set/map-invert (enum-variants-map variants)) obj))
 
 (s/def ::type
   (s/spec
