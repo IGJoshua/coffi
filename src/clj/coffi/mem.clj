@@ -1279,6 +1279,28 @@
   [obj [_enum variants & {:keys [_repr]}]]
   ((set/map-invert (enum-variants-map variants)) obj))
 
+;;; Flagsets
+
+(defmethod primitive-type ::flagset
+  [[_flagset _bits & {:keys [repr]}]]
+  (if repr
+    (primitive-type repr)
+    ::int))
+
+(defmethod serialize* ::flagset
+  [obj [_flagset bits & {:keys [repr]}] scope]
+  (let [bits-map (enum-variants-map bits)]
+    (reduce #(bit-set %1 (get bits-map %2)) (serialize* 0 (or repr ::int) scope) obj)))
+
+(defmethod deserialize* ::flagset
+  [obj [_flagset bits & {:keys [repr]}]]
+  (let [bits-map (set/map-invert (enum-variants-map bits))]
+    (reduce #(if-not (zero? (bit-and 1 (bit-shift-right obj %2)))
+               (conj %1 (bits-map %2))
+               %1)
+            #{}
+            (range (* 8 (size-of (or repr ::int)))))))
+
 (s/def ::type
   (s/spec
    (s/nonconforming

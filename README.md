@@ -1104,7 +1104,6 @@ These features are planned for future releases.
 - Support for va_args type
 - Header parsing tool for generating a data model?
 - Generic type aliases
-- Helpers for generating bitflags
 - Unsigned integer types
 - Record-based struct types
 - Helper macro for out arguments
