@@ -100,7 +100,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
-[Unreleased]: https://github.com/IGJoshua/coffi/compare/v0.4.341...develop
+[0.5.357]: https://github.com/IGJoshua/coffi/compare/v0.4.341...v0.5.357
 [0.4.341]: https://github.com/IGJoshua/coffi/compare/v0.3.298...v0.4.341
 [0.3.298]: https://github.com/IGJoshua/coffi/compare/v0.2.277...v0.3.298
 [0.2.277]: https://github.com/IGJoshua/coffi/compare/v0.2.259...v0.2.277
