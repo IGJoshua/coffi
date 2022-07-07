@@ -561,6 +561,25 @@
   [symbol-or-addr type]
   (mem/deserialize (.address (ensure-symbol symbol-or-addr)) [::mem/pointer type]))
 
+(s/def ::defconst-args
+  (s/cat :var-name simple-symbol?
+         :docstring (s/? string?)
+         :symbol-or-addr any?
+         :type ::mem/type))
+
+(defmacro defconst
+  "Defines a var named by `symbol` to be the value of the given `type` from `symbol-or-addr`."
+  {:arglists '([symbol docstring? symbol-or-addr type])}
+  [& args]
+  (let [args (s/conform ::defconst-args args)]
+    `(let [symbol# (ensure-symbol ~(:symbol-or-addr args))]
+       (def ~(:var-name args)
+         ~@(when-let [doc (:docstring args)]
+             (list doc))
+         (const symbol# ~(:type args))))))
+(s/fdef defconst
+  :args ::defconst-args)
+
 (deftype StaticVariable [seg type meta]
   IDeref
   (deref [_]
@@ -614,6 +633,19 @@
                                    (mem/size-of type)
                                    (mem/global-scope))
                    type (atom nil)))
+
+(defmacro defvar
+  "Defines a var named by `symbol` to be a reference to the native memory from `symbol-or-addr`."
+  {:arglists '([symbol docstring? symbol-or-addr type])}
+  [& args]
+  (let [args (s/conform ::defconst-args args)]
+    `(let [symbol# (ensure-symbol ~(:symbol-or-addr args))]
+       (def ~(:var-name args)
+         ~@(when-let [doc (:docstring args)]
+             (list doc))
+         (static-variable symbol#)))))
+(s/fdef defvar
+  :args ::defconst-args)
 
 (s/def :coffi.ffi.symbolspec/symbol string?)
 (s/def :coffi.ffi.symbolspec/type keyword?)

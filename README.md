@@ -265,18 +265,21 @@ does not support va-list, however it is a planned feature.
 
 ### Global Variables
 Some libraries include global variables or constants accessible through symbols.
-To start with, constant values stored in symbols can be fetched with `const`
+To start with, constant values stored in symbols can be fetched with `const`, or
+the parallel macro `defconst`
 
 ```clojure
 (def some-const (ffi/const "some_const" ::mem/int))
+(ffi/defconst some-const "some_const" ::mem/int)
 ```
 
 This value is fetched once when you call `const` and is turned into a Clojure
-value. If you need to refer to a global variable, then `static-variable` can be
-used to create a reference to the native value.
+value. If you need to refer to a global variable, then `static-variable` (or
+parallel `defvar`) can be used to create a reference to the native value.
 
 ```clojure
 (def some-var (ffi/static-variable "some_var" ::mem/int))
+(ffi/defvar some-var "some_var" ::mem/int)
 ```
 
 This variable is an `IDeref`. Each time you dereference it, the value will be
@@ -296,6 +299,10 @@ value is being mutated on another thread.
 
 A parallel function `fswap!` is also provided, but it does not provide any
 atomic semantics either.
+
+The memory that backs the static variable can be fetched with the function
+`static-variable-segment`, which can be used to pass a pointer to the static
+variable to native functions that require it.
 
 ### Complex Wrappers
 Some functions require more complex code to map nicely to a Clojure function.
