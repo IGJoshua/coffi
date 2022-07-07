@@ -506,10 +506,7 @@
   ([args] (method-type args ::mem/void))
   ([args ret]
    (MethodType/methodType
-    ^Class (let [r (mem/java-layout ret)]
-             (if (= r MemoryAddress)
-               Addressable
-               r))
+    ^Class (coerce-addressable (mem/java-layout ret))
     ^"[Ljava.lang.Class;" (into-array Class (map mem/java-layout args)))))
 
 (defn- upcall-handle
