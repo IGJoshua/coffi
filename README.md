@@ -239,6 +239,13 @@ type and message in the registers section, but it's important to be aware of all
 the same. Ideally you should test your callbacks before actually passing them to
 native code.
 
+Another important thing to keep in mind is the expected lifetime of the function
+that you pass to native code. For example it is perfectly fine to pass an
+anonymous function to a native function if the callback will never be called
+again once the native function returns. If however it saves the callback for
+later use the JVM may collect it prematurely, causing a crash when the callback
+is later called by native code.
+
 ### Variadic Functions
 Some native functions can take any number of arguments, and in these cases coffi
 provides `vacfn-factory` (for "varargs C function factory").
