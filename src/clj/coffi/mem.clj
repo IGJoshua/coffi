@@ -1119,6 +1119,8 @@
     (map #(deserialize % type) (slice-segments segment (size-of type)))))
 
 ;;; Raw composite types
+;; TODO(Joshua): Ensure that all the raw values don't have anything happen on
+;; serialize in the inlining of [[coffi.ffi/make-serde-wrapper]]
 
 (defmethod c-layout ::raw
   [[_raw type]]
