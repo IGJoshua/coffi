@@ -1118,6 +1118,20 @@
   (with-acquired [(segment-scope segment)]
     (map #(deserialize % type) (slice-segments segment (size-of type)))))
 
+;;; Raw composite types
+
+(defmethod c-layout ::raw
+  [[_raw type]]
+  (c-layout type))
+
+(defmethod serialize-into ::raw
+  [obj _type segment _scope]
+  (copy-segment segment obj))
+
+(defmethod deserialize-from ::raw
+  [segment _type]
+  (clone-segment segment))
+
 ;;; C String type
 
 (defmethod primitive-type ::c-string
