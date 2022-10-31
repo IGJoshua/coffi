@@ -247,6 +247,9 @@
   [downcall arg-types ret-type]
   (let [;; Complexity of types
         const-args? (or (vector? arg-types) (nil? arg-types))
+        ;; FIXME(Joshua): there's a potential bug where `nil` as a pointer
+        ;; argument is not converted to [[MemoryAddress/NULL]] if it's
+        ;; considered primitive.
         simple-args? (when const-args?
                        (every? mem/primitive? arg-types))
         const-ret? (s/valid? ::mem/type ret-type)
