@@ -247,9 +247,6 @@
   [downcall arg-types ret-type]
   (let [;; Complexity of types
         const-args? (or (vector? arg-types) (nil? arg-types))
-        ;; FIXME(Joshua): there's a potential bug where `nil` as a pointer
-        ;; argument is not converted to [[MemoryAddress/NULL]] if it's
-        ;; considered primitive.
         simple-args? (when const-args?
                        (and (every? mem/primitive? arg-types)
                             ;; NOTE(Joshua): Pointer types with serdes (e.g. [::mem/pointer ::mem/int])
@@ -300,8 +297,9 @@
                       (not (#{::mem/pointer} (mem/primitive-type type))))
                  (list (primitive-cast-sym (mem/primitive-type type)) sym)
 
+                 ;; cast null pointers to something understood by panama
                  (#{::mem/pointer} type)
-                 nil
+                 `(or ~sym (MemoryAddress/NULL))
 
                  (mem/primitive-type type)
                  `(mem/serialize* ~sym ~type-sym ~scope)
