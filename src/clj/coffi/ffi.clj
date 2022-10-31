@@ -251,10 +251,19 @@
         ;; argument is not converted to [[MemoryAddress/NULL]] if it's
         ;; considered primitive.
         simple-args? (when const-args?
-                       (every? mem/primitive? arg-types))
+                       (and (every? mem/primitive? arg-types)
+                            ;; NOTE(Joshua): Pointer types with serdes (e.g. [::mem/pointer ::mem/int])
+                            ;; still require a scope, making them not qualify as "simple".
+                            (every? keyword? (filter (comp #{::mem/pointer} mem/primitive-type) arg-types))))
         const-ret? (s/valid? ::mem/type ret-type)
-        primitive-ret? (and const-ret? (or (mem/primitive? ret-type)
-                                           (#{::mem/void} ret-type)))
+        primitive-ret? (and const-ret?
+                            (or (and (mem/primitive? ret-type)
+                                     ;; NOTE(Joshua): Pointer types with serdes require deserializing the
+                                     ;; return value, but don't require passing a scope to the downcall,
+                                     ;; making them cause the return to not be primitive, but it may still
+                                     ;; be "simple".
+                                     (or (keyword? ret-type) (not (#{::mem/pointer} (mem/primitive-type ret-type)))))
+                                (#{::mem/void} ret-type)))
         simple-ret? (and const-ret? (mem/primitive-type ret-type))
         no-serde? (and const-args? (empty? arg-types)
                        primitive-ret?)]
