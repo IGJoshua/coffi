@@ -236,7 +236,7 @@
 
 (def ^ValueLayout$OfAddress pointer-layout
   "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
-  ValueLayout/ADDRESS)
+  (MemoryLayout/valueLayout MemoryAddress native-endian))
 
 (def ^long short-size
   "The size in bytes of a c-sized short."

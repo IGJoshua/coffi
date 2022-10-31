@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. This change
 - New macros for defining vars with values from native code
 - New function to allow getting the backing memory segment of a `coffi.ffi.StaticVariable`, to replace the `Addressable` implementation lost in the migration to JDK 18
 
+### Fixed
+- Bug where pointer alignment was incorrectly defined
+
 ## [0.5.357] - 2022-07-07
 ### Removed
 - `:coffi.mem/long-long` primitive type
