@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Added
+- Support for JDK 19
 - New macros for defining vars with values from native code
 - New function to allow getting the backing memory segment of a `coffi.ffi.StaticVariable`, to replace the `Addressable` implementation lost in the migration to JDK 18
 
@@ -11,6 +12,9 @@ All notable changes to this project will be documented in this file. This change
 - Bug where inline serde functions would fail on complex pointer types
 - Bug where padding in structs may be increased when fields have alignments less than their size
 - Bug where pointer alignment was incorrectly defined
+
+### Changed
+- References to `scope` as a term have been changed to `session` to match Panama messaging. Where this conflicts with function names, old versions have been deprecated and new names have been introduced.
 
 ## [0.5.357] - 2022-07-07
 ### Removed
