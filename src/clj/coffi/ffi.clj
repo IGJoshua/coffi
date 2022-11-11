@@ -244,20 +244,20 @@
   The return type and any arguments that are primitives will not
   be (de)serialized except to be cast. If all arguments and return are
   primitive, the `downcall` is returned directly. In cases where arguments must
-  be serialized, a new [[mem/stack-scope]] is generated."
+  be serialized, a new [[mem/stack-session]] is generated."
   [downcall arg-types ret-type]
   (let [;; Complexity of types
         const-args? (or (vector? arg-types) (nil? arg-types))
         simple-args? (when const-args?
                        (and (every? mem/primitive? arg-types)
                             ;; NOTE(Joshua): Pointer types with serdes (e.g. [::mem/pointer ::mem/int])
-                            ;; still require a scope, making them not qualify as "simple".
+                            ;; still require a session, making them not qualify as "simple".
                             (every? keyword? (filter (comp #{::mem/pointer} mem/primitive-type) arg-types))))
         const-ret? (s/valid? ::mem/type ret-type)
         primitive-ret? (and const-ret?
                             (or (and (mem/primitive? ret-type)
                                      ;; NOTE(Joshua): Pointer types with serdes require deserializing the
-                                     ;; return value, but don't require passing a scope to the downcall,
+                                     ;; return value, but don't require passing a session to the downcall,
                                      ;; making them cause the return to not be primitive, but it may still
                                      ;; be "simple".
                                      (or (keyword? ret-type) (not (#{::mem/pointer} (mem/primitive-type ret-type)))))
@@ -273,7 +273,7 @@
          ~ret-type
          downcall#)
       (let [;; All our symbols
-            scope (gensym "scope")
+            session (gensym "session")
             downcall-sym (gensym "downcall")
             args-sym (when-not const-args?
                        (gensym "args"))
@@ -292,7 +292,7 @@
               (some->>
                (cond
                  (not (s/valid? ::mem/type type))
-                 `(mem/serialize ~sym ~type-sym ~scope)
+                 `(mem/serialize ~sym ~type-sym ~session)
 
                  (and (mem/primitive? type)
                       (not (#{::mem/pointer} (mem/primitive-type type))))
@@ -303,11 +303,11 @@
                  `(or ~sym (MemoryAddress/NULL))
 
                  (mem/primitive-type type)
-                 `(mem/serialize* ~sym ~type-sym ~scope)
+                 `(mem/serialize* ~sym ~type-sym ~session)
 
                  :else
                  `(let [alloc# (mem/alloc-instance ~type-sym)]
-                    (mem/serialize-into ~sym ~type-sym alloc# ~scope)
+                    (mem/serialize-into ~sym ~type-sym alloc# ~session)
                     alloc#))
                (list sym)))
 
@@ -334,7 +334,7 @@
 
                 :else
                 `(let [~args-sym (map (fn [obj# type#]
-                                        (mem/serialize obj# type# ~scope))
+                                        (mem/serialize obj# type# ~session))
                                       ~args-sym ~args-types-sym)]
                    ~expr)))
 
@@ -343,7 +343,7 @@
                         ;; taking restargs, and so the downcall must be applied
                         (-> `(~@(when (symbol? args) [`apply])
                               ~downcall-sym
-                              ~@(when allocator? [`(mem/scope-allocator ~scope)])
+                              ~@(when allocator? [`(mem/session-allocator ~session)])
                               ~@(if (symbol? args)
                                   [args]
                                   args))
@@ -366,12 +366,12 @@
                                 :else
                                 (deserialize-segment expr)))
 
-            wrap-scope (fn [expr]
-                         `(with-open [~scope (mem/stack-scope)]
-                            ~expr))
-            wrap-fn (fn [call needs-scope?]
+            wrap-session (fn [expr]
+                           `(with-open [~session (mem/stack-session)]
+                              ~expr))
+            wrap-fn (fn [call needs-session?]
                       `(fn [~@(if const-args? arg-syms ['& args-sym])]
-                         ~(cond-> call needs-scope? wrap-scope)))]
+                         ~(cond-> call needs-session? wrap-session)))]
         `(let [;; NOTE(Joshua): To ensure all arguments are evaluated once and
                ;; in-order, they must be bound here
                ~downcall-sym ~downcall
@@ -403,15 +403,15 @@
   [downcall arg-types ret-type]
   (if (mem/primitive-type ret-type)
     (fn native-fn [& args]
-      (with-open [scope (mem/stack-scope)]
+      (with-open [session (mem/stack-session)]
         (mem/deserialize*
-         (apply downcall (map #(mem/serialize %1 %2 scope) args arg-types))
+         (apply downcall (map #(mem/serialize %1 %2 session) args arg-types))
          ret-type)))
     (fn native-fn [& args]
-      (with-open [scope (mem/stack-scope)]
+      (with-open [session (mem/stack-session)]
         (mem/deserialize-from
-         (apply downcall (mem/scope-allocator scope)
-                (map #(mem/serialize %1 %2 scope) args arg-types))
+         (apply downcall (mem/session-allocator session)
+                (map #(mem/serialize %1 %2 session) args arg-types))
          ret-type)))))
 
 (defn make-serde-varargs-wrapper
@@ -536,30 +536,30 @@
 
 (defn- upcall-serde-wrapper
   "Creates a function that wraps `f` which deserializes the arguments and
-  serializes the return type in the [[global-scope]]."
+  serializes the return type in the [[global-session]]."
   [f arg-types ret-type]
   (fn [& args]
     (mem/serialize
      (apply f (map mem/deserialize args arg-types))
      ret-type
-     (mem/global-scope))))
+     (mem/global-session))))
 
 (defmethod mem/serialize* ::fn
-  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] scope]
+  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] session]
   (.upcallStub
    (Linker/nativeLinker)
    (cond-> f
      (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
      :always (upcall-handle arg-types ret-type))
    (function-descriptor arg-types ret-type)
-   scope))
+   session))
 
 (defmethod mem/deserialize* ::fn
   [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
   (when-not (mem/null? addr)
     (vary-meta
       (-> addr
-          (MemorySegment/ofAddress mem/pointer-size (mem/connected-scope))
+          (MemorySegment/ofAddress mem/pointer-size (mem/connected-session))
           (downcall-handle (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
           (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
@@ -614,7 +614,7 @@
   (mem/serialize-into
    newval (.-type static-var)
    (.-seg static-var)
-   (mem/global-scope))
+   (mem/global-session))
   newval)
 
 (defn fswap!
@@ -642,7 +642,7 @@
   [symbol-or-addr type]
   (StaticVariable. (mem/as-segment (.address (ensure-symbol symbol-or-addr))
                                    (mem/size-of type)
-                                   (mem/global-scope))
+                                   (mem/global-session))
                    type (atom nil)))
 
 (defmacro defvar

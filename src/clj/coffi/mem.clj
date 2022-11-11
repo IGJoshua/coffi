@@ -1,5 +1,5 @@
 (ns coffi.mem
-  "Functions for managing native allocations, resource scopes, and (de)serialization.
+  "Functions for managing native allocations, memory sessions, and (de)serialization.
 
   For any new type to be implemented, three multimethods must be overriden, but
   which three depends on the native representation of the type.
@@ -16,7 +16,7 @@
   segments.
 
   When writing code that manipulates a segment, it's best practice to
-  use [[with-acquired]] on the [[segment-scope]] in order to ensure it won't be
+  use [[with-acquired]] on the [[segment-session]] in order to ensure it won't be
   released during its manipulation."
   (:require
    [clojure.set :as set]
@@ -42,23 +42,50 @@
 
 (set! *warn-on-reflection* true)
 
-(defn stack-scope
+(defn stack-session
+  "Constructs a new session for use only in this thread.
+
+  The memory allocated within this session is cheap to allocate, like a native
+  stack."
+  ^MemorySession []
+  (MemorySession/openConfined))
+
+(defn ^:deprecated stack-scope
   "Constructs a new scope for use only in this thread.
 
   The memory allocated within this scope is cheap to allocate, like a native
   stack."
   ^MemorySession []
-  (MemorySession/openConfined))
+  (stack-session))
 
-(defn shared-scope
+(defn shared-session
+  "Constructs a new shared memory session.
+
+  This session can be shared across threads and memory allocated in it will only
+  be cleaned up once every thread accessing the session closes it."
+  ^MemorySession []
+  (MemorySession/openShared))
+
+(defn ^:deprecated shared-scope
   "Constructs a new shared scope.
 
   This scope can be shared across threads and memory allocated in it will only
   be cleaned up once every thread accessing the scope closes it."
   ^MemorySession []
-  (MemorySession/openShared))
+  (shared-session))
 
-(defn connected-scope
+(defn connected-session
+  "Constructs a new memory session to reclaim all connected resources at once.
+
+  The session may be shared across threads, and all resources created with it
+  will be cleaned up at the same time, when all references have been collected.
+
+  This type of session cannot be closed, and therefore should not be created in
+  a [[with-open]] clause."
+  ^MemorySession []
+  (MemorySession/openImplicit))
+
+(defn ^:deprecated connected-scope
   "Constructs a new scope to reclaim all connected resources at once.
 
   The scope may be shared across threads, and all resources created with it will
@@ -67,9 +94,19 @@
   This type of scope cannot be closed, and therefore should not be created in
   a [[with-open]] clause."
   ^MemorySession []
-  (MemorySession/openImplicit))
+  (connected-session))
 
-(defn global-scope
+(defn global-session
+  "Constructs the global session, which will never reclaim its resources.
+
+  This session may be shared across threads, but is intended mainly in cases
+  where memory is allocated with [[alloc]] but is either never freed or whose
+  management is relinquished to a native library, such as when returned from a
+  callback."
+  ^MemorySession []
+  (MemorySession/global))
+
+(defn ^:deprecated global-scope
   "Constructs the global scope, which will never reclaim its resources.
 
   This scope may be shared across threads, but is intended mainly in cases where
@@ -77,29 +114,43 @@
   management is relinquished to a native library, such as when returned from a
   callback."
   ^MemorySession []
-  (MemorySession/global))
+  (global-session))
 
-(defn scope-allocator
+(defn session-allocator
+  "Constructs a segment allocator from the given `session`.
+
+  This is primarily used when working with unwrapped downcall functions. When a
+  downcall function returns a non-primitive type, it must be provided with an
+  allocator."
+  ^SegmentAllocator [^MemorySession session]
+  (SegmentAllocator/newNativeArena session))
+
+(defn ^:deprecated scope-allocator
   "Constructs a segment allocator from the given `scope`.
 
   This is primarily used when working with unwrapped downcall functions. When a
   downcall function returns a non-primitive type, it must be provided with an
   allocator."
   ^SegmentAllocator [^MemorySession scope]
-  (SegmentAllocator/newNativeArena scope))
+  (session-allocator scope))
 
-(defn segment-scope
-  "Gets the scope used to construct the `segment`."
+(defn segment-session
+  "Gets the memory session used to construct the `segment`."
   ^MemorySession [segment]
   (.session ^MemorySegment segment))
+
+(defn ^:deprecated segment-scope
+  "Gets the scope used to construct the `segment`."
+  ^MemorySession [segment]
+  (segment-session segment))
 
 (defn alloc
   "Allocates `size` bytes.
 
-  If a `scope` is provided, the allocation will be reclaimed when it is closed."
-  (^MemorySegment [size] (alloc size (connected-scope)))
-  (^MemorySegment [size scope] (MemorySegment/allocateNative (long size) ^MemorySession scope))
-  (^MemorySegment [size alignment scope] (MemorySegment/allocateNative (long size) (long alignment) ^MemorySession scope)))
+  If a `session` is provided, the allocation will be reclaimed when it is closed."
+  (^MemorySegment [size] (alloc size (connected-session)))
+  (^MemorySegment [size session] (MemorySegment/allocateNative (long size) ^MemorySession session))
+  (^MemorySegment [size alignment session] (MemorySegment/allocateNative (long size) (long alignment) ^MemorySession session)))
 
 (defn alloc-with
   "Allocates `size` bytes using the `allocator`."
@@ -109,23 +160,23 @@
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
 (defmacro with-acquired
-  "Acquires one or more `scopes` until the `body` completes.
+  "Acquires one or more `sessions` until the `body` completes.
 
-  This is only necessary to do on shared scopes, however if you are operating on
-  an arbitrary passed scope, it is best practice to wrap code that interacts
-  with it wrapped in this."
+  This is only necessary to do on shared sessions, however if you are operating
+  on an arbitrary passed session, it is best practice to wrap code that
+  interacts with it wrapped in this."
   {:style/indent 1}
-  [scopes & body]
-  (if (seq scopes)
-    `(let [scope# ~(first scopes)]
+  [sessions & body]
+  (if (seq sessions)
+    `(let [session# ~(first sessions)]
        (.whileAlive
-        ^MemorySession scope#
+        ^MemorySession session#
         (^:once fn* []
-         (with-acquired [~@(rest scopes)]
+         (with-acquired [~@(rest sessions)]
            ~@body))))
     `(do ~@body)))
 (s/fdef with-acquired
-  :args (s/cat :scopes any?
+  :args (s/cat :sessions any?
                :body (s/* any?)))
 
 (defn address-of
@@ -167,33 +218,33 @@
   (.addOffset ^MemoryAddress address (long offset)))
 
 (defn add-close-action!
-  "Adds a 0-arity function to be run when the `scope` closes."
-  [^MemorySession scope ^Runnable action]
-  (.addCloseAction scope action)
+  "Adds a 0-arity function to be run when the `session` closes."
+  [^MemorySession session ^Runnable action]
+  (.addCloseAction session action)
   nil)
 
 (defn as-segment
-  "Dereferences an `address` into a memory segment associated with the `scope`."
+  "Dereferences an `address` into a memory segment associated with the `session`."
   (^MemorySegment [^MemoryAddress address size]
-   (MemorySegment/ofAddress address (long size) (connected-scope)))
-  (^MemorySegment [^MemoryAddress address size scope]
-   (MemorySegment/ofAddress address (long size) scope)))
+   (MemorySegment/ofAddress address (long size) (connected-session)))
+  (^MemorySegment [^MemoryAddress address size session]
+   (MemorySegment/ofAddress address (long size) session)))
 
 (defn copy-segment
   "Copies the content to `dest` from `src`.
 
   Returns `dest`."
   ^MemorySegment [^MemorySegment dest ^MemorySegment src]
-  (with-acquired (map segment-scope [src dest])
+  (with-acquired (map segment-session [src dest])
     (.copyFrom dest src)
     dest))
 
 (defn clone-segment
   "Clones the content of `segment` into a new segment of the same size."
-  (^MemorySegment [segment] (clone-segment segment (connected-scope)))
-  (^MemorySegment [^MemorySegment segment scope]
-   (with-acquired [(segment-scope segment) scope]
-     (copy-segment ^MemorySegment (alloc (.byteSize segment) scope) segment))))
+  (^MemorySegment [segment] (clone-segment segment (connected-session)))
+  (^MemorySegment [^MemorySegment segment session]
+   (with-acquired [(segment-session segment) session]
+     (copy-segment ^MemorySegment (alloc (.byteSize segment) session) segment))))
 
 (defn slice-segments
   "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
@@ -835,8 +886,8 @@
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
-  (^MemorySegment [type] (alloc-instance type (connected-scope)))
-  (^MemorySegment [type scope] (MemorySegment/allocateNative ^long (size-of type) ^MemorySession scope)))
+  (^MemorySegment [type] (alloc-instance type (connected-session)))
+  (^MemorySegment [type session] (MemorySegment/allocateNative ^long (size-of type) ^MemorySession session)))
 
 (declare serialize serialize-into)
 
@@ -844,68 +895,68 @@
   "Constructs a serialized version of the `obj` and returns it.
 
   Any new allocations made during the serialization should be tied to the given
-  `scope`, except in extenuating circumstances.
+  `session`, except in extenuating circumstances.
 
   This method should only be implemented for types that serialize to primitives."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
-    [obj type scope]
+    [obj type session]
     (type-dispatch type)))
 
 (defmethod serialize* :default
-  [obj type _scope]
+  [obj type _session]
   (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
                   {:type type
                    :object obj})))
 
 (defmethod serialize* ::byte
-  [obj _type _scope]
+  [obj _type _session]
   (byte obj))
 
 (defmethod serialize* ::short
-  [obj _type _scope]
+  [obj _type _session]
   (short obj))
 
 (defmethod serialize* ::int
-  [obj _type _scope]
+  [obj _type _session]
   (int obj))
 
 (defmethod serialize* ::long
-  [obj _type _scope]
+  [obj _type _session]
   (long obj))
 
 (defmethod serialize* ::char
-  [obj _type _scope]
+  [obj _type _session]
   (char obj))
 
 (defmethod serialize* ::float
-  [obj _type _scope]
+  [obj _type _session]
   (float obj))
 
 (defmethod serialize* ::double
-  [obj _type _scope]
+  [obj _type _session]
   (double obj))
 
 (defmethod serialize* ::pointer
-  [obj type scope]
+  [obj type session]
   (if-not (null? obj)
     (if (sequential? type)
-      (with-acquired [scope]
-        (let [segment (alloc-instance (second type) scope)]
-          (serialize-into obj (second type) segment scope)
+      (with-acquired [session]
+        (let [segment (alloc-instance (second type) session)]
+          (serialize-into obj (second type) segment session)
           (address-of segment)))
       obj)
     (MemoryAddress/NULL)))
 
 (defmethod serialize* ::void
-  [_obj _type _scope]
+  [_obj _type _session]
   nil)
 
 (defmulti serialize-into
   "Writes a serialized version of the `obj` to the given `segment`.
 
   Any new allocations made during the serialization should be tied to the given
-  `scope`, except in extenuating circumstances.
+  `session`, except in extenuating circumstances.
 
   This method should be implemented for any type which does not
   override [[c-layout]].
@@ -914,66 +965,66 @@
   the result value into the `segment`.
 
   Implementations of this should be inside a [[with-acquired]] block for the
-  `scope` if they perform multiple memory operations."
+  `session` if they perform multiple memory operations."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
-    [obj type segment scope]
+    [obj type segment session]
     (type-dispatch type)))
 
 (defmethod serialize-into :default
-  [obj type segment scope]
+  [obj type segment session]
   (if-some [prim-layout (primitive-type type)]
-    (with-acquired [(segment-scope segment) scope]
-      (serialize-into (serialize* obj type scope) prim-layout segment scope))
+    (with-acquired [(segment-session segment) session]
+      (serialize-into (serialize* obj type session) prim-layout segment session))
     (throw (ex-info "Attempted to serialize an object to a type that has not been overriden"
                     {:type type
                      :object obj}))))
 
 (defmethod serialize-into ::byte
-  [obj _type segment _scope]
+  [obj _type segment _session]
   (write-byte segment (byte obj)))
 
 (defmethod serialize-into ::short
-  [obj type segment _scope]
+  [obj type segment _session]
   (if (sequential? type)
     (write-short segment 0 (second type) (short obj))
     (write-short segment (short obj))))
 
 (defmethod serialize-into ::int
-  [obj type segment _scope]
+  [obj type segment _session]
   (if (sequential? type)
     (write-int segment 0 (second type) (int obj))
     (write-int segment (int obj))))
 
 (defmethod serialize-into ::long
-  [obj type segment _scope]
+  [obj type segment _session]
   (if (sequential? type)
     (write-long segment 0 (second type) (long obj))
     (write-long segment (long obj))))
 
 (defmethod serialize-into ::char
-  [obj _type segment _scope]
+  [obj _type segment _session]
   (write-char segment (char obj)))
 
 (defmethod serialize-into ::float
-  [obj type segment _scope]
+  [obj type segment _session]
   (if (sequential? type)
     (write-float segment 0 (second type) (float obj))
     (write-float segment (float obj))))
 
 (defmethod serialize-into ::double
-  [obj type segment _scope]
+  [obj type segment _session]
   (if (sequential? type)
     (write-double segment 0 (second type) (double obj))
     (write-double segment (double obj))))
 
 (defmethod serialize-into ::pointer
-  [obj type segment scope]
-  (with-acquired [(segment-scope segment) scope]
+  [obj type segment session]
+  (with-acquired [(segment-session segment) session]
     (write-address
      segment
      (cond-> obj
-       (sequential? type) (serialize* type scope)))))
+       (sequential? type) (serialize* type session)))))
 
 (defn serialize
   "Serializes an arbitrary type.
@@ -981,12 +1032,12 @@
   For types which have a primitive representation, this serializes into that
   representation. For types which do not, it allocates a new segment and
   serializes into that."
-  ([obj type] (serialize obj type (connected-scope)))
-  ([obj type scope]
+  ([obj type] (serialize obj type (connected-session)))
+  ([obj type session]
    (if (primitive-type type)
-     (serialize* obj type scope)
-     (let [segment (alloc-instance type scope)]
-       (serialize-into obj type segment scope)
+     (serialize* obj type session)
+     (let [segment (alloc-instance type session)]
+       (serialize-into obj type segment session)
        segment))))
 
 (declare deserialize deserialize*)
@@ -998,7 +1049,7 @@
   deserialize the primitive before calling [[deserialize*]].
 
   Implementations of this should be inside a [[with-acquired]] block for the the
-  `segment`'s scope if they perform multiple memory operations."
+  `segment`'s session if they perform multiple memory operations."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [segment type]
@@ -1054,7 +1105,7 @@
 
 (defmethod deserialize-from ::pointer
   [segment type]
-  (with-acquired [(segment-scope segment)]
+  (with-acquired [(segment-session segment)]
     (cond-> (read-address segment)
       (sequential? type) (deserialize* type))))
 
@@ -1129,7 +1180,7 @@
 (defn seq-of
   "Constructs a lazy sequence of `type` elements deserialized from `segment`."
   [type segment]
-  (with-acquired [(segment-scope segment)]
+  (with-acquired [(segment-session segment)]
     (map #(deserialize % type) (slice-segments segment (size-of type)))))
 
 ;;; Raw composite types
@@ -1141,7 +1192,7 @@
   (c-layout type))
 
 (defmethod serialize-into ::raw
-  [obj _type segment _scope]
+  [obj _type segment _session]
   (copy-segment segment obj))
 
 (defmethod deserialize-from ::raw
@@ -1155,9 +1206,9 @@
   ::pointer)
 
 (defmethod serialize* ::c-string
-  [obj _type scope]
+  [obj _type session]
   (if obj
-    (address-of (.allocateUtf8String (scope-allocator scope) ^String obj))
+    (address-of (.allocateUtf8String (session-allocator session) ^String obj))
     (MemoryAddress/NULL)))
 
 (defmethod deserialize* ::c-string
@@ -1174,7 +1225,7 @@
      (into-array MemoryLayout items))))
 
 (defmethod serialize-into ::union
-  [obj [_union _types & {:keys [dispatch extract]} :as type] segment scope]
+  [obj [_union _types & {:keys [dispatch extract]} :as type] segment session]
   (when-not dispatch
     (throw (ex-info "Attempted to serialize a union with no dispatch function"
                     {:type type
@@ -1186,7 +1237,7 @@
        obj)
      type
      segment
-     scope)))
+     session)))
 
 (defmethod deserialize-from ::union
   [segment type]
@@ -1203,7 +1254,7 @@
      (into-array MemoryLayout fields))))
 
 (defmethod serialize-into ::struct
-  [obj [_struct fields] segment scope]
+  [obj [_struct fields] segment session]
   (loop [offset 0
          fields fields]
     (when (seq fields)
@@ -1211,7 +1262,7 @@
             size (size-of type)]
         (serialize-into
          (get obj field) type
-         (slice segment offset size) scope)
+         (slice segment offset size) session)
         (recur (long (+ offset size)) (rest fields))))))
 
 (defmethod deserialize-from ::struct
@@ -1237,7 +1288,7 @@
   (MemoryLayout/paddingLayout (* 8 size)))
 
 (defmethod serialize-into ::padding
-  [_obj [_padding _size] _segment _scope]
+  [_obj [_padding _size] _segment _session]
   nil)
 
 (defmethod deserialize-from ::padding
@@ -1253,9 +1304,9 @@
    (c-layout type)))
 
 (defmethod serialize-into ::array
-  [obj [_array type count] segment scope]
+  [obj [_array type count] segment session]
   (dorun
-   (map #(serialize-into %1 type %2 scope)
+   (map #(serialize-into %1 type %2 session)
         obj
         (slice-segments (slice segment 0 (* count (size-of type)))
                         (size-of type)))))
@@ -1300,10 +1351,10 @@
       variants))))
 
 (defmethod serialize* ::enum
-  [obj [_enum variants & {:keys [repr]}] scope]
+  [obj [_enum variants & {:keys [repr]}] session]
   (serialize* ((enum-variants-map variants) obj)
               (or repr ::int)
-              scope))
+              session))
 
 (defmethod deserialize* ::enum
   [obj [_enum variants & {:keys [_repr]}]]
@@ -1318,9 +1369,9 @@
     ::int))
 
 (defmethod serialize* ::flagset
-  [obj [_flagset bits & {:keys [repr]}] scope]
+  [obj [_flagset bits & {:keys [repr]}] session]
   (let [bits-map (enum-variants-map bits)]
-    (reduce #(bit-set %1 (get bits-map %2)) (serialize* 0 (or repr ::int) scope) obj)))
+    (reduce #(bit-set %1 (get bits-map %2)) (serialize* 0 (or repr ::int) session) obj)))
 
 (defmethod deserialize* ::flagset
   [obj [_flagset bits & {:keys [repr]}]]
@@ -1352,8 +1403,8 @@
          [_type#]
          (primitive-type aliased#))
        (defmethod serialize* ~new-type
-         [obj# _type# scope#]
-         (serialize* obj# aliased# scope#))
+         [obj# _type# session#]
+         (serialize* obj# aliased# session#))
        (defmethod deserialize* ~new-type
          [obj# _type#]
          (deserialize* obj# aliased#)))
@@ -1362,8 +1413,8 @@
          [_type#]
          (c-layout aliased#))
        (defmethod serialize-into ~new-type
-         [obj# _type# segment# scope#]
-         (serialize-into obj# aliased# segment# scope#))
+         [obj# _type# segment# session#]
+         (serialize-into obj# aliased# segment# session#))
        (defmethod deserialize-from ~new-type
          [segment# _type#]
          (deserialize-from segment# aliased#)))))
