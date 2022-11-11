@@ -1103,7 +1103,10 @@ stands, coffi is the fastest FFI available to Clojure developers.
 The project author is aware of these issues and plans to fix them in a future
 release:
 
-There are currently no known issues! Hooray!
+- On M1 Macs occasional crashes are present when returning structs by value from
+  native code. At the moment this appears to be an upstream issue with Panama,
+  and will be reported once a minimal reproduction case with only Panama is
+  produced.
 
 ## Future Plans
 These features are planned for future releases.
