@@ -12,13 +12,13 @@
                      nodisassemble/nodisassemble {:mvn/version "0.1.3"}}
         ;; NOTE(Joshua): If you want to use nodisassemble you should also add a
         ;; -javaagent for the resolved location
-        :jvm-opts ["--add-modules=jdk.incubator.foreign" "--enable-native-access=ALL-UNNAMED"]}
+        :jvm-opts ["--enable-native-access=ALL-UNNAMED" "--enable-preview"]}
   :test {:extra-paths ["test/clj"]
          :extra-deps {org.clojure/test.check {:mvn/version "1.1.0"}
                       io.github.cognitect-labs/test-runner
                       {:git/url "https://github.com/cognitect-labs/test-runner"
                        :sha "62ef1de18e076903374306060ac0e8a752e57c86"}}
-         :jvm-opts ["--add-modules=jdk.incubator.foreign" "--enable-native-access=ALL-UNNAMED"]
+         :jvm-opts ["--enable-native-access=ALL-UNNAMED" "--enable-preview"]
          :exec-fn cognitect.test-runner.api/test}
 
   :codox {:extra-deps {codox/codox {:mvn/version "0.10.7"}}
@@ -30,8 +30,8 @@
                       :output-path "docs"
                       :source-uri "https://github.com/IGJoshua/coffi/blob/{git-commit}/{filepath}#L{line}"
                       :metadata {:doc/format :markdown}}
-          :jvm-opts ["--add-modules=jdk.incubator.foreign"
-                     "--add-opens" "java.base/java.lang=ALL-UNNAMED"]}
+          :jvm-opts ["--add-opens" "java.base/java.lang=ALL-UNNAMED"
+                     "--enable-preview"]}
 
   :build {:replace-deps {org.clojure/clojure {:mvn/version "1.10.3"}
                          io.github.clojure/tools.build {:git/tag "v0.3.0" :git/sha "e418fc9"}}

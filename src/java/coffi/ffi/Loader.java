@@ -1,6 +1,6 @@
 package coffi.ffi;
 
-import jdk.incubator.foreign.*;
+import java.lang.foreign.*;
 
 /**
  * Loading libraries with the {@link System#load} and {@link System#loadLibrary}
@@ -36,8 +36,8 @@ public class Loader {
      *
      * @param symbol The name of the symbol to load from a library.
      */
-    public static NativeSymbol findSymbol(String symbol) {
-        return CLinker.systemCLinker().lookup(symbol)
+    public static MemorySegment findSymbol(String symbol) {
+        return Linker.nativeLinker().defaultLookup().lookup(symbol)
             .orElseGet(() -> SymbolLookup.loaderLookup().lookup(symbol).orElse(null));
     }
 }

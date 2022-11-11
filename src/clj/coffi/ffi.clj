@@ -13,15 +13,16 @@
     MethodHandle
     MethodHandles
     MethodType)
-   (jdk.incubator.foreign
+   (java.lang.foreign
     Addressable
-    CLinker
+    Linker
     FunctionDescriptor
     MemoryAddress
     MemoryLayout
     MemorySegment
-    NativeSymbol
     SegmentAllocator)))
+
+(set! *warn-on-reflection* true)
 
 ;;; FFI Code loading and function access
 
@@ -36,7 +37,7 @@
   (Loader/loadLibrary (.getAbsolutePath (io/file path))))
 
 (defn find-symbol
-  "Gets the [[NativeSymbol]] of a symbol from the loaded libraries."
+  "Gets the [[MemorySegment]] of a symbol from the loaded libraries."
   [sym]
   (Loader/findSymbol (name sym)))
 
@@ -55,7 +56,7 @@
 (defn- downcall-handle
   "Gets the [[MethodHandle]] for the function at the `sym`."
   [sym function-descriptor]
-  (.downcallHandle (CLinker/systemCLinker) sym function-descriptor))
+  (.downcallHandle (Linker/nativeLinker) sym function-descriptor))
 
 (def ^:private load-instructions
   "Mapping from primitive types to the instruction used to load them onto the stack."
@@ -186,10 +187,10 @@
   (insn/new-instance (downcall-class args ret) ^MethodHandle handle))
 
 (defn- ensure-symbol
-  "Returns the argument if it is a [[NativeSymbol]], otherwise
+  "Returns the argument if it is a [[MemorySegment]], otherwise
   calls [[find-symbol]] on it."
-  ^NativeSymbol [symbol-or-addr]
-  (if (instance? NativeSymbol symbol-or-addr)
+  ^MemorySegment [symbol-or-addr]
+  (if (instance? MemorySegment symbol-or-addr)
     symbol-or-addr
     (find-symbol symbol-or-addr)))
 
@@ -546,7 +547,7 @@
 (defmethod mem/serialize* ::fn
   [f [_fn arg-types ret-type & {:keys [raw-fn?]}] scope]
   (.upcallStub
-   (CLinker/systemCLinker)
+   (Linker/nativeLinker)
    (cond-> f
      (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
      :always (upcall-handle arg-types ret-type))
@@ -558,7 +559,7 @@
   (when-not (mem/null? addr)
     (vary-meta
       (-> addr
-          (as-> addr (NativeSymbol/ofAddress "coffi_upcall_symbol" addr (mem/connected-scope)))
+          (MemorySegment/ofAddress mem/pointer-size (mem/connected-scope))
           (downcall-handle (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
           (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))

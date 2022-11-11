@@ -22,32 +22,41 @@
    [clojure.set :as set]
    [clojure.spec.alpha :as s])
   (:import
-   (java.nio ByteOrder)
-   (jdk.incubator.foreign
+   (java.lang.foreign
     Addressable
     MemoryAddress
     MemoryLayout
     MemorySegment
-    ResourceScope
+    MemorySession
     SegmentAllocator
     ValueLayout
-    ValueLayout$OfAddress)))
+    ValueLayout$OfByte
+    ValueLayout$OfShort
+    ValueLayout$OfInt
+    ValueLayout$OfLong
+    ValueLayout$OfChar
+    ValueLayout$OfFloat
+    ValueLayout$OfDouble
+    ValueLayout$OfAddress)
+   (java.nio ByteOrder)))
+
+(set! *warn-on-reflection* true)
 
 (defn stack-scope
   "Constructs a new scope for use only in this thread.
 
   The memory allocated within this scope is cheap to allocate, like a native
   stack."
-  ^ResourceScope []
-  (ResourceScope/newConfinedScope))
+  ^MemorySession []
+  (MemorySession/openConfined))
 
 (defn shared-scope
   "Constructs a new shared scope.
 
   This scope can be shared across threads and memory allocated in it will only
   be cleaned up once every thread accessing the scope closes it."
-  ^ResourceScope []
-  (ResourceScope/newSharedScope))
+  ^MemorySession []
+  (MemorySession/openShared))
 
 (defn connected-scope
   "Constructs a new scope to reclaim all connected resources at once.
@@ -57,8 +66,8 @@
 
   This type of scope cannot be closed, and therefore should not be created in
   a [[with-open]] clause."
-  ^ResourceScope []
-  (ResourceScope/newImplicitScope))
+  ^MemorySession []
+  (MemorySession/openImplicit))
 
 (defn global-scope
   "Constructs the global scope, which will never reclaim its resources.
@@ -67,8 +76,8 @@
   memory is allocated with [[alloc]] but is either never freed or whose
   management is relinquished to a native library, such as when returned from a
   callback."
-  ^ResourceScope []
-  (ResourceScope/globalScope))
+  ^MemorySession []
+  (MemorySession/global))
 
 (defn scope-allocator
   "Constructs a segment allocator from the given `scope`.
@@ -76,20 +85,21 @@
   This is primarily used when working with unwrapped downcall functions. When a
   downcall function returns a non-primitive type, it must be provided with an
   allocator."
-  ^SegmentAllocator [^ResourceScope scope]
-  (SegmentAllocator/nativeAllocator scope))
+  ^SegmentAllocator [^MemorySession scope]
+  (SegmentAllocator/newNativeArena scope))
 
 (defn segment-scope
   "Gets the scope used to construct the `segment`."
-  ^ResourceScope [segment]
-  (.scope ^MemorySegment segment))
+  ^MemorySession [segment]
+  (.session ^MemorySegment segment))
 
 (defn alloc
   "Allocates `size` bytes.
 
   If a `scope` is provided, the allocation will be reclaimed when it is closed."
   (^MemorySegment [size] (alloc size (connected-scope)))
-  (^MemorySegment [size scope] (MemorySegment/allocateNative (long size) ^ResourceScope scope)))
+  (^MemorySegment [size scope] (MemorySegment/allocateNative (long size) ^MemorySession scope))
+  (^MemorySegment [size alignment scope] (MemorySegment/allocateNative (long size) (long alignment) ^MemorySession scope)))
 
 (defn alloc-with
   "Allocates `size` bytes using the `allocator`."
@@ -106,10 +116,14 @@
   with it wrapped in this."
   {:style/indent 1}
   [scopes & body]
-  `(with-open [scope# (stack-scope)]
-     (doseq [target-scope# (vec ~scopes)]
-       (.keepAlive scope# target-scope#))
-     ~@body))
+  (if (seq scopes)
+    `(let [scope# ~(first scopes)]
+       (.whileAlive
+        ^MemorySession scope#
+        (^:once fn* []
+         (with-acquired [~@(rest scopes)]
+           ~@body))))
+    `(do ~@body)))
 (s/fdef with-acquired
   :args (s/cat :scopes any?
                :body (s/* any?)))
@@ -154,7 +168,7 @@
 
 (defn add-close-action!
   "Adds a 0-arity function to be run when the `scope` closes."
-  [^ResourceScope scope ^Runnable action]
+  [^MemorySession scope ^Runnable action]
   (.addCloseAction scope action)
   nil)
 
@@ -206,37 +220,37 @@
   See [[big-endian]], [[little-endian]]."
   (ByteOrder/nativeOrder))
 
-(def ^ValueLayout byte-layout
+(def ^ValueLayout$OfByte byte-layout
   "The [[MemoryLayout]] for a byte in [[native-endian]] [[ByteOrder]]."
-  (MemoryLayout/valueLayout Byte/TYPE native-endian))
+  ValueLayout/JAVA_BYTE)
 
-(def ^ValueLayout short-layout
+(def ^ValueLayout$OfShort short-layout
   "The [[MemoryLayout]] for a c-sized short in [[native-endian]] [[ByteOrder]]."
-  (MemoryLayout/valueLayout Short/TYPE native-endian))
+  ValueLayout/JAVA_SHORT)
 
-(def ^ValueLayout int-layout
+(def ^ValueLayout$OfInt int-layout
   "The [[MemoryLayout]] for a c-sized int in [[native-endian]] [[ByteOrder]]."
-  (MemoryLayout/valueLayout Integer/TYPE native-endian))
+  ValueLayout/JAVA_INT)
 
-(def ^ValueLayout long-layout
+(def ^ValueLayout$OfLong long-layout
   "The [[MemoryLayout]] for a c-sized long in [[native-endian]] [[ByteOrder]]."
-  (MemoryLayout/valueLayout Long/TYPE native-endian))
+  ValueLayout/JAVA_LONG)
 
-(def ^ValueLayout char-layout
+(def ^ValueLayout$OfByte char-layout
   "The [[MemoryLayout]] for a c-sized char in [[native-endian]] [[ByteOrder]]."
-  (MemoryLayout/valueLayout Byte/TYPE native-endian))
+  ValueLayout/JAVA_BYTE)
 
-(def ^ValueLayout float-layout
+(def ^ValueLayout$OfFloat float-layout
   "The [[MemoryLayout]] for a c-sized float in [[native-endian]] [[ByteOrder]]."
-  (MemoryLayout/valueLayout Float/TYPE native-endian))
+  ValueLayout/JAVA_FLOAT)
 
-(def ^ValueLayout double-layout
+(def ^ValueLayout$OfDouble double-layout
   "The [[MemoryLayout]] for a c-sized double in [[native-endian]] [[ByteOrder]]."
-  (MemoryLayout/valueLayout Double/TYPE native-endian))
+  ValueLayout/JAVA_DOUBLE)
 
 (def ^ValueLayout$OfAddress pointer-layout
   "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
-  (MemoryLayout/valueLayout MemoryAddress native-endian))
+  ValueLayout/ADDRESS)
 
 (def ^long short-size
   "The size in bytes of a c-sized short."
@@ -292,15 +306,15 @@
    (fn read-byte-inline
      ([segment]
       `(let [segment# ~segment]
-         (.get ^MemorySegment segment# ^ValueLayout byte-layout 0)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0)))
      ([segment offset]
       `(let [segment# ~segment
              offset# ~offset]
-         (.get ^MemorySegment segment# ^ValueLayout byte-layout offset#))))}
+         (.get ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset#))))}
   ([^MemorySegment segment]
-   (.get segment ^ValueLayout byte-layout 0))
+   (.get segment ^ValueLayout$OfByte byte-layout 0))
   ([^MemorySegment segment ^long offset]
-   (.get segment ^ValueLayout byte-layout offset)))
+   (.get segment ^ValueLayout$OfByte byte-layout offset)))
 
 (defn read-short
   "Reads a [[short]] from the `segment`, at an optional `offset`.
@@ -310,22 +324,22 @@
    (fn read-short-inline
      ([segment]
       `(let [segment# ~segment]
-         (.get ^MemorySegment segment# ^ValueLayout short-layout 0)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfShort short-layout 0)))
      ([segment offset]
       `(let [segment# ~segment
              offset# ~offset]
-         (.get ^MemorySegment segment# ^ValueLayout short-layout offset#)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfShort short-layout offset#)))
      ([segment offset byte-order]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order]
-         (.get ^MemorySegment segment# (.withOrder ^ValueLayout short-layout ^ByteOrder byte-order#) offset#))))}
+         (.get ^MemorySegment segment# (.withOrder ^ValueLayout$OfShort short-layout ^ByteOrder byte-order#) offset#))))}
   ([^MemorySegment segment]
-   (.get segment ^ValueLayout short-layout 0))
+   (.get segment ^ValueLayout$OfShort short-layout 0))
   ([^MemorySegment segment ^long offset]
-   (.get segment ^ValueLayout short-layout offset))
+   (.get segment ^ValueLayout$OfShort short-layout offset))
   ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
-   (.get segment (.withOrder ^ValueLayout short-layout byte-order) offset)))
+   (.get segment (.withOrder ^ValueLayout$OfShort short-layout byte-order) offset)))
 
 (defn read-int
   "Reads a [[int]] from the `segment`, at an optional `offset`.
@@ -335,22 +349,22 @@
    (fn read-int-inline
      ([segment]
       `(let [segment# ~segment]
-         (.get ^MemorySegment segment# ^ValueLayout int-layout 0)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfInt int-layout 0)))
      ([segment offset]
       `(let [segment# ~segment
              offset# ~offset]
-         (.get ^MemorySegment segment# ^ValueLayout int-layout offset#)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfInt int-layout offset#)))
      ([segment offset byte-order]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order]
-         (.get ^MemorySegment segment# (.withOrder ^ValueLayout int-layout ^ByteOrder byte-order#) offset#))))}
+         (.get ^MemorySegment segment# (.withOrder ^ValueLayout$OfInt int-layout ^ByteOrder byte-order#) offset#))))}
   ([^MemorySegment segment]
-   (.get segment ^ValueLayout int-layout 0))
+   (.get segment ^ValueLayout$OfInt int-layout 0))
   ([^MemorySegment segment ^long offset]
-   (.get segment ^ValueLayout int-layout offset))
+   (.get segment ^ValueLayout$OfInt int-layout offset))
   ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
-   (.get segment (.withOrder ^ValueLayout int-layout byte-order) offset)))
+   (.get segment (.withOrder ^ValueLayout$OfInt int-layout byte-order) offset)))
 
 (defn read-long
   "Reads a [[long]] from the `segment`, at an optional `offset`.
@@ -360,22 +374,22 @@
    (fn read-long-inline
      ([segment]
       `(let [segment# ~segment]
-         (.get ^MemorySegment segment# ^ValueLayout long-layout 0)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0)))
      ([segment offset]
       `(let [segment# ~segment
              offset# ~offset]
-         (.get ^MemorySegment segment# ^ValueLayout long-layout offset#)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfLong long-layout offset#)))
      ([segment offset byte-order]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order]
-         (.get ^MemorySegment segment# (.withOrder ^ValueLayout long-layout ^ByteOrder byte-order#) offset#))))}
+         (.get ^MemorySegment segment# (.withOrder ^ValueLayout$OfLong long-layout ^ByteOrder byte-order#) offset#))))}
   (^long [^MemorySegment segment]
-   (.get segment ^ValueLayout long-layout 0))
+   (.get segment ^ValueLayout$OfLong long-layout 0))
   (^long [^MemorySegment segment ^long offset]
-   (.get segment ^ValueLayout long-layout offset))
+   (.get segment ^ValueLayout$OfLong long-layout offset))
   (^long [^MemorySegment segment ^long offset ^ByteOrder byte-order]
-   (.get segment (.withOrder ^ValueLayout long-layout byte-order) offset)))
+   (.get segment (.withOrder ^ValueLayout$OfLong long-layout byte-order) offset)))
 
 (defn read-char
   "Reads a [[char]] from the `segment`, at an optional `offset`."
@@ -383,15 +397,15 @@
    (fn read-char-inline
      ([segment]
       `(let [segment# ~segment]
-         (char (Byte/toUnsignedInt (.get ^MemorySegment segment# ^ValueLayout byte-layout 0)))))
+         (char (Byte/toUnsignedInt (.get ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0)))))
      ([segment offset]
       `(let [segment# ~segment
              offset# ~offset]
-         (char (Byte/toUnsignedInt (.get ^MemorySegment segment# ^ValueLayout byte-layout offset#))))))}
+         (char (Byte/toUnsignedInt (.get ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset#))))))}
   ([^MemorySegment segment]
-   (char (Byte/toUnsignedInt (.get segment ^ValueLayout byte-layout 0))))
+   (char (Byte/toUnsignedInt (.get segment ^ValueLayout$OfChar byte-layout 0))))
   ([^MemorySegment segment ^long offset]
-   (char (Byte/toUnsignedInt (.get segment ^ValueLayout byte-layout offset)))))
+   (char (Byte/toUnsignedInt (.get segment ^ValueLayout$OfChar byte-layout offset)))))
 
 (defn read-float
   "Reads a [[float]] from the `segment`, at an optional `offset`.
@@ -401,22 +415,22 @@
    (fn read-float-inline
      ([segment]
       `(let [segment# ~segment]
-         (.get ^MemorySegment segment# ^ValueLayout float-layout 0)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0)))
      ([segment offset]
       `(let [segment# ~segment
              offset# ~offset]
-         (.get ^MemorySegment segment# ^ValueLayout float-layout offset#)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfFloat float-layout offset#)))
      ([segment offset byte-order]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order]
-         (.get ^MemorySegment segment# (.withOrder ^ValueLayout float-layout ^ByteOrder byte-order#) offset#))))}
+         (.get ^MemorySegment segment# (.withOrder ^ValueLayout$OfFloat float-layout ^ByteOrder byte-order#) offset#))))}
   ([^MemorySegment segment]
-   (.get segment ^ValueLayout float-layout 0))
+   (.get segment ^ValueLayout$OfFloat float-layout 0))
   ([^MemorySegment segment ^long offset]
-   (.get segment ^ValueLayout float-layout offset))
+   (.get segment ^ValueLayout$OfFloat float-layout offset))
   ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
-   (.get segment (.withOrder ^ValueLayout float-layout byte-order) offset)))
+   (.get segment (.withOrder ^ValueLayout$OfFloat float-layout byte-order) offset)))
 
 (defn read-double
   "Reads a [[double]] from the `segment`, at an optional `offset`.
@@ -426,22 +440,22 @@
    (fn read-double-inline
      ([segment]
       `(let [segment# ~segment]
-         (.get ^MemorySegment segment# ^ValueLayout double-layout 0)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0)))
      ([segment offset]
       `(let [segment# ~segment
              offset# ~offset]
-         (.get ^MemorySegment segment# ^ValueLayout double-layout offset#)))
+         (.get ^MemorySegment segment# ^ValueLayout$OfDouble double-layout offset#)))
      ([segment offset byte-order]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order]
-         (.get ^MemorySegment segment# (.withOrder ^ValueLayout double-layout ^ByteOrder byte-order#) offset#))))}
+         (.get ^MemorySegment segment# (.withOrder ^ValueLayout$OfDouble double-layout ^ByteOrder byte-order#) offset#))))}
   (^double [^MemorySegment segment]
-   (.get segment ^ValueLayout double-layout 0))
+   (.get segment ^ValueLayout$OfDouble double-layout 0))
   (^double [^MemorySegment segment ^long offset]
-   (.get segment ^ValueLayout double-layout offset))
+   (.get segment ^ValueLayout$OfDouble double-layout offset))
   (^double [^MemorySegment segment ^long offset ^ByteOrder byte-order]
-   (.get segment (.withOrder ^ValueLayout double-layout byte-order) offset)))
+   (.get segment (.withOrder ^ValueLayout$OfDouble double-layout byte-order) offset)))
 
 (defn read-address
   "Reads a [[MemoryAddress]] from the `segment`, at an optional `offset`."
@@ -466,16 +480,16 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout byte-layout 0 value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 value#)))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout byte-layout offset# value#))))}
+         (.set ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# value#))))}
   ([^MemorySegment segment value]
-   (.set segment ^ValueLayout byte-layout 0 ^byte value))
+   (.set segment ^ValueLayout$OfByte byte-layout 0 ^byte value))
   ([^MemorySegment segment ^long offset value]
-   (.set segment ^ValueLayout byte-layout offset ^byte value)))
+   (.set segment ^ValueLayout$OfByte byte-layout offset ^byte value)))
 
 (defn write-short
   "Writes a [[short]] to the `segment`, at an optional `offset`.
@@ -486,24 +500,24 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout short-layout 0 value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfShort short-layout 0 value#)))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout short-layout offset# value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfShort short-layout offset# value#)))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout short-layout ^ByteOrder byte-order#) offset# value#))))}
+         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfShort short-layout ^ByteOrder byte-order#) offset# value#))))}
   ([^MemorySegment segment value]
-   (.set segment ^ValueLayout short-layout 0 ^short value))
+   (.set segment ^ValueLayout$OfShort short-layout 0 ^short value))
   ([^MemorySegment segment ^long offset value]
-   (.set segment ^ValueLayout short-layout offset ^short value))
+   (.set segment ^ValueLayout$OfShort short-layout offset ^short value))
   ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
-   (.set segment (.withOrder ^ValueLayout short-layout byte-order) offset ^short value)))
+   (.set segment (.withOrder ^ValueLayout$OfShort short-layout byte-order) offset ^short value)))
 
 (defn write-int
   "Writes a [[int]] to the `segment`, at an optional `offset`.
@@ -514,24 +528,24 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout int-layout 0 value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfInt int-layout 0 value#)))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout int-layout offset# value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfInt int-layout offset# value#)))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout int-layout ^ByteOrder byte-order#) offset# value#))))}
+         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfInt int-layout ^ByteOrder byte-order#) offset# value#))))}
   ([^MemorySegment segment value]
-   (.set segment ^ValueLayout int-layout 0 ^int value))
+   (.set segment ^ValueLayout$OfInt int-layout 0 ^int value))
   ([^MemorySegment segment ^long offset value]
-   (.set segment ^ValueLayout int-layout offset ^int value))
+   (.set segment ^ValueLayout$OfInt int-layout offset ^int value))
   ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
-   (.set segment (.withOrder ^ValueLayout int-layout byte-order) offset ^int value)))
+   (.set segment (.withOrder ^ValueLayout$OfInt int-layout byte-order) offset ^int value)))
 
 (defn write-long
   "Writes a [[long]] to the `segment`, at an optional `offset`.
@@ -542,24 +556,24 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout long-layout 0 value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 value#)))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout long-layout offset# value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfLong long-layout offset# value#)))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout long-layout ^ByteOrder byte-order#) offset# value#))))}
+         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfLong long-layout ^ByteOrder byte-order#) offset# value#))))}
   (^long [^MemorySegment segment ^long value]
-   (.set segment ^ValueLayout long-layout 0 value))
+   (.set segment ^ValueLayout$OfLong long-layout 0 value))
   (^long [^MemorySegment segment ^long offset ^long value]
-   (.set segment ^ValueLayout long-layout offset value))
+   (.set segment ^ValueLayout$OfLong long-layout offset value))
   (^long [^MemorySegment segment ^long offset ^ByteOrder byte-order ^long value]
-   (.set segment (.withOrder ^ValueLayout long-layout byte-order) offset value)))
+   (.set segment (.withOrder ^ValueLayout$OfLong long-layout byte-order) offset value)))
 
 (defn write-char
   "Writes a [[char]] to the `segment`, at an optional `offset`."
@@ -568,22 +582,22 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout byte-layout 0 (unchecked-byte (unchecked-int value#)))))
+         (.set ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 (unchecked-byte (unchecked-int value#)))))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout byte-layout offset# (unchecked-byte (unchecked-int value#))))))}
+         (.set ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# (unchecked-byte (unchecked-int value#))))))}
   ([^MemorySegment segment value]
    (.set
     segment
     ;; HACK(Joshua): The Clojure runtime doesn't have an unchecked-byte cast for
     ;;               characters, so this double cast is necessary unless I emit
     ;;               my own bytecode with insn.
-    ^ValueLayout byte-layout 0
+    ^ValueLayout$OfByte byte-layout 0
     (unchecked-byte (unchecked-int ^char value))))
   ([^MemorySegment segment ^long offset value]
-   (.set segment ^ValueLayout byte-layout offset (unchecked-byte (unchecked-int ^char value)))))
+   (.set segment ^ValueLayout$OfByte byte-layout offset (unchecked-byte (unchecked-int ^char value)))))
 
 (defn write-float
   "Writes a [[float]] to the `segment`, at an optional `offset`.
@@ -594,24 +608,24 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout float-layout 0 value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 value#)))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout float-layout offset# value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfFloat float-layout offset# value#)))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout float-layout ^ByteOrder byte-order#) offset# value#))))}
+         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfFloat float-layout ^ByteOrder byte-order#) offset# value#))))}
   ([^MemorySegment segment value]
-   (.set segment ^ValueLayout float-layout 0 ^float value))
+   (.set segment ^ValueLayout$OfFloat float-layout 0 ^float value))
   ([^MemorySegment segment ^long offset value]
-   (.set segment ^ValueLayout float-layout offset ^float value))
+   (.set segment ^ValueLayout$OfFloat float-layout offset ^float value))
   ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
-   (.set segment (.withOrder ^ValueLayout float-layout byte-order) offset ^float value)))
+   (.set segment (.withOrder ^ValueLayout$OfFloat float-layout byte-order) offset ^float value)))
 
 (defn write-double
   "Writes a [[double]] to the `segment`, at an optional `offset`.
@@ -622,24 +636,24 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout double-layout 0 value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 value#)))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout double-layout offset# value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfDouble double-layout offset# value#)))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout double-layout ^ByteOrder byte-order#) offset# value#))))}
+         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfDouble double-layout ^ByteOrder byte-order#) offset# value#))))}
   (^double [^MemorySegment segment ^double value]
-   (.set segment ^ValueLayout double-layout 0 value))
+   (.set segment ^ValueLayout$OfDouble double-layout 0 value))
   (^double [^MemorySegment segment ^long offset ^double value]
-   (.set segment ^ValueLayout double-layout offset value))
+   (.set segment ^ValueLayout$OfDouble double-layout offset value))
   (^double [^MemorySegment segment ^long offset ^ByteOrder byte-order ^double value]
-   (.set segment (.withOrder ^ValueLayout double-layout byte-order) offset value)))
+   (.set segment (.withOrder ^ValueLayout$OfDouble double-layout byte-order) offset value)))
 
 (defn write-address
   "Writes a [[MemoryAddress]] to the `segment`, at an optional `offset`."
@@ -822,7 +836,7 @@
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
   (^MemorySegment [type] (alloc-instance type (connected-scope)))
-  (^MemorySegment [type scope] (MemorySegment/allocateNative ^long (size-of type) ^ResourceScope scope)))
+  (^MemorySegment [type scope] (MemorySegment/allocateNative ^long (size-of type) ^MemorySession scope)))
 
 (declare serialize serialize-into)
 
