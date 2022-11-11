@@ -3,7 +3,7 @@
 
 Coffi is a foreign function interface library for Clojure, using the new
 [Project Panama](https://openjdk.java.net/projects/panama/) that's a part of the
-incubator in Java 18. This allows calling native code directly from Clojure
+incubator in Java 19. This allows calling native code directly from Clojure
 without the need for either Java or native code specific to the library, as e.g.
 the JNI does. Coffi focuses on ease of use, including functions and macros for
 creating wrappers to allow the resulting native functions to act just like
@@ -1129,11 +1129,9 @@ the latest JDK. If a particular feature is not specific to the newer JDK, PRs
 backporting it to versions of coffi supporting Java 17 will likely be accepted.
 
 ### 1.0 Release
-Because the feature that coffi wraps in the JDK is an incubator feature (and
-likely in JDK 19 a [preview
-feature](https://mail.openjdk.java.net/pipermail/panama-dev/2021-September/014946.html))
-coffi itself will not be released in a 1.0.x version until the feature becomes a
-core part of the JDK, likely before or during the next LTS release, Java 21, in
+Because the feature that coffi wraps in the JDK is in preview as of JDK 19, coffi
+itself will not be released in a 1.0.x version until the feature becomes a core
+part of the JDK, likely before or during the next LTS release, Java 21, in
 September 2023.
 
 ## License
