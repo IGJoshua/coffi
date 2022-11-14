@@ -1125,16 +1125,17 @@ These features are planned for future releases.
 The purpose of coffi is to provide a wrapper for published versions of Project
 Panama, starting with JDK 17. As new JDKs are released, coffi will be ported to
 the newer versions of Panama. Version `0.4.341` is the last version compatible
-with JDK 17. Bugfixes, and potential backports of newer coffi features may be
-found on the `jdk17-lts` branch. Development of new features and fixes as well
-as support for new Panama idioms and features will continue with focus only on
-the latest JDK. If a particular feature is not specific to the newer JDK, PRs
-backporting it to versions of coffi supporting Java 17 will likely be accepted.
+with JDK 17. Version `0.5.357` is the last version compatible with JDK 18.
+Bugfixes, and potential backports of newer coffi features may be found on the
+`jdk17-lts` branch. Development of new features and fixes as well as support for
+new Panama idioms and features will continue with focus only on the latest JDK.
+If a particular feature is not specific to the newer JDK, PRs backporting it to
+versions of coffi supporting Java 17 will likely be accepted.
 
 ### 1.0 Release
-Because the feature that coffi wraps in the JDK is in preview as of JDK 19, coffi
-itself will not be released in a 1.0.x version until the feature becomes a core
-part of the JDK, likely before or during the next LTS release, Java 21, in
+Because the feature that coffi wraps in the JDK is in preview as of JDK 19,
+coffi itself will not be released in a 1.0.x version until the feature becomes a
+core part of the JDK, likely before or during the next LTS release, Java 21, in
 September 2023.
 
 ## License
