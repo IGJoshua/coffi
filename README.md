@@ -3,7 +3,7 @@
 
 Coffi is a foreign function interface library for Clojure, using the new
 [Project Panama](https://openjdk.java.net/projects/panama/) that's a part of the
-incubator in Java 19. This allows calling native code directly from Clojure
+preview in Java 19. This allows calling native code directly from Clojure
 without the need for either Java or native code specific to the library, as e.g.
 the JNI does. Coffi focuses on ease of use, including functions and macros for
 creating wrappers to allow the resulting native functions to act just like
@@ -27,19 +27,19 @@ library.
 $ clj -X:deps prep
 ```
 
-Coffi requires usage of the module `jdk.incubator.foreign`, which means that the
-JVM must enable the usage of this module. In order to use coffi, add the
-following JVM arguments to your application.
+Coffi requires usage of the package `java.lang.foreign`, and everything in this
+package is considered to be a preview release, which are disabled by default. In
+order to use coffi, add the following JVM arguments to your application.
 
 ```sh
---add-modules=jdk.incubator.foreign --enable-native-access=ALL-UNNAMED
+--enable-preview --enable-native-access=ALL-UNNAMED
 ```
 
 You can specify JVM arguments in a particular invocation of the Clojure CLI with
 the -J flag like so:
 
 ``` sh
-clj -J--add-modules=jdk.incubator.foreign -J--enable-native-access=ALL-UNNAMED
+clj -J--enable-preview -J--enable-native-access=ALL-UNNAMED
 ```
 
 You can also specify them in an alias in your `deps.edn` file under the
@@ -47,7 +47,7 @@ You can also specify them in an alias in your `deps.edn` file under the
 using `-M`, `-A`, or `-X`.
 
 ``` clojure
-{:aliases {:dev {:jvm-opts ["--add-modules=jdk.incubator.foreign" "--enable-native-access=ALL-UNNAMED"]}}}
+{:aliases {:dev {:jvm-opts ["--enable-preview" "--enable-native-access=ALL-UNNAMED"]}}}
 ```
 
 Other build tools should provide similar functionality if you check their
@@ -581,7 +581,7 @@ With raw handles, the argument types are expected to exactly match the types
 expected by the native function. For primitive types, those are primitives. For
 addresses, that is `MemoryAddress`, and for composite types like structs and
 unions, that is `MemorySegment`. Both `MemoryAddress` and `MemorySegment` come
-from the `jdk.incubator.foreign` package.
+from the `java.lang.foreign` package.
 
 In addition, when a raw handle returns a composite type represented with a
 `MemorySegment`, it requires an additional first argument, a `SegmentAllocator`,
@@ -726,6 +726,8 @@ appealing, as they have a smaller API surface area and it's easier to wrap
 functions.
 
 ### Benchmarks
+**BENCHMARKS FOR COFFI AND DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE CREATED WHEN PANAMA COMES OUT OF PREVIEW**
+
 An additional consideration when thinking about alternatives is the performance
 of each available option. It's an established fact that JNA (used by all three
 alternative libraries on JDK <16) introduces more overhead when calling native
@@ -968,8 +970,6 @@ coming from, but I'll admit that I haven't looked at their implementations very
 closely.
 
 #### dtype-next
-**BENCHMARKS FOR DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE COMING SHORTLY**
-
 The library dtype-next replaced tech.jna in the toolkit of the group working on
 machine learning and array-based programming, and it includes support for
 composite data types including structs, as well as primitive functions and
