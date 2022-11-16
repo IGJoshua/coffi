@@ -345,29 +345,33 @@ This can be used to implement out variables often seen in native code.
     (deserialize int-ptr [::mem/pointer ::mem/int])))
 ```
 
-### Scopes
+### Sessions
+**Before JDK 19 Sessions were called Scopes. Coffi retains functions that are
+named for creating scopes for backwards compatibility, but they will be removed
+in version 1.0.**
+
 In order to serialize any non-primitive type (such as the previous
 `[::mem/pointer ::mem/int]`), off-heap memory needs to be allocated. When memory
-is allocated inside the JVM, the memory is associated with a scope. Because none
-was provided here, the scope is an implicit scope, and the memory will be freed
-when the serialized object is garbage collected.
+is allocated inside the JVM, the memory is associated with a session. Because
+none was provided here, the session is an implicit session, and the memory will
+be freed when the serialized object is garbage collected.
 
 In many cases this is not desirable, because the memory is not freed in a
 deterministic manner, causing garbage collection pauses to become longer, as
-well as changing allocation performance. Instead of an implicit scope, there are
-other kinds of scopes as well. A `stack-scope` is a thread-local scope. Stack
-scopes are `Closeable`, which means they should usually be used in a `with-open`
-form. When a `stack-scope` is closed, it immediately frees all the memory
-associated with it. The previous example, `out-int`, can be implemented with a
-stack scope.
+well as changing allocation performance. Instead of an implicit session, there
+are other kinds of sessions as well. A `stack-session` is a thread-local
+session. Stack sessions are `Closeable`, which means they should usually be used
+in a `with-open` form. When a `stack-session` is closed, it immediately frees
+all the memory associated with it. The previous example, `out-int`, can be
+implemented with a stack session.
 
 ```clojure
 (defcfn out-int
   "out_int" [::mem/pointer] ::mem/void
   native-fn
   [i]
-  (with-open [scope (mem/stack-scope)]
-    (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int] scope)]
+  (with-open [session (mem/stack-session)]
+    (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int] session)]
       (native-fn int-ptr)
       (mem/deserialize int-ptr [::mem/pointer ::mem/int]))))
 ```
@@ -375,14 +379,15 @@ stack scope.
 This will free the pointer immediately upon leaving the function.
 
 When memory needs to be accessible from multiple threads, there's
-`shared-scope`. When using a `shared-scope`, it should be accessed inside a
-`with-acquired` block. When a `shared-scope` is `.close`d, it will release all
+`shared-session`. When using a `shared-session`, it should be accessed inside a
+`with-acquired` block. When a `shared-session` is `.close`d, it will release all
 its associated memory when every `with-acquired` block associated with it is
 exited.
 
-In addition, two non-`Closeable` scopes are `global-scope`, which never frees
-the resources associated with it, and `connected-scope`, which is a scope that
-frees its resources on garbage collection, like an implicit scope.
+In addition, two non-`Closeable` sessions are `global-session`, which never
+frees the resources associated with it, and `connected-session`, which is a
+session that frees its resources on garbage collection, like an implicit
+session.
 
 ### Serialization and Deserialization
 Custom serializers and deserializers may also be created. This is done using two
