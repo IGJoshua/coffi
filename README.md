@@ -238,6 +238,16 @@ type and message in the registers section, but it's important to be aware of all
 the same. Ideally you should test your callbacks before actually passing them to
 native code.
 
+When writing a wrapper library for a C library, it may be a good choice to wrap
+all passed Clojure functions in an additional function which catches all
+throwables, potentially notifies the user in some manner (e.g. logging), and
+returns a default value. This is on the wrapper library's developer to decide
+when and where this is appropriate, as in some cases no reasonable default
+return value can be determined and it is most sensible to simply crash the JVM.
+This is the reason that coffi defaults to this behavior, as in the author's
+opinion it is better to fail hard and fast rather than to attempt to produce a
+default and cause unexpected behavior later.
+
 Another important thing to keep in mind is the expected lifetime of the function
 that you pass to native code. For example it is perfectly fine to pass an
 anonymous function to a native function if the callback will never be called
