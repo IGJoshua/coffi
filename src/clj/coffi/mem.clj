@@ -976,7 +976,7 @@
   (if-some [prim-layout (primitive-type type)]
     (with-acquired [(segment-session segment) session]
       (serialize-into (serialize* obj type session) prim-layout segment session))
-    (throw (ex-info "Attempted to serialize an object to a type that has not been overriden"
+    (throw (ex-info "Attempted to serialize an object to a type that has not been overridden"
                     {:type type
                      :object obj}))))
 
