@@ -38,6 +38,7 @@
     ValueLayout$OfFloat
     ValueLayout$OfDouble
     ValueLayout$OfAddress)
+   (java.lang.ref Cleaner)
    (java.nio ByteOrder)))
 
 (set! *warn-on-reflection* true)
@@ -47,8 +48,10 @@
 
   The memory allocated within this session is cheap to allocate, like a native
   stack."
-  ^MemorySession []
-  (MemorySession/openConfined))
+  (^MemorySession []
+   (MemorySession/openConfined))
+  (^MemorySession [^Cleaner cleaner]
+   (MemorySession/openConfined cleaner)))
 
 (defn ^:deprecated stack-scope
   "Constructs a new scope for use only in this thread.
@@ -63,8 +66,10 @@
 
   This session can be shared across threads and memory allocated in it will only
   be cleaned up once every thread accessing the session closes it."
-  ^MemorySession []
-  (MemorySession/openShared))
+  (^MemorySession []
+   (MemorySession/openShared))
+  (^MemorySession [^Cleaner cleaner]
+   (MemorySession/openShared cleaner)))
 
 (defn ^:deprecated shared-scope
   "Constructs a new shared scope.
