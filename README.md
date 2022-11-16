@@ -132,14 +132,13 @@ Coffi defines a basic set of primitive types:
 
 Each of these types maps to their C counterpart. Values of any of these
 primitive types except for `pointer` will be cast with their corresponding
-Clojure function (with `long-long` mapping to the `long` function) when they are
-passed as arguments to native functions. Additionally, the `c-string` type is
-defined, although it is not primitive.
+Clojure function when they are passed as arguments to native functions.
+Additionally, the `c-string` type is defined, although it is not primitive.
 
 ### Composite Types
 In addition, some composite types are also defined in coffi, including struct
 and union types (unions will be discussed with serialization and
-deserialization). For an example c struct and function:
+deserialization). For an example C struct and function:
 
 ```c
 typedef struct point {
