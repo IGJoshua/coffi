@@ -426,8 +426,8 @@ serialize to primitives.
 
 ```clojure
 (defmethod mem/serialize* ::vector
-  [obj _type scope]
-  (mem/address-of (mem/serialize obj [::mem/array ::mem/float 3] scope)))
+  [obj _type session]
+  (mem/address-of (mem/serialize obj [::mem/array ::mem/float 3] session)))
 
 (defmethod mem/deserialize* ::vector
   [addr _type]
@@ -436,9 +436,9 @@ serialize to primitives.
 ```
 
 The `slice-global` function allows you to take an address without an associated
-scope and get a memory segment which can be deserialized.
+session and get a memory segment which can be deserialized.
 
-In cases like this where we don't know the scope of the pointer, we could use
+In cases like this where we don't know the session of the pointer, we could use
 `add-close-action!` to ensure it's freed. For example if a `free-vector!`
 function that takes a pointer exists, we could use this:
 
@@ -446,14 +446,14 @@ function that takes a pointer exists, we could use this:
 (defcfn returns-vector
   "returns_vector" [] ::mem/pointer
   native-fn
-  [scope]
+  [session]
   (let [ret-ptr (native-fn)]
-    (add-close-action! scope #(free-vector! ret-ptr))
+    (add-close-action! session #(free-vector! ret-ptr))
     (deserialize ret-ptr ::vector)))
 ```
 
-This function takes a scope and returns the deserialized vector, and it will
-free the pointer when the scope closes.
+This function takes a session and returns the deserialized vector, and it will
+free the pointer when the session closes.
 
 #### Tagged Union
 For the tagged union type, we will represent the value as a vector of a keyword
@@ -505,7 +505,7 @@ deserialize the value into and out of memory segments. This is accomplished with
         (map first))))
 
 (defmethod mem/serialize-into ::tagged-union
-  [obj [_tagged-union tags type-map] segment scope]
+  [obj [_tagged-union tags type-map] segment session]
   (mem/serialize-into
    {:tag (item-index tags (first obj))
     :value (second obj)}
@@ -513,7 +513,7 @@ deserialize the value into and out of memory segments. This is accomplished with
     [[:tag ::mem/long]
      [:value (get type-map (first obj))]]]
    segment
-   scope))
+   session))
 ```
 
 This serialization method is rather simple, it just turns the vector value into
@@ -570,7 +570,7 @@ it could be represented for serialization purposes like so:
 This union however would not include the tag when serialized.
 
 If a union is deserialized, then all that coffi does is to allocate a new
-segment of the appropriate size with an implicit scope so that it may later be
+segment of the appropriate size with an implicit session so that it may later be
 garbage collected, and copies the data from the source segment into it. It's up
 to the user to call `deserialize-from` on that segment with the appropriate
 type.
@@ -599,8 +599,8 @@ from the `java.lang.foreign` package.
 
 In addition, when a raw handle returns a composite type represented with a
 `MemorySegment`, it requires an additional first argument, a `SegmentAllocator`,
-which can be acquired with `scope-allocator` to get one associated with a
-specific scope. The returned value will live until that scope is released.
+which can be acquired with `session-allocator` to get one associated with a
+specific session. The returned value will live until that session is released.
 
 In addition, function types can be specified as being raw, in the following
 manner:
@@ -640,8 +640,8 @@ floats, the following code might be used.
 
 (defn returns-float-array
   []
-  (with-open [scope (mem/stack-scope)]
-    (let [out-floats (mem/alloc mem/pointer-size scope)
+  (with-open [session (mem/stack-session)]
+    (let [out-floats (mem/alloc mem/pointer-size session)
           num-floats (function-handle (mem/address-of out-floats))
           floats-addr (mem/read-address out-floats)
           floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
