@@ -240,7 +240,7 @@
 
   Returns `dest`."
   ^MemorySegment [^MemorySegment dest ^MemorySegment src]
-  (with-acquired (map segment-session [src dest])
+  (with-acquired [(segment-session src) (segment-session dest)]
     (.copyFrom dest src)
     dest))
 
