@@ -178,8 +178,9 @@
        (.whileAlive
         ^MemorySession session#
         (^:once fn* []
-         (with-acquired [~@(rest sessions)]
-           (vreset! res# (do ~@body)))))
+         (vreset! res#
+                  (with-acquired [~@(rest sessions)]
+                    ~@body))))
        @res#)
     `(do ~@body)))
 (s/fdef with-acquired
