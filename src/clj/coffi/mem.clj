@@ -173,12 +173,14 @@
   {:style/indent 1}
   [sessions & body]
   (if (seq sessions)
-    `(let [session# ~(first sessions)]
+    `(let [session# ~(first sessions)
+           res# (volatile! ::invalid-value)]
        (.whileAlive
         ^MemorySession session#
         (^:once fn* []
          (with-acquired [~@(rest sessions)]
-           ~@body))))
+           (vreset! res# (do ~@body)))))
+       @res#)
     `(do ~@body)))
 (s/fdef with-acquired
   :args (s/cat :sessions any?
