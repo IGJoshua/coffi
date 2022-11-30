@@ -1201,11 +1201,15 @@
 
 (defmethod serialize-into ::raw
   [obj _type segment _session]
-  (copy-segment segment obj))
+  (if (instance? MemorySegment obj)
+    (copy-segment segment obj)
+    obj))
 
 (defmethod deserialize-from ::raw
   [segment _type]
-  (clone-segment segment))
+  (if (instance? MemorySegment segment)
+    (clone-segment segment)
+    segment))
 
 ;;; C String type
 
