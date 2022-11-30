@@ -1,5 +1,5 @@
 {:paths ["src/clj" "target/classes" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         insn/insn {:mvn/version "0.2.1"}}
 
  :deps/prep-lib {:alias :build
