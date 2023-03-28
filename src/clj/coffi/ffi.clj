@@ -654,7 +654,7 @@
        (def ~(:var-name args)
          ~@(when-let [doc (:docstring args)]
              (list doc))
-         (static-variable symbol#)))))
+         (static-variable symbol# ~(:type args))))))
 (s/fdef defvar
   :args ::defconst-args)
 
