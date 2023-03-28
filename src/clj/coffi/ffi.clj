@@ -186,7 +186,7 @@
   [handle args ret]
   (insn/new-instance (downcall-class args ret) ^MethodHandle handle))
 
-(defn- ensure-symbol
+(defn ensure-symbol
   "Returns the argument if it is a [[MemorySegment]], otherwise
   calls [[find-symbol]] on it."
   ^MemorySegment [symbol-or-addr]
