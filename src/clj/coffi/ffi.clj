@@ -594,7 +594,7 @@
 (deftype StaticVariable [seg type meta]
   IDeref
   (deref [_]
-    (mem/deserialize seg type))
+    (mem/deserialize-from seg type))
 
   IObj
   (withMeta [_ meta-map]
