@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file. This change
 - New function to allow getting the backing memory segment of a `coffi.ffi.StaticVariable`, to replace the `Addressable` implementation lost in the migration to JDK 18
 
 ### Fixed
+- Bug where `static-variable`s with primitive types would not deserialize properly on `deref`
+- Uses of `defvar` not compiling
 - Bug where nil values would not be correctly coerced to null pointers when passed to inlined functions
 - Bug where inline serde functions would fail on complex pointer types
 - Bug where padding in structs may be increased when fields have alignments less than their size
