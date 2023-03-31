@@ -17,7 +17,7 @@
    [clojure.tools.build.api :as b]))
 
 (def lib-coord 'org.suskalo/coffi)
-(def version (format "0.5.%s" (b/git-count-revs nil)))
+(def version (format "0.6.%s" (b/git-count-revs nil)))
 
 (def resource-dirs ["resources/"])
 
@@ -49,11 +49,11 @@
   "Compiles java classes required for interop."
   [opts]
   (.mkdirs (io/file class-dir))
-  (b/process {:command-args ["javac" "--add-modules=jdk.incubator.foreign"
+  (b/process {:command-args ["javac" "--enable-preview"
                              "src/java/coffi/ffi/Loader.java"
                              "-d" class-dir
-                             "-target" "18"
-                             "-source" "18"]})
+                             "-target" "19"
+                             "-source" "19"]})
   opts)
 
 (defn- write-pom

@@ -26,7 +26,7 @@ CString upcall_test(StringFactory fun) {
     return fun();
 }
 
-static int counter = 0;
+int counter = 0;
 
 static char* responses[] = { "Hello, world!", "Goodbye friend.", "co'oi prenu" };
 

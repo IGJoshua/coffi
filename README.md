@@ -3,7 +3,7 @@
 
 Coffi is a foreign function interface library for Clojure, using the new
 [Project Panama](https://openjdk.java.net/projects/panama/) that's a part of the
-incubator in Java 18. This allows calling native code directly from Clojure
+preview in Java 19. This allows calling native code directly from Clojure
 without the need for either Java or native code specific to the library, as e.g.
 the JNI does. Coffi focuses on ease of use, including functions and macros for
 creating wrappers to allow the resulting native functions to act just like
@@ -16,8 +16,8 @@ This library is available on Clojars. Add one of the following entries to the
 `:deps` key of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.5.357"}
-io.github.IGJoshua/coffi {:git/tag "v0.5.357" :git/sha "a9e3ed0"}
+org.suskalo/coffi {:mvn/version "0.6.409"}
+io.github.IGJoshua/coffi {:git/tag "v0.6.409" :git/sha "f974446"}
 ```
 
 If you use this library as a git dependency, you will need to prepare the
@@ -27,19 +27,19 @@ library.
 $ clj -X:deps prep
 ```
 
-Coffi requires usage of the module `jdk.incubator.foreign`, which means that the
-JVM must enable the usage of this module. In order to use coffi, add the
-following JVM arguments to your application.
+Coffi requires usage of the package `java.lang.foreign`, and everything in this
+package is considered to be a preview release, which are disabled by default. In
+order to use coffi, add the following JVM arguments to your application.
 
 ```sh
---add-modules=jdk.incubator.foreign --enable-native-access=ALL-UNNAMED
+--enable-preview --enable-native-access=ALL-UNNAMED
 ```
 
 You can specify JVM arguments in a particular invocation of the Clojure CLI with
 the -J flag like so:
 
 ``` sh
-clj -J--add-modules=jdk.incubator.foreign -J--enable-native-access=ALL-UNNAMED
+clj -J--enable-preview -J--enable-native-access=ALL-UNNAMED
 ```
 
 You can also specify them in an alias in your `deps.edn` file under the
@@ -47,7 +47,7 @@ You can also specify them in an alias in your `deps.edn` file under the
 using `-M`, `-A`, or `-X`.
 
 ``` clojure
-{:aliases {:dev {:jvm-opts ["--add-modules=jdk.incubator.foreign" "--enable-native-access=ALL-UNNAMED"]}}}
+{:aliases {:dev {:jvm-opts ["--enable-preview" "--enable-native-access=ALL-UNNAMED"]}}}
 ```
 
 Other build tools should provide similar functionality if you check their
@@ -132,14 +132,13 @@ Coffi defines a basic set of primitive types:
 
 Each of these types maps to their C counterpart. Values of any of these
 primitive types except for `pointer` will be cast with their corresponding
-Clojure function (with `long-long` mapping to the `long` function) when they are
-passed as arguments to native functions. Additionally, the `c-string` type is
-defined, although it is not primitive.
+Clojure function when they are passed as arguments to native functions.
+Additionally, the `c-string` type is defined, although it is not primitive.
 
 ### Composite Types
 In addition, some composite types are also defined in coffi, including struct
 and union types (unions will be discussed with serialization and
-deserialization). For an example c struct and function:
+deserialization). For an example C struct and function:
 
 ```c
 typedef struct point {
@@ -239,6 +238,23 @@ type and message in the registers section, but it's important to be aware of all
 the same. Ideally you should test your callbacks before actually passing them to
 native code.
 
+When writing a wrapper library for a C library, it may be a good choice to wrap
+all passed Clojure functions in an additional function which catches all
+throwables, potentially notifies the user in some manner (e.g. logging), and
+returns a default value. This is on the wrapper library's developer to decide
+when and where this is appropriate, as in some cases no reasonable default
+return value can be determined and it is most sensible to simply crash the JVM.
+This is the reason that coffi defaults to this behavior, as in the author's
+opinion it is better to fail hard and fast rather than to attempt to produce a
+default and cause unexpected behavior later.
+
+Another important thing to keep in mind is the expected lifetime of the function
+that you pass to native code. For example it is perfectly fine to pass an
+anonymous function to a native function if the callback will never be called
+again once the native function returns. If however it saves the callback for
+later use the JVM may collect it prematurely, causing a crash when the callback
+is later called by native code.
+
 ### Variadic Functions
 Some native functions can take any number of arguments, and in these cases coffi
 provides `vacfn-factory` (for "varargs C function factory").
@@ -265,18 +281,21 @@ does not support va-list, however it is a planned feature.
 
 ### Global Variables
 Some libraries include global variables or constants accessible through symbols.
-To start with, constant values stored in symbols can be fetched with `const`
+To start with, constant values stored in symbols can be fetched with `const`, or
+the parallel macro `defconst`
 
 ```clojure
 (def some-const (ffi/const "some_const" ::mem/int))
+(ffi/defconst some-const "some_const" ::mem/int)
 ```
 
 This value is fetched once when you call `const` and is turned into a Clojure
-value. If you need to refer to a global variable, then `static-variable` can be
-used to create a reference to the native value.
+value. If you need to refer to a global variable, then `static-variable` (or
+parallel `defvar`) can be used to create a reference to the native value.
 
 ```clojure
 (def some-var (ffi/static-variable "some_var" ::mem/int))
+(ffi/defvar some-var "some_var" ::mem/int)
 ```
 
 This variable is an `IDeref`. Each time you dereference it, the value will be
@@ -296,6 +315,10 @@ value is being mutated on another thread.
 
 A parallel function `fswap!` is also provided, but it does not provide any
 atomic semantics either.
+
+The memory that backs the static variable can be fetched with the function
+`static-variable-segment`, which can be used to pass a pointer to the static
+variable to native functions that require it.
 
 ### Complex Wrappers
 Some functions require more complex code to map nicely to a Clojure function.
@@ -331,29 +354,33 @@ This can be used to implement out variables often seen in native code.
     (deserialize int-ptr [::mem/pointer ::mem/int])))
 ```
 
-### Scopes
+### Sessions
+**Before JDK 19 Sessions were called Scopes. Coffi retains functions that are
+named for creating scopes for backwards compatibility, but they will be removed
+in version 1.0.**
+
 In order to serialize any non-primitive type (such as the previous
 `[::mem/pointer ::mem/int]`), off-heap memory needs to be allocated. When memory
-is allocated inside the JVM, the memory is associated with a scope. Because none
-was provided here, the scope is an implicit scope, and the memory will be freed
-when the serialized object is garbage collected.
+is allocated inside the JVM, the memory is associated with a session. Because
+none was provided here, the session is an implicit session, and the memory will
+be freed when the serialized object is garbage collected.
 
 In many cases this is not desirable, because the memory is not freed in a
 deterministic manner, causing garbage collection pauses to become longer, as
-well as changing allocation performance. Instead of an implicit scope, there are
-other kinds of scopes as well. A `stack-scope` is a thread-local scope. Stack
-scopes are `Closeable`, which means they should usually be used in a `with-open`
-form. When a `stack-scope` is closed, it immediately frees all the memory
-associated with it. The previous example, `out-int`, can be implemented with a
-stack scope.
+well as changing allocation performance. Instead of an implicit session, there
+are other kinds of sessions as well. A `stack-session` is a thread-local
+session. Stack sessions are `Closeable`, which means they should usually be used
+in a `with-open` form. When a `stack-session` is closed, it immediately frees
+all the memory associated with it. The previous example, `out-int`, can be
+implemented with a stack session.
 
 ```clojure
 (defcfn out-int
   "out_int" [::mem/pointer] ::mem/void
   native-fn
   [i]
-  (with-open [scope (mem/stack-scope)]
-    (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int] scope)]
+  (with-open [session (mem/stack-session)]
+    (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int] session)]
       (native-fn int-ptr)
       (mem/deserialize int-ptr [::mem/pointer ::mem/int]))))
 ```
@@ -361,14 +388,15 @@ stack scope.
 This will free the pointer immediately upon leaving the function.
 
 When memory needs to be accessible from multiple threads, there's
-`shared-scope`. When using a `shared-scope`, it should be accessed inside a
-`with-acquired` block. When a `shared-scope` is `.close`d, it will release all
+`shared-session`. When using a `shared-session`, it should be accessed inside a
+`with-acquired` block. When a `shared-session` is `.close`d, it will release all
 its associated memory when every `with-acquired` block associated with it is
 exited.
 
-In addition, two non-`Closeable` scopes are `global-scope`, which never frees
-the resources associated with it, and `connected-scope`, which is a scope that
-frees its resources on garbage collection, like an implicit scope.
+In addition, two non-`Closeable` sessions are `global-session`, which never
+frees the resources associated with it, and `connected-session`, which is a
+session that frees its resources on garbage collection, like an implicit
+session.
 
 ### Serialization and Deserialization
 Custom serializers and deserializers may also be created. This is done using two
@@ -398,8 +426,8 @@ serialize to primitives.
 
 ```clojure
 (defmethod mem/serialize* ::vector
-  [obj _type scope]
-  (mem/address-of (mem/serialize obj [::mem/array ::mem/float 3] scope)))
+  [obj _type session]
+  (mem/address-of (mem/serialize obj [::mem/array ::mem/float 3] session)))
 
 (defmethod mem/deserialize* ::vector
   [addr _type]
@@ -408,9 +436,9 @@ serialize to primitives.
 ```
 
 The `slice-global` function allows you to take an address without an associated
-scope and get a memory segment which can be deserialized.
+session and get a memory segment which can be deserialized.
 
-In cases like this where we don't know the scope of the pointer, we could use
+In cases like this where we don't know the session of the pointer, we could use
 `add-close-action!` to ensure it's freed. For example if a `free-vector!`
 function that takes a pointer exists, we could use this:
 
@@ -418,14 +446,14 @@ function that takes a pointer exists, we could use this:
 (defcfn returns-vector
   "returns_vector" [] ::mem/pointer
   native-fn
-  [scope]
+  [session]
   (let [ret-ptr (native-fn)]
-    (add-close-action! scope #(free-vector! ret-ptr))
+    (add-close-action! session #(free-vector! ret-ptr))
     (deserialize ret-ptr ::vector)))
 ```
 
-This function takes a scope and returns the deserialized vector, and it will
-free the pointer when the scope closes.
+This function takes a session and returns the deserialized vector, and it will
+free the pointer when the session closes.
 
 #### Tagged Union
 For the tagged union type, we will represent the value as a vector of a keyword
@@ -477,7 +505,7 @@ deserialize the value into and out of memory segments. This is accomplished with
         (map first))))
 
 (defmethod mem/serialize-into ::tagged-union
-  [obj [_tagged-union tags type-map] segment scope]
+  [obj [_tagged-union tags type-map] segment session]
   (mem/serialize-into
    {:tag (item-index tags (first obj))
     :value (second obj)}
@@ -485,7 +513,7 @@ deserialize the value into and out of memory segments. This is accomplished with
     [[:tag ::mem/long]
      [:value (get type-map (first obj))]]]
    segment
-   scope))
+   session))
 ```
 
 This serialization method is rather simple, it just turns the vector value into
@@ -542,7 +570,7 @@ it could be represented for serialization purposes like so:
 This union however would not include the tag when serialized.
 
 If a union is deserialized, then all that coffi does is to allocate a new
-segment of the appropriate size with an implicit scope so that it may later be
+segment of the appropriate size with an implicit session so that it may later be
 garbage collected, and copies the data from the source segment into it. It's up
 to the user to call `deserialize-from` on that segment with the appropriate
 type.
@@ -567,12 +595,12 @@ With raw handles, the argument types are expected to exactly match the types
 expected by the native function. For primitive types, those are primitives. For
 addresses, that is `MemoryAddress`, and for composite types like structs and
 unions, that is `MemorySegment`. Both `MemoryAddress` and `MemorySegment` come
-from the `jdk.incubator.foreign` package.
+from the `java.lang.foreign` package.
 
 In addition, when a raw handle returns a composite type represented with a
 `MemorySegment`, it requires an additional first argument, a `SegmentAllocator`,
-which can be acquired with `scope-allocator` to get one associated with a
-specific scope. The returned value will live until that scope is released.
+which can be acquired with `session-allocator` to get one associated with a
+specific session. The returned value will live until that session is released.
 
 In addition, function types can be specified as being raw, in the following
 manner:
@@ -612,8 +640,8 @@ floats, the following code might be used.
 
 (defn returns-float-array
   []
-  (with-open [scope (mem/stack-scope)]
-    (let [out-floats (mem/alloc mem/pointer-size scope)
+  (with-open [session (mem/stack-session)]
+    (let [out-floats (mem/alloc mem/pointer-size session)
           num-floats (function-handle (mem/address-of out-floats))
           floats-addr (mem/read-address out-floats)
           floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
@@ -712,6 +740,8 @@ appealing, as they have a smaller API surface area and it's easier to wrap
 functions.
 
 ### Benchmarks
+**BENCHMARKS FOR COFFI AND DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE CREATED WHEN PANAMA COMES OUT OF PREVIEW**
+
 An additional consideration when thinking about alternatives is the performance
 of each available option. It's an established fact that JNA (used by all three
 alternative libraries on JDK <16) introduces more overhead when calling native
@@ -954,8 +984,6 @@ coming from, but I'll admit that I haven't looked at their implementations very
 closely.
 
 #### dtype-next
-**BENCHMARKS FOR DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE COMING SHORTLY**
-
 The library dtype-next replaced tech.jna in the toolkit of the group working on
 machine learning and array-based programming, and it includes support for
 composite data types including structs, as well as primitive functions and
@@ -1089,7 +1117,10 @@ stands, coffi is the fastest FFI available to Clojure developers.
 The project author is aware of these issues and plans to fix them in a future
 release:
 
-There are currently no known issues! Hooray!
+- On M1 Macs occasional crashes are present when returning structs by value from
+  native code. At the moment this appears to be an upstream issue with Panama,
+  and will be reported once a minimal reproduction case with only Panama is
+  produced.
 
 ## Future Plans
 These features are planned for future releases.
@@ -1097,27 +1128,26 @@ These features are planned for future releases.
 - Support for va_args type
 - Header parsing tool for generating a data model?
 - Generic type aliases
-- Helpers for generating enums & bitflags
 - Unsigned integer types
 - Record-based struct types
 - Helper macro for out arguments
 - Improve error messages from defcfn macro
 - Mapped memory
+- Helper macros for custom serde implementations for composite data types
 
 ### Future JDKs
 The purpose of coffi is to provide a wrapper for published versions of Project
 Panama, starting with JDK 17. As new JDKs are released, coffi will be ported to
 the newer versions of Panama. Version `0.4.341` is the last version compatible
-with JDK 17. Bugfixes, and potential backports of newer coffi features may be
-found on the `jdk17-lts` branch. Development of new features and fixes as well
-as support for new Panama idioms and features will continue with focus only on
-the latest JDK. If a particular feature is not specific to the newer JDK, PRs
-backporting it to versions of coffi supporting Java 17 will likely be accepted.
+with JDK 17. Version `0.5.357` is the last version compatible with JDK 18.
+Bugfixes, and potential backports of newer coffi features may be found on the
+`jdk17-lts` branch. Development of new features and fixes as well as support for
+new Panama idioms and features will continue with focus only on the latest JDK.
+If a particular feature is not specific to the newer JDK, PRs backporting it to
+versions of coffi supporting Java 17 will likely be accepted.
 
 ### 1.0 Release
-Because the feature that coffi wraps in the JDK is an incubator feature (and
-likely in JDK 19 a [preview
-feature](https://mail.openjdk.java.net/pipermail/panama-dev/2021-September/014946.html))
+Because the feature that coffi wraps in the JDK is in preview as of JDK 19,
 coffi itself will not be released in a 1.0.x version until the feature becomes a
 core part of the JDK, likely before or during the next LTS release, Java 21, in
 September 2023.

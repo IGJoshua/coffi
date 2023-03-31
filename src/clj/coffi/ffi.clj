@@ -13,14 +13,16 @@
     MethodHandle
     MethodHandles
     MethodType)
-   (jdk.incubator.foreign
+   (java.lang.foreign
     Addressable
-    CLinker
+    Linker
     FunctionDescriptor
     MemoryAddress
     MemoryLayout
-    NativeSymbol
+    MemorySegment
     SegmentAllocator)))
+
+(set! *warn-on-reflection* true)
 
 ;;; FFI Code loading and function access
 
@@ -35,7 +37,7 @@
   (Loader/loadLibrary (.getAbsolutePath (io/file path))))
 
 (defn find-symbol
-  "Gets the [[NativeSymbol]] of a symbol from the loaded libraries."
+  "Gets the [[MemorySegment]] of a symbol from the loaded libraries."
   [sym]
   (Loader/findSymbol (name sym)))
 
@@ -52,9 +54,9 @@
         args-arr)))))
 
 (defn- downcall-handle
-  "Gets the [[MethodHandle]] for the function at the `address`."
+  "Gets the [[MethodHandle]] for the function at the `sym`."
   [sym function-descriptor]
-  (.downcallHandle (CLinker/systemCLinker) sym function-descriptor))
+  (.downcallHandle (Linker/nativeLinker) sym function-descriptor))
 
 (def ^:private load-instructions
   "Mapping from primitive types to the instruction used to load them onto the stack."
@@ -62,7 +64,6 @@
    ::mem/short :sload
    ::mem/int :iload
    ::mem/long :lload
-   ::mem/long-long :lload
    ::mem/char :cload
    ::mem/float :fload
    ::mem/double :dload
@@ -74,7 +75,6 @@
    ::mem/short Short
    ::mem/int Integer
    ::mem/long Long
-   ::mem/long-long Long
    ::mem/char Character
    ::mem/float Float
    ::mem/double Double})
@@ -110,7 +110,6 @@
    ::mem/short "shortValue"
    ::mem/int "intValue"
    ::mem/long "longValue"
-   ::mem/long-long "longValue"
    ::mem/char "charValue"
    ::mem/float "floatValue"
    ::mem/double "doubleValue"})
@@ -187,11 +186,11 @@
   [handle args ret]
   (insn/new-instance (downcall-class args ret) ^MethodHandle handle))
 
-(defn- ensure-symbol
-  "Gets the address if the argument is [[Addressable]], otherwise
+(defn ensure-symbol
+  "Returns the argument if it is a [[MemorySegment]], otherwise
   calls [[find-symbol]] on it."
-  ^NativeSymbol [symbol-or-addr]
-  (if (instance? NativeSymbol symbol-or-addr)
+  ^MemorySegment [symbol-or-addr]
+  (if (instance? MemorySegment symbol-or-addr)
     symbol-or-addr
     (find-symbol symbol-or-addr)))
 
@@ -235,7 +234,6 @@
    ::mem/short `short
    ::mem/int `int
    ::mem/long `long
-   ::mem/long-long `long
    ::mem/char `char
    ::mem/float `float
    ::mem/double `double})
@@ -246,15 +244,24 @@
   The return type and any arguments that are primitives will not
   be (de)serialized except to be cast. If all arguments and return are
   primitive, the `downcall` is returned directly. In cases where arguments must
-  be serialized, a new [[mem/stack-scope]] is generated."
+  be serialized, a new [[mem/stack-session]] is generated."
   [downcall arg-types ret-type]
   (let [;; Complexity of types
         const-args? (or (vector? arg-types) (nil? arg-types))
         simple-args? (when const-args?
-                       (every? mem/primitive? arg-types))
+                       (and (every? mem/primitive? arg-types)
+                            ;; NOTE(Joshua): Pointer types with serdes (e.g. [::mem/pointer ::mem/int])
+                            ;; still require a session, making them not qualify as "simple".
+                            (every? keyword? (filter (comp #{::mem/pointer} mem/primitive-type) arg-types))))
         const-ret? (s/valid? ::mem/type ret-type)
-        primitive-ret? (and const-ret? (or (mem/primitive? ret-type)
-                                           (#{::mem/void} ret-type)))
+        primitive-ret? (and const-ret?
+                            (or (and (mem/primitive? ret-type)
+                                     ;; NOTE(Joshua): Pointer types with serdes require deserializing the
+                                     ;; return value, but don't require passing a session to the downcall,
+                                     ;; making them cause the return to not be primitive, but it may still
+                                     ;; be "simple".
+                                     (or (keyword? ret-type) (not (#{::mem/pointer} (mem/primitive-type ret-type)))))
+                                (#{::mem/void} ret-type)))
         simple-ret? (and const-ret? (mem/primitive-type ret-type))
         no-serde? (and const-args? (empty? arg-types)
                        primitive-ret?)]
@@ -266,7 +273,7 @@
          ~ret-type
          downcall#)
       (let [;; All our symbols
-            scope (gensym "scope")
+            session (gensym "session")
             downcall-sym (gensym "downcall")
             args-sym (when-not const-args?
                        (gensym "args"))
@@ -285,21 +292,22 @@
               (some->>
                (cond
                  (not (s/valid? ::mem/type type))
-                 `(mem/serialize ~sym ~type-sym ~scope)
+                 `(mem/serialize ~sym ~type-sym ~session)
 
                  (and (mem/primitive? type)
                       (not (#{::mem/pointer} (mem/primitive-type type))))
                  (list (primitive-cast-sym (mem/primitive-type type)) sym)
 
+                 ;; cast null pointers to something understood by panama
                  (#{::mem/pointer} type)
-                 nil
+                 `(or ~sym (MemoryAddress/NULL))
 
                  (mem/primitive-type type)
-                 `(mem/serialize* ~sym ~type-sym ~scope)
+                 `(mem/serialize* ~sym ~type-sym ~session)
 
                  :else
                  `(let [alloc# (mem/alloc-instance ~type-sym)]
-                    (mem/serialize-into ~sym ~type-sym alloc# ~scope)
+                    (mem/serialize-into ~sym ~type-sym alloc# ~session)
                     alloc#))
                (list sym)))
 
@@ -326,7 +334,7 @@
 
                 :else
                 `(let [~args-sym (map (fn [obj# type#]
-                                        (mem/serialize obj# type# ~scope))
+                                        (mem/serialize obj# type# ~session))
                                       ~args-sym ~args-types-sym)]
                    ~expr)))
 
@@ -335,7 +343,7 @@
                         ;; taking restargs, and so the downcall must be applied
                         (-> `(~@(when (symbol? args) [`apply])
                               ~downcall-sym
-                              ~@(when allocator? [`(mem/scope-allocator ~scope)])
+                              ~@(when allocator? [`(mem/session-allocator ~session)])
                               ~@(if (symbol? args)
                                   [args]
                                   args))
@@ -358,12 +366,12 @@
                                 :else
                                 (deserialize-segment expr)))
 
-            wrap-scope (fn [expr]
-                         `(with-open [~scope (mem/stack-scope)]
-                            ~expr))
-            wrap-fn (fn [call needs-scope?]
+            wrap-session (fn [expr]
+                           `(with-open [~session (mem/stack-session)]
+                              ~expr))
+            wrap-fn (fn [call needs-session?]
                       `(fn [~@(if const-args? arg-syms ['& args-sym])]
-                         ~(cond-> call needs-scope? wrap-scope)))]
+                         ~(cond-> call needs-session? wrap-session)))]
         `(let [;; NOTE(Joshua): To ensure all arguments are evaluated once and
                ;; in-order, they must be bound here
                ~downcall-sym ~downcall
@@ -395,15 +403,15 @@
   [downcall arg-types ret-type]
   (if (mem/primitive-type ret-type)
     (fn native-fn [& args]
-      (with-open [scope (mem/stack-scope)]
+      (with-open [session (mem/stack-session)]
         (mem/deserialize*
-         (apply downcall (map #(mem/serialize %1 %2 scope) args arg-types))
+         (apply downcall (map #(mem/serialize %1 %2 session) args arg-types))
          ret-type)))
     (fn native-fn [& args]
-      (with-open [scope (mem/stack-scope)]
+      (with-open [session (mem/stack-session)]
         (mem/deserialize-from
-         (apply downcall (mem/scope-allocator scope)
-                (map #(mem/serialize %1 %2 scope) args arg-types))
+         (apply downcall (mem/session-allocator session)
+                (map #(mem/serialize %1 %2 session) args arg-types))
          ret-type)))))
 
 (defn make-serde-varargs-wrapper
@@ -510,10 +518,7 @@
   ([args] (method-type args ::mem/void))
   ([args ret]
    (MethodType/methodType
-    ^Class (let [r (mem/java-layout ret)]
-             (if (= r MemoryAddress)
-               Addressable
-               r))
+    ^Class (coerce-addressable (mem/java-layout ret))
     ^"[Ljava.lang.Class;" (into-array Class (map mem/java-layout args)))))
 
 (defn- upcall-handle
@@ -531,30 +536,30 @@
 
 (defn- upcall-serde-wrapper
   "Creates a function that wraps `f` which deserializes the arguments and
-  serializes the return type in the [[global-scope]]."
+  serializes the return type in the [[global-session]]."
   [f arg-types ret-type]
   (fn [& args]
     (mem/serialize
      (apply f (map mem/deserialize args arg-types))
      ret-type
-     (mem/global-scope))))
+     (mem/global-session))))
 
 (defmethod mem/serialize* ::fn
-  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] scope]
+  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] session]
   (.upcallStub
-   (CLinker/systemCLinker)
+   (Linker/nativeLinker)
    (cond-> f
      (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
      :always (upcall-handle arg-types ret-type))
    (function-descriptor arg-types ret-type)
-   scope))
+   session))
 
 (defmethod mem/deserialize* ::fn
   [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
   (when-not (mem/null? addr)
     (vary-meta
       (-> addr
-          (as-> addr (NativeSymbol/ofAddress "coffi_upcall_symbol" addr (mem/connected-scope)))
+          (MemorySegment/ofAddress mem/pointer-size (mem/connected-session))
           (downcall-handle (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
           (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
@@ -567,10 +572,29 @@
   [symbol-or-addr type]
   (mem/deserialize (.address (ensure-symbol symbol-or-addr)) [::mem/pointer type]))
 
+(s/def ::defconst-args
+  (s/cat :var-name simple-symbol?
+         :docstring (s/? string?)
+         :symbol-or-addr any?
+         :type ::mem/type))
+
+(defmacro defconst
+  "Defines a var named by `symbol` to be the value of the given `type` from `symbol-or-addr`."
+  {:arglists '([symbol docstring? symbol-or-addr type])}
+  [& args]
+  (let [args (s/conform ::defconst-args args)]
+    `(let [symbol# (ensure-symbol ~(:symbol-or-addr args))]
+       (def ~(:var-name args)
+         ~@(when-let [doc (:docstring args)]
+             (list doc))
+         (const symbol# ~(:type args))))))
+(s/fdef defconst
+  :args ::defconst-args)
+
 (deftype StaticVariable [seg type meta]
   IDeref
   (deref [_]
-    (mem/deserialize seg type))
+    (mem/deserialize-from seg type))
 
   IObj
   (withMeta [_ meta-map]
@@ -590,7 +614,7 @@
   (mem/serialize-into
    newval (.-type static-var)
    (.-seg static-var)
-   (mem/global-scope))
+   (mem/global-session))
   newval)
 
 (defn fswap!
@@ -601,18 +625,38 @@
   [static-var f & args]
   (freset! static-var (apply f @static-var args)))
 
+(defn static-variable-segment
+  "Gets the backing [[MemorySegment]] from `static-var`.
+
+  This is primarily useful when you need to pass the static variable's address
+  to a native function which takes an [[Addressable]]."
+  ^MemorySegment [static-var]
+  (.-seg ^StaticVariable static-var))
+
 (defn static-variable
   "Constructs a reference to a mutable value stored in `symbol-or-addr`.
 
-  The returned value can be dereferenced, and has metadata, and the address of
-  the value can be queried with [[address-of]].
+  The returned value can be dereferenced, and has metadata.
 
   See [[freset!]], [[fswap!]]."
   [symbol-or-addr type]
   (StaticVariable. (mem/as-segment (.address (ensure-symbol symbol-or-addr))
                                    (mem/size-of type)
-                                   (mem/global-scope))
+                                   (mem/global-session))
                    type (atom nil)))
+
+(defmacro defvar
+  "Defines a var named by `symbol` to be a reference to the native memory from `symbol-or-addr`."
+  {:arglists '([symbol docstring? symbol-or-addr type])}
+  [& args]
+  (let [args (s/conform ::defconst-args args)]
+    `(let [symbol# (ensure-symbol ~(:symbol-or-addr args))]
+       (def ~(:var-name args)
+         ~@(when-let [doc (:docstring args)]
+             (list doc))
+         (static-variable symbol# ~(:type args))))))
+(s/fdef defvar
+  :args ::defconst-args)
 
 (s/def :coffi.ffi.symbolspec/symbol string?)
 (s/def :coffi.ffi.symbolspec/type keyword?)

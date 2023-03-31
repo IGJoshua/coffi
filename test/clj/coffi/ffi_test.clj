@@ -44,3 +44,8 @@
            {:a \x
             :x 3.14
             :y 42.0})))
+
+(t/deftest static-variables-are-mutable
+  (ffi/freset! (ffi/static-variable "counter" ::mem/int) 1)
+  (t/is (= ((ffi/cfn "get_string1" [] ::mem/c-string))
+           "Goodbye friend.")))

@@ -16,11 +16,12 @@
           (if (seq fields)
             (let [[[_ type :as field] & fields] fields
                   size (mem/size-of type)
-                  r (rem offset (mem/align-of type))]
+                  align (mem/align-of type)
+                  r (rem offset align)]
               (recur (cond-> (+ offset size)
-                       (pos? r) (+ (- size r)))
+                       (pos? r) (+ (- align r)))
                      (cond-> aligned-fields
-                       (pos? r) (conj [::padding [::mem/padding (- size r)]])
+                       (pos? r) (conj [::padding [::mem/padding (- align r)]])
                        :always (conj field))
                      fields))
             (let [strongest-alignment (mem/align-of struct-spec)
