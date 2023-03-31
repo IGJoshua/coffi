@@ -24,8 +24,8 @@
   :codox {:extra-deps {codox/codox {:mvn/version "0.10.7"}}
           :exec-fn codox.main/generate-docs
           :exec-args {:name "coffi"
-                      :version "v0.5.357"
-                      :description "A Foreign Function Interface in Clojure for JDK 18."
+                      :version "v0.6.409"
+                      :description "A Foreign Function Interface in Clojure for JDK 19."
                       :source-paths  ["src/clj"]
                       :output-path "docs"
                       :source-uri "https://github.com/IGJoshua/coffi/blob/{git-commit}/{filepath}#L{line}"
