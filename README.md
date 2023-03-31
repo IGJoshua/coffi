@@ -1117,10 +1117,7 @@ stands, coffi is the fastest FFI available to Clojure developers.
 The project author is aware of these issues and plans to fix them in a future
 release:
 
-- On M1 Macs occasional crashes are present when returning structs by value from
-  native code. At the moment this appears to be an upstream issue with Panama,
-  and will be reported once a minimal reproduction case with only Panama is
-  produced.
+No known issues, hooray!
 
 ## Future Plans
 These features are planned for future releases.
@@ -1140,10 +1137,11 @@ The purpose of coffi is to provide a wrapper for published versions of Project
 Panama, starting with JDK 17. As new JDKs are released, coffi will be ported to
 the newer versions of Panama. Version `0.4.341` is the last version compatible
 with JDK 17. Version `0.5.357` is the last version compatible with JDK 18.
-Bugfixes, and potential backports of newer coffi features may be found on the
-`jdk17-lts` branch. Development of new features and fixes as well as support for
-new Panama idioms and features will continue with focus only on the latest JDK.
-If a particular feature is not specific to the newer JDK, PRs backporting it to
+Version `0.6.409` is the latest version compatible with JDK 19. Bugfixes, and
+potential backports of newer coffi features may be found on the `jdk17-lts`
+branch. Development of new features and fixes as well as support for new Panama
+idioms and features will continue with focus only on the latest JDK. If a
+particular feature is not specific to the newer JDK, PRs backporting it to
 versions of coffi supporting Java 17 will likely be accepted.
 
 ### 1.0 Release
@@ -1154,6 +1152,6 @@ September 2023.
 
 ## License
 
-Copyright © 2022 Joshua Suskalo
+Copyright © 2023 Joshua Suskalo
 
 Distributed under the Eclipse Public License version 1.0.
