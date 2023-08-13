@@ -1433,3 +1433,17 @@
 (s/fdef defalias
   :args (s/cat :new-type qualified-keyword?
                :aliased-type any?))
+
+(defmacro defstruct
+  "Defines a type alias from `new-type` to a struct composed of `aliased-types`.
+
+   (defstruct ::point [[:x ::mem/int] [:y ::mem/int]]) is equivalent to
+   (defalias ::point [::mem/struct [[:x ::mem/int] [:y ::mem/int]]])."
+  {:style/indent [:defn]}
+  [new-type aliased-types]
+  `(defalias ~new-type [::struct [~@aliased-types]]))
+(s/fdef defstruct
+  :args (s/cat :new-type qualified-keyword?
+               :aliased-types (s/coll-of 
+                               (s/tuple keyword? ::type)
+                               :min-count 1)))
