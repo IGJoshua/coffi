@@ -52,8 +52,8 @@
   (b/process {:command-args ["javac" "--enable-preview"
                              "src/java/coffi/ffi/Loader.java"
                              "-d" class-dir
-                             "-target" "19"
-                             "-source" "19"]})
+                             "-target" "21"
+                             "-source" "21"]})
   opts)
 
 (defn- write-pom
