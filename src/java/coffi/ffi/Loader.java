@@ -10,6 +10,8 @@ import java.lang.foreign.*;
  */
 public class Loader {
 
+    static SymbolLookup lookup = Linker.nativeLinker().defaultLookup().or(SymbolLookup.loaderLookup());
+
     /**
      * Loads a library from a given absolute file path.
      *
@@ -37,7 +39,6 @@ public class Loader {
      * @param symbol The name of the symbol to load from a library.
      */
     public static MemorySegment findSymbol(String symbol) {
-        return Linker.nativeLinker().defaultLookup().lookup(symbol)
-            .orElseGet(() -> SymbolLookup.loaderLookup().lookup(symbol).orElse(null));
+        return lookup.find(symbol).orElse(null);
     }
 }
