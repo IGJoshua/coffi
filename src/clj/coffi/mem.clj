@@ -23,11 +23,11 @@
    [clojure.spec.alpha :as s])
   (:import
    (java.lang.foreign
-    Addressable
-    MemoryAddress
+    AddressLayout
+    Arena
     MemoryLayout
     MemorySegment
-    MemorySession
+    MemorySegment$Scope
     SegmentAllocator
     ValueLayout
     ValueLayout$OfByte
@@ -36,50 +36,79 @@
     ValueLayout$OfLong
     ValueLayout$OfChar
     ValueLayout$OfFloat
-    ValueLayout$OfDouble
-    ValueLayout$OfAddress)
+    ValueLayout$OfDouble)
    (java.lang.ref Cleaner)
    (java.nio ByteOrder)))
 
 (set! *warn-on-reflection* true)
 
-(defn stack-session
+(defn confined-arena
+  "Constructs a new arena for use only in this thread.
+
+  The memory allocated within this arena is cheap to allocate, like a native
+  stack.
+
+  The memory allocated within this arena will be cleared once it is closed, so
+  it is usually a good idea to create it in a [[with-open]] clause."
+  (^Arena []
+   (Arena/ofConfined)))
+
+(defn ^:deprecated stack-session
   "Constructs a new session for use only in this thread.
 
   The memory allocated within this session is cheap to allocate, like a native
   stack."
-  (^MemorySession []
-   (MemorySession/openConfined))
-  (^MemorySession [^Cleaner cleaner]
-   (MemorySession/openConfined cleaner)))
+  (^Arena []
+   (confined-arena))
+  (^Arena [^Cleaner cleaner]
+   (assert false "Stack sessions with associated cleaners have been removed.")))
 
 (defn ^:deprecated stack-scope
   "Constructs a new scope for use only in this thread.
 
   The memory allocated within this scope is cheap to allocate, like a native
   stack."
-  ^MemorySession []
-  (stack-session))
+  ^Arena []
+  (confined-arena))
 
-(defn shared-session
+(defn shared-arena
+  "Constructs a new shared memory arena.
+
+  This arena can be shared across threads and memory allocated in it will only
+  be cleaned up once any thread accessing the arena closes it."
+  (^Arena []
+   (Arena/ofShared)))
+
+(defn ^:deprecated shared-session
   "Constructs a new shared memory session.
 
   This session can be shared across threads and memory allocated in it will only
   be cleaned up once every thread accessing the session closes it."
-  (^MemorySession []
-   (MemorySession/openShared))
-  (^MemorySession [^Cleaner cleaner]
-   (MemorySession/openShared cleaner)))
+  (^Arena []
+   (shared-arena))
+  (^Arena [^Cleaner cleaner]
+   (assert false "Shared sessions with associated cleaners have been removed.")))
 
 (defn ^:deprecated shared-scope
   "Constructs a new shared scope.
 
   This scope can be shared across threads and memory allocated in it will only
   be cleaned up once every thread accessing the scope closes it."
-  ^MemorySession []
-  (shared-session))
+  ^Arena []
+  (shared-arena))
 
-(defn connected-session
+(defn auto-arena
+  "Constructs a new memory arena that is managed by the garbage collector.
+
+  The arena may be shared across threads, and all resources created with it will
+  be cleaned up at the same time, when all references have been collected.
+
+  This type of arena cannot be closed, and therefore should not be created in
+  a [[with-open]] clause."
+  ^Arena []
+  (Arena/ofAuto))
+
+(defn ^:deprecated connected-session
   "Constructs a new memory session to reclaim all connected resources at once.
 
   The session may be shared across threads, and all resources created with it
@@ -87,8 +116,8 @@
 
   This type of session cannot be closed, and therefore should not be created in
   a [[with-open]] clause."
-  ^MemorySession []
-  (MemorySession/openImplicit))
+  ^Arena []
+  (auto-arena))
 
 (defn ^:deprecated connected-scope
   "Constructs a new scope to reclaim all connected resources at once.
@@ -98,18 +127,28 @@
 
   This type of scope cannot be closed, and therefore should not be created in
   a [[with-open]] clause."
-  ^MemorySession []
-  (connected-session))
+  ^Arena []
+  (auto-arena))
 
-(defn global-session
+(defn global-arena
+  "Constructs the global arena, which will never reclaim its resources.
+
+  This arena may be shared across threads, but is intended mainly in cases where
+  memory is allocated with [[alloc]] but is either never freed or whose
+  management is relinquished to a native library, such as when returned from a
+  callback."
+  ^Arena []
+  (Arena/global))
+
+(defn ^:deprecated global-session
   "Constructs the global session, which will never reclaim its resources.
 
   This session may be shared across threads, but is intended mainly in cases
   where memory is allocated with [[alloc]] but is either never freed or whose
   management is relinquished to a native library, such as when returned from a
   callback."
-  ^MemorySession []
-  (MemorySession/global))
+  ^Arena []
+  (global-arena))
 
 (defn ^:deprecated global-scope
   "Constructs the global scope, which will never reclaim its resources.
@@ -118,17 +157,17 @@
   memory is allocated with [[alloc]] but is either never freed or whose
   management is relinquished to a native library, such as when returned from a
   callback."
-  ^MemorySession []
-  (global-session))
+  ^Arena []
+  (global-arena))
 
-(defn session-allocator
+(defn ^:deprecated session-allocator
   "Constructs a segment allocator from the given `session`.
 
   This is primarily used when working with unwrapped downcall functions. When a
   downcall function returns a non-primitive type, it must be provided with an
   allocator."
-  ^SegmentAllocator [^MemorySession session]
-  (SegmentAllocator/newNativeArena session))
+  ^SegmentAllocator [^Arena session]
+  (assert false "Segment allocators can no longer be constructed from sessions."))
 
 (defn ^:deprecated scope-allocator
   "Constructs a segment allocator from the given `scope`.
@@ -136,26 +175,26 @@
   This is primarily used when working with unwrapped downcall functions. When a
   downcall function returns a non-primitive type, it must be provided with an
   allocator."
-  ^SegmentAllocator [^MemorySession scope]
-  (session-allocator scope))
+  ^SegmentAllocator [^Arena scope]
+  (assert false "Segment allocators can no longer be constructed from scopes."))
 
-(defn segment-session
+(defn ^:deprecated segment-session
   "Gets the memory session used to construct the `segment`."
-  ^MemorySession [segment]
-  (.session ^MemorySegment segment))
+  ^Arena [^MemorySegment segment]
+  (assert false "Segment sessions no longer provide linkes to the arenas that allocated them."))
 
-(defn ^:deprecated segment-scope
-  "Gets the scope used to construct the `segment`."
-  ^MemorySession [segment]
-  (segment-session segment))
+(defn segment-scope
+  "Gets the scope associated with the `segment`."
+  ^MemorySegment$Scope [segment]
+  (.scope ^MemorySegment segment))
 
 (defn alloc
   "Allocates `size` bytes.
 
-  If a `session` is provided, the allocation will be reclaimed when it is closed."
-  (^MemorySegment [size] (alloc size (connected-session)))
-  (^MemorySegment [size session] (MemorySegment/allocateNative (long size) ^MemorySession session))
-  (^MemorySegment [size alignment session] (MemorySegment/allocateNative (long size) (long alignment) ^MemorySession session)))
+  If an `arena` is provided, the allocation will be reclaimed when it is closed."
+  (^MemorySegment [size] (alloc size (auto-arena)))
+  (^MemorySegment [size arena] (.allocate ^Arena arena (long size)))
+  (^MemorySegment [size alignment arena] (.allocate ^Arena arena (long size) (long alignment))))
 
 (defn alloc-with
   "Allocates `size` bytes using the `allocator`."
@@ -164,7 +203,7 @@
   (^MemorySegment [allocator size alignment]
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
-(defmacro with-acquired
+(defmacro ^:deprecated with-acquired
   "Acquires one or more `sessions` until the `body` completes.
 
   This is only necessary to do on shared sessions, however if you are operating
@@ -172,17 +211,7 @@
   interacts with it wrapped in this."
   {:style/indent 1}
   [sessions & body]
-  (if (seq sessions)
-    `(let [session# ~(first sessions)
-           res# (volatile! ::invalid-value)]
-       (.whileAlive
-        ^MemorySession session#
-        (^:once fn* []
-         (vreset! res#
-                  (with-acquired [~@(rest sessions)]
-                    ~@body))))
-       @res#)
-    `(do ~@body)))
+  (assert false "Support was removed for keeping a shared arena open."))
 (s/fdef with-acquired
   :args (s/cat :sessions any?
                :body (s/* any?)))
@@ -191,20 +220,20 @@
   "Gets the address of a given segment.
 
   This value can be used as an argument to functions which take a pointer."
-  ^MemoryAddress [addressable]
-  (.address ^Addressable addressable))
+  ^long [addressable]
+  (.address ^MemorySegment addressable))
 
 (defn null?
   "Checks if a memory address is null."
   [addr]
-  (or (.equals (MemoryAddress/NULL) addr) (not addr)))
+  (or (.equals (MemorySegment/NULL) addr) (not addr)))
 
 (defn address?
   "Checks if an object is a memory address.
 
   `nil` is considered an address."
   [addr]
-  (or (nil? addr) (instance? MemoryAddress addr)))
+  (or (nil? addr) (instance? MemorySegment addr)))
 
 (defn slice
   "Get a slice over the `segment` with the given `offset`."
@@ -213,24 +242,28 @@
   (^MemorySegment [segment offset size]
    (.asSlice ^MemorySegment segment (long offset) (long size))))
 
-(defn slice-into
+(defn ^:deprecated slice-into
   "Get a slice into the `segment` starting at the `address`."
   (^MemorySegment [address segment]
-   (.asSlice ^MemorySegment segment ^MemoryAddress address))
+   (.asSlice ^MemorySegment segment (address-of address)))
   (^MemorySegment [address segment size]
-   (.asSlice ^MemorySegment segment ^MemoryAddress address (long size))))
+   (.asSlice ^MemorySegment segment (address-of address) (long size))))
 
-(defn with-offset
+(defn ^:deprecated with-offset
   "Get a new address `offset` from the old `address`."
-  ^MemoryAddress [address offset]
-  (.addOffset ^MemoryAddress address (long offset)))
+  ^MemorySegment [address offset]
+  (slice address offset))
 
+;; TODO(Joshua): Figure out if this can be replicated with [[Cleaner]]
+#_
 (defn add-close-action!
   "Adds a 0-arity function to be run when the `session` closes."
   [^MemorySession session ^Runnable action]
   (.addCloseAction session action)
   nil)
 
+;; TODO(Joshua): Determine if this needs to exist at all
+#_
 (defn as-segment
   "Dereferences an `address` into a memory segment associated with the `session`."
   (^MemorySegment [^MemoryAddress address size]
@@ -243,9 +276,7 @@
 
   Returns `dest`."
   ^MemorySegment [^MemorySegment dest ^MemorySegment src]
-  (with-acquired [(segment-session src) (segment-session dest)]
-    (.copyFrom dest src)
-    dest))
+  (.copyFrom dest src))
 
 (defn clone-segment
   "Clones the content of `segment` into a new segment of the same size."
@@ -721,12 +752,12 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfAddress pointer-layout 0 ^Addressable value#)))
+         (.set ^MemorySegment segment# ^ValueLayout$OfAddress pointer-layout 0 ^MemorySegment value#)))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfAddress pointer-layout offset# ^Addressable value#))))}
+         (.set ^MemorySegment segment# ^ValueLayout$OfAddress pointer-layout offset# ^MemorySegment value#))))}
   (^MemoryAddress [^MemorySegment segment ^MemoryAddress value]
    (.set segment ^ValueLayout$OfAddress pointer-layout 0 value))
   (^MemoryAddress [^MemorySegment segment ^long offset ^MemoryAddress value]
