@@ -24,7 +24,7 @@
                        (pos? r) (conj [::padding [::mem/padding (- align r)]])
                        :always (conj field))
                      fields))
-            (let [strongest-alignment (mem/align-of struct-spec)
+            (let [strongest-alignment (reduce max (map (comp mem/align-of second) (nth struct-spec 1)))
                   r (rem offset strongest-alignment)]
               (cond-> aligned-fields
                 (pos? r) (conj [::padding [::mem/padding (- strongest-alignment r)]])))))]

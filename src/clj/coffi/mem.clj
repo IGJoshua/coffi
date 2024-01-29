@@ -13,11 +13,7 @@
   struct, or array, then [[c-layout]] must be overriden to return the native
   layout of the type, and [[serialize-into]] and [[deserialize-from]] should be
   overriden to allow marshaling values of the type into and out of memory
-  segments.
-
-  When writing code that manipulates a segment, it's best practice to
-  use [[with-acquired]] on the [[segment-session]] in order to ensure it won't be
-  released during its manipulation."
+  segments."
   (:require
    [clojure.set :as set]
    [clojure.spec.alpha :as s])
@@ -160,6 +156,17 @@
   ^Arena []
   (global-arena))
 
+(defn arena-allocator
+  "Constructs a [[SegmentAllocator]] from the given [[Arena]].
+
+  This is primarily used when working with unwrapped downcall functions. When a
+  downcall function returns a non-primitive type, it must be provided with an
+  allocator."
+  ^SegmentAllocator [^Arena scope]
+  (reify SegmentAllocator
+    (^MemorySegment allocate [_this ^long byte-size ^long byte-alignment]
+      (.allocate scope ^long byte-size ^long byte-alignment))))
+
 (defn ^:deprecated session-allocator
   "Constructs a segment allocator from the given `session`.
 
@@ -167,7 +174,7 @@
   downcall function returns a non-primitive type, it must be provided with an
   allocator."
   ^SegmentAllocator [^Arena session]
-  (assert false "Segment allocators can no longer be constructed from sessions."))
+  (arena-allocator session))
 
 (defn ^:deprecated scope-allocator
   "Constructs a segment allocator from the given `scope`.
@@ -176,7 +183,7 @@
   downcall function returns a non-primitive type, it must be provided with an
   allocator."
   ^SegmentAllocator [^Arena scope]
-  (assert false "Segment allocators can no longer be constructed from scopes."))
+  (arena-allocator scope))
 
 (defn ^:deprecated segment-session
   "Gets the memory session used to construct the `segment`."
@@ -282,8 +289,7 @@
   "Clones the content of `segment` into a new segment of the same size."
   (^MemorySegment [segment] (clone-segment segment (connected-session)))
   (^MemorySegment [^MemorySegment segment session]
-   (with-acquired [(segment-session segment) session]
-     (copy-segment ^MemorySegment (alloc (.byteSize segment) session) segment))))
+   (copy-segment ^MemorySegment (alloc (.byteSize segment) session) segment)))
 
 (defn slice-segments
   "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
@@ -338,7 +344,7 @@
   "The [[MemoryLayout]] for a c-sized double in [[native-endian]] [[ByteOrder]]."
   ValueLayout/JAVA_DOUBLE)
 
-(def ^ValueLayout$OfAddress pointer-layout
+(def ^AddressLayout pointer-layout
   "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
   ValueLayout/ADDRESS)
 
@@ -548,20 +554,20 @@
    (.get segment (.withOrder ^ValueLayout$OfDouble double-layout byte-order) offset)))
 
 (defn read-address
-  "Reads a [[MemoryAddress]] from the `segment`, at an optional `offset`."
+  "Reads an address from the `segment`, at an optional `offset`, wrapped in a [[MemorySegment]]."
   {:inline
    (fn read-address-inline
      ([segment]
       `(let [segment# ~segment]
-         (.get ^MemorySegment segment# ^ValueLayout$OfAddress pointer-layout 0)))
+         (.get ^MemorySegment segment# ^AddressLayout pointer-layout 0)))
      ([segment offset]
       `(let [segment# ~segment
              offset# ~offset]
-         (.get ^MemorySegment segment# ^ValueLayout$OfAddress pointer-layout offset#))))}
-  (^MemoryAddress [^MemorySegment segment]
-   (.get segment ^ValueLayout$OfAddress pointer-layout 0))
-  (^MemoryAddress [^MemorySegment segment ^long offset]
-   (.get segment ^ValueLayout$OfAddress pointer-layout offset)))
+         (.get ^MemorySegment segment# ^AddressLayout pointer-layout offset#))))}
+  (^MemorySegment [^MemorySegment segment]
+   (.get segment ^AddressLayout pointer-layout 0))
+  (^MemorySegment [^MemorySegment segment ^long offset]
+   (.get segment ^AddressLayout pointer-layout offset)))
 
 (defn write-byte
   "Writes a [[byte]] to the `segment`, at an optional `offset`."
@@ -746,22 +752,22 @@
    (.set segment (.withOrder ^ValueLayout$OfDouble double-layout byte-order) offset value)))
 
 (defn write-address
-  "Writes a [[MemoryAddress]] to the `segment`, at an optional `offset`."
+  "Writes the address of the [[MemorySegment]] `value` to the `segment`, at an optional `offset`."
   {:inline
    (fn write-address-inline
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfAddress pointer-layout 0 ^MemorySegment value#)))
+         (.set ^MemorySegment segment# ^AddressLayout pointer-layout 0 ^MemorySegment value#)))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfAddress pointer-layout offset# ^MemorySegment value#))))}
-  (^MemoryAddress [^MemorySegment segment ^MemoryAddress value]
-   (.set segment ^ValueLayout$OfAddress pointer-layout 0 value))
-  (^MemoryAddress [^MemorySegment segment ^long offset ^MemoryAddress value]
-   (.set segment ^ValueLayout$OfAddress pointer-layout offset value)))
+         (.set ^MemorySegment segment# ^AddressLayout pointer-layout offset# ^MemorySegment value#))))}
+  ([^MemorySegment segment ^MemorySegment value]
+   (.set segment ^AddressLayout pointer-layout 0 value))
+  ([^MemorySegment segment ^long offset ^MemorySegment value]
+   (.set segment ^AddressLayout pointer-layout offset value)))
 
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
@@ -898,7 +904,7 @@
    ::char Byte/TYPE
    ::float Float/TYPE
    ::double Double/TYPE
-   ::pointer MemoryAddress
+   ::pointer MemorySegment
    ::void Void/TYPE})
 
 (defn java-layout
@@ -925,8 +931,8 @@
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
-  (^MemorySegment [type] (alloc-instance type (connected-session)))
-  (^MemorySegment [type session] (MemorySegment/allocateNative ^long (size-of type) ^MemorySession session)))
+  (^MemorySegment [type] (alloc-instance type (auto-arena)))
+  (^MemorySegment [type arena] (.allocate ^Arena arena ^long (size-of type) ^long (align-of type))))
 
 (declare serialize serialize-into)
 
@@ -980,12 +986,11 @@
   [obj type session]
   (if-not (null? obj)
     (if (sequential? type)
-      (with-acquired [session]
-        (let [segment (alloc-instance (second type) session)]
-          (serialize-into obj (second type) segment session)
-          (address-of segment)))
+      (let [segment (alloc-instance (second type) session)]
+        (serialize-into obj (second type) segment session)
+        (address-of segment))
       obj)
-    (MemoryAddress/NULL)))
+    (MemorySegment/NULL)))
 
 (defmethod serialize* ::void
   [_obj _type _session]
@@ -1001,10 +1006,7 @@
   override [[c-layout]].
 
   For any other type, this will serialize it as [[serialize*]] before writing
-  the result value into the `segment`.
-
-  Implementations of this should be inside a [[with-acquired]] block for the
-  `session` if they perform multiple memory operations."
+  the result value into the `segment`."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [obj type segment session]
@@ -1013,8 +1015,7 @@
 (defmethod serialize-into :default
   [obj type segment session]
   (if-some [prim-layout (primitive-type type)]
-    (with-acquired [(segment-session segment) session]
-      (serialize-into (serialize* obj type session) prim-layout segment session))
+    (serialize-into (serialize* obj type session) prim-layout segment session)
     (throw (ex-info "Attempted to serialize an object to a type that has not been overridden"
                     {:type type
                      :object obj}))))
@@ -1059,11 +1060,10 @@
 
 (defmethod serialize-into ::pointer
   [obj type segment session]
-  (with-acquired [(segment-session segment) session]
-    (write-address
-     segment
-     (cond-> obj
-       (sequential? type) (serialize* type session)))))
+  (write-address
+   segment
+   (cond-> obj
+     (sequential? type) (serialize* type session))))
 
 (defn serialize
   "Serializes an arbitrary type.
@@ -1085,10 +1085,7 @@
   "Deserializes the given segment into a Clojure data structure.
 
   For types that serialize to primitives, a default implementation will
-  deserialize the primitive before calling [[deserialize*]].
-
-  Implementations of this should be inside a [[with-acquired]] block for the the
-  `segment`'s session if they perform multiple memory operations."
+  deserialize the primitive before calling [[deserialize*]]."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [segment type]
@@ -1144,9 +1141,8 @@
 
 (defmethod deserialize-from ::pointer
   [segment type]
-  (with-acquired [(segment-session segment)]
-    (cond-> (read-address segment)
-      (sequential? type) (deserialize* type))))
+  (cond-> (read-address segment)
+    (sequential? type) (deserialize* type)))
 
 (defmulti deserialize*
   "Deserializes a primitive object into a Clojure data structure.
@@ -1196,8 +1192,11 @@
   [addr type]
   (when-not (null? addr)
     (if (sequential? type)
-      (deserialize-from (as-segment addr (size-of (second type)))
-                        (second type))
+      (let [target-type (second type)]
+        (deserialize-from
+         (.reinterpret ^MemorySegment (read-address addr)
+                       ^long (size-of target-type))
+         target-type))
       addr)))
 
 (defmethod deserialize* ::void
@@ -1219,8 +1218,7 @@
 (defn seq-of
   "Constructs a lazy sequence of `type` elements deserialized from `segment`."
   [type segment]
-  (with-acquired [(segment-session segment)]
-    (map #(deserialize % type) (slice-segments segment (size-of type)))))
+  (map #(deserialize % type) (slice-segments segment (size-of type))))
 
 ;;; Raw composite types
 ;; TODO(Joshua): Ensure that all the raw values don't have anything happen on
@@ -1251,13 +1249,13 @@
 (defmethod serialize* ::c-string
   [obj _type session]
   (if obj
-    (address-of (.allocateUtf8String (session-allocator session) ^String obj))
-    (MemoryAddress/NULL)))
+    (address-of (.allocateUtf8String (arena-allocator session) ^String obj))
+    (MemorySegment/NULL)))
 
 (defmethod deserialize* ::c-string
   [addr _type]
   (when-not (null? addr)
-    (.getUtf8String ^MemoryAddress addr 0)))
+    (.getUtf8String (.reinterpret ^MemorySegment addr Integer/MAX_VALUE) 0)))
 
 ;;; Union types
 
@@ -1328,7 +1326,7 @@
 
 (defmethod c-layout ::padding
   [[_padding size]]
-  (MemoryLayout/paddingLayout (* 8 size)))
+  (MemoryLayout/paddingLayout size))
 
 (defmethod serialize-into ::padding
   [_obj [_padding _size] _segment _session]

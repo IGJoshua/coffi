@@ -14,10 +14,9 @@
     MethodHandles
     MethodType)
    (java.lang.foreign
-    Addressable
     Linker
+    Linker$Option
     FunctionDescriptor
-    MemoryAddress
     MemoryLayout
     MemorySegment
     SegmentAllocator)))
@@ -56,7 +55,8 @@
 (defn- downcall-handle
   "Gets the [[MethodHandle]] for the function at the `sym`."
   [sym function-descriptor]
-  (.downcallHandle (Linker/nativeLinker) sym function-descriptor))
+  (.downcallHandle (Linker/nativeLinker) sym function-descriptor
+                   (make-array Linker$Option 0)))
 
 (def ^:private load-instructions
   "Mapping from primitive types to the instruction used to load them onto the stack."
@@ -130,15 +130,6 @@
          [:invokevirtual (prim-classes prim-type) (unbox-fn-for-type prim-type) [prim]]]
         []))))
 
-(defn- coerce-addressable
-  "If the passed `type` is [[MemoryAddress]], returns [[Addressable]], otherwise returns `type`.
-
-  This is used to declare the return types of upcall stubs."
-  [type]
-  (if (= type MemoryAddress)
-    Addressable
-    type))
-
 (defn- downcall-class
   "Class definition for an implementation of [[IFn]] which calls a closed over
   method handle without reflection, unboxing primitives when needed."
@@ -175,7 +166,7 @@
                        args)
                       [:invokevirtual MethodHandle "invokeExact"
                        (cond->>
-                           (conj (mapv (comp coerce-addressable insn-layout) args)
+                           (conj (mapv insn-layout args)
                                  (insn-layout ret))
                          (not (mem/primitive-type ret)) (cons SegmentAllocator))]
                       (to-object-asm ret)
@@ -343,7 +334,7 @@
                         ;; taking restargs, and so the downcall must be applied
                         (-> `(~@(when (symbol? args) [`apply])
                               ~downcall-sym
-                              ~@(when allocator? [`(mem/session-allocator ~session)])
+                              ~@(when allocator? [`(mem/arena-allocator ~session)])
                               ~@(if (symbol? args)
                                   [args]
                                   args))
@@ -410,7 +401,7 @@
     (fn native-fn [& args]
       (with-open [session (mem/stack-session)]
         (mem/deserialize-from
-         (apply downcall (mem/session-allocator session)
+         (apply downcall (mem/arena-allocator session)
                 (map #(mem/serialize %1 %2 session) args arg-types))
          ret-type)))))
 
@@ -435,6 +426,7 @@
   If your `args` and `ret` are constants, then it is more efficient to
   call [[make-downcall]] followed by [[make-serde-wrapper]] because the latter
   has an inline definition which will result in less overhead from serdes."
+  ;; TODO(Joshua): Add an inline arity for when the args and ret types are constant
   [symbol args ret]
   (-> symbol
       (make-downcall args ret)
@@ -489,7 +481,7 @@
              {:name :upcall
               :flags #{:public}
               :desc (conj (mapv insn-layout arg-types)
-                          (coerce-addressable (insn-layout ret-type)))
+                          (insn-layout ret-type))
               :emit [[:aload 0]
                      [:getfield :this "upcall_ifn" IFn]
                      (loop [types arg-types
@@ -505,7 +497,7 @@
                                     inc)))
                          acc))
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
-                     (to-prim-asm (coerce-addressable ret-type))
+                     (to-prim-asm ret-type)
                      [(return-for-type ret-type :areturn)]]}]})
 
 (defn- upcall
@@ -518,7 +510,7 @@
   ([args] (method-type args ::mem/void))
   ([args ret]
    (MethodType/methodType
-    ^Class (coerce-addressable (mem/java-layout ret))
+    ^Class (mem/java-layout ret)
     ^"[Ljava.lang.Class;" (into-array Class (map mem/java-layout args)))))
 
 (defn- upcall-handle
@@ -545,21 +537,22 @@
      (mem/global-session))))
 
 (defmethod mem/serialize* ::fn
-  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] session]
+  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] arena]
+  (println "Attempting to serialize function of type" (str ret-type "(*)(" (clojure.string/join "," arg-types) ")"))
   (.upcallStub
    (Linker/nativeLinker)
-   (cond-> f
-     (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
-     :always (upcall-handle arg-types ret-type))
-   (function-descriptor arg-types ret-type)
-   session))
+   ^MethodHandle (cond-> f
+                   (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
+                   :always (upcall-handle arg-types ret-type))
+   ^FunctionDescriptor (function-descriptor arg-types ret-type)
+   ^Arena arena
+   (make-array Linker$Option 0)))
 
 (defmethod mem/deserialize* ::fn
   [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
   (when-not (mem/null? addr)
     (vary-meta
-      (-> addr
-          (MemorySegment/ofAddress mem/pointer-size (mem/connected-session))
+      (-> ^MemorySegment addr
           (downcall-handle (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
           (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
@@ -640,9 +633,8 @@
 
   See [[freset!]], [[fswap!]]."
   [symbol-or-addr type]
-  (StaticVariable. (mem/as-segment (.address (ensure-symbol symbol-or-addr))
-                                   (mem/size-of type)
-                                   (mem/global-session))
+  (StaticVariable. (.reinterpret ^MemorySegment (ensure-symbol symbol-or-addr)
+                                 ^long (mem/size-of type))
                    type (atom nil)))
 
 (defmacro defvar
