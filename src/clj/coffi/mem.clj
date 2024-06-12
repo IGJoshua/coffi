@@ -1247,15 +1247,15 @@
   ::pointer)
 
 (defmethod serialize* ::c-string
-  [obj _type session]
+  [obj _type ^Arena session]
   (if obj
-    (address-of (.allocateUtf8String (arena-allocator session) ^String obj))
+    (address-of (.allocateFrom session ^String obj))
     (MemorySegment/NULL)))
 
 (defmethod deserialize* ::c-string
   [addr _type]
   (when-not (null? addr)
-    (.getUtf8String (.reinterpret ^MemorySegment addr Integer/MAX_VALUE) 0)))
+    (.getString (.reinterpret ^MemorySegment addr Integer/MAX_VALUE) 0)))
 
 ;;; Union types
 
