@@ -26,9 +26,17 @@ CString upcall_test(StringFactory fun) {
     return fun();
 }
 
+int upcall_test2(int (*f)(void)) {
+    return f();
+}
+
 int counter = 0;
 
 static char* responses[] = { "Hello, world!", "Goodbye friend.", "co'oi prenu" };
+
+char* upcall_test_int_fn_string_ret(int (*f)(void)) {
+    return responses[f()];
+}
 
 CString get_string1(void) {
     return responses[counter++ % 3];

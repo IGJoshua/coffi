@@ -134,3 +134,19 @@
   [opts]
   (binding [*ns* (find-ns 'build)]
     (run! (call-optionally-with opts) (:tasks opts))))
+
+
+(def prep-all ['compile-java 'compile-test-library])
+
+(comment
+
+  (compile-java)
+
+  (compile-test-library)
+
+  (run-tasks prep-all)
+
+  (compile-test-library)
+
+)
+

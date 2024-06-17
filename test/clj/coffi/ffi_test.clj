@@ -32,6 +32,16 @@
             (fn [] "hello"))
            "hello")))
 
+(t/deftest can-make-upcall2
+  (t/is (= ((ffi/cfn "upcall_test2" [[::ffi/fn [] ::mem/int]] ::mem/int)
+            (fn [] 6))
+           5)))
+
+(t/deftest can-make-upcall-int-fn-string-ret
+  (t/is (= ((ffi/cfn "upcall_test_int_fn_string_ret" [[::ffi/fn [] ::mem/int]] ::mem/c-string)
+            (fn [] 2))
+           "co'oi prenu")))
+
 (mem/defalias ::alignment-test
   (layout/with-c-layout
     [::mem/struct
