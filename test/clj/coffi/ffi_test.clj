@@ -29,12 +29,12 @@
 
 (t/deftest can-make-upcall
   (t/is (= ((ffi/cfn "upcall_test" [[::ffi/fn [] ::mem/c-string]] ::mem/c-string)
-            (fn [] "hello"))
-           "hello")))
+            (fn [] "hello from clojure from c from clojure"))
+           "hello from clojure from c from clojure")))
 
 (t/deftest can-make-upcall2
   (t/is (= ((ffi/cfn "upcall_test2" [[::ffi/fn [] ::mem/int]] ::mem/int)
-            (fn [] 6))
+            (fn [] 5))
            5)))
 
 (t/deftest can-make-upcall-int-fn-string-ret
