@@ -135,6 +135,7 @@
   method handle without reflection, unboxing primitives when needed."
   [args ret]
   {:flags #{:public :final}
+   :version 8
     :super clojure.lang.AFunction
     :fields [{:name "downcall_handle"
               :type MethodHandle
@@ -466,6 +467,7 @@
   boxes any primitives passed to it and calls a closed over [[IFn]]."
   [arg-types ret-type]
   {:flags #{:public :final}
+   :version 8
    :fields [{:name "upcall_ifn"
              :type IFn
              :flags #{:final}}]
@@ -497,6 +499,10 @@
                                     inc)))
                          acc))
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
+                     (if (identical? ::mem/pointer (mem/primitive-type ret-type))
+                       [[:checkcast Long]
+                        [:invokevirtual Long "longValue" [:long]]
+                        [:invokestatic MemorySegment "ofAddress" [:long MemorySegment] true]])
                      (to-prim-asm ret-type)
                      [(return-for-type ret-type :areturn)]]}]})
 
@@ -538,7 +544,6 @@
 
 (defmethod mem/serialize* ::fn
   [f [_fn arg-types ret-type & {:keys [raw-fn?]}] arena]
-  (println "Attempting to serialize function of type" (str ret-type "(*)(" (clojure.string/join "," arg-types) ")"))
   (.upcallStub
    (Linker/nativeLinker)
    ^MethodHandle (cond-> f
