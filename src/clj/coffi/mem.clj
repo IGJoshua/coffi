@@ -269,8 +269,6 @@
   (.addCloseAction session action)
   nil)
 
-;; TODO(Joshua): Determine if this needs to exist at all
-#_
 (defn as-segment
   "Dereferences an `address` into a memory segment associated with the `session`."
   (^MemorySegment [^MemoryAddress address size]
