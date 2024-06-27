@@ -271,10 +271,10 @@
 
 (defn as-segment
   "Dereferences an `address` into a memory segment associated with the `session`."
-  (^MemorySegment [^MemoryAddress address size]
-   (MemorySegment/ofAddress address (long size) (connected-session)))
-  (^MemorySegment [^MemoryAddress address size session]
-   (MemorySegment/ofAddress address (long size) session)))
+  (^MemorySegment [^MemorySegment address size]
+   (.reinterpret (MemorySegment/ofAddress address) (long size) (connected-session) nil))
+  (^MemorySegment [^MemorySegment address size session]
+   (.reinterpret (MemorySegment/ofAddress address) (long size) session nil)))
 
 (defn copy-segment
   "Copies the content to `dest` from `src`.
