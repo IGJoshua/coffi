@@ -92,7 +92,7 @@
   "Generates a `coffi.jar` file in the `target/` directory.
   This is a thin jar including only the sources."
   [opts]
-  (write-pom opts)
+  (write-pom)
   (compile-java)
   (copy-resources)
   (when-not (exists? target-dir jar-file)
