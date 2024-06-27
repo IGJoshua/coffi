@@ -36,8 +36,9 @@
 
 (defn clean
   "Deletes the `target/` directory."
-  []
-  (b/delete {:path target-dir}))
+  [opts]
+  (b/delete {:path target-dir})
+  opts)
 
 (defn- exists?
   "Checks if a file composed of the given path segments exists."
@@ -46,17 +47,18 @@
 
 (defn compile-java
   "Compiles java classes required for interop."
-  []
+  [opts]
   (.mkdirs (io/file class-dir))
   (b/process {:command-args ["javac" "--enable-preview"
                              "src/java/coffi/ffi/Loader.java"
                              "-d" class-dir
                              "-target" "22"
-                             "-source" "22"]}))
+                             "-source" "22"]})
+  opts)
 
 (defn- write-pom
   "Writes a pom file if one does not already exist."
-  []
+  [opts]
   (when-not (exists? (b/pom-path {:lib lib-coord
                                   :class-dir class-dir}))
     (b/write-pom {:basis basis
@@ -70,40 +72,44 @@
                   :src-dirs source-dirs})
     (b/copy-file {:src (b/pom-path {:lib lib-coord
                                     :class-dir class-dir})
-                  :target (str target-dir "pom.xml")})))
+                  :target (str target-dir "pom.xml")})
+    opts))
 
 (defn pom
   "Generates a `pom.xml` file in the `target/classes/META-INF` directory.
   If `:pom/output-path` is specified, copies the resulting pom file to it."
   [opts]
-  (write-pom)
+  (write-pom opts)
   (when-some [path (:output-path opts)]
     (b/copy-file {:src (b/pom-path {:lib lib-coord
                                     :class-dir class-dir})
-                  :target path})))
+                  :target path}))
+  opts)
 
 (defn- copy-resources
   "Copies the resources from the [[resource-dirs]] to the [[class-dir]]."
-  []
+  [opts]
   (b/copy-dir {:target-dir class-dir
-               :src-dirs resource-dirs}))
+               :src-dirs resource-dirs})
+  opts)
 
 (defn jar
   "Generates a `coffi.jar` file in the `target/` directory.
   This is a thin jar including only the sources."
   [opts]
-  (write-pom)
-  (compile-java)
-  (copy-resources)
+  (write-pom opts)
+  (compile-java opts)
+  (copy-resources opts)
   (when-not (exists? target-dir jar-file)
     (b/copy-dir {:target-dir class-dir
                  :src-dirs source-dirs})
     (b/jar {:class-dir class-dir
-            :jar-file jar-file})))
+            :jar-file jar-file}))
+  opts)
 
 (defn compile-test-library
   "Compiles the C test code for running the tests."
-  []
+  [opts]
   (let [c-files (->> c-test-dirs
                      (map io/file)
                      (mapcat file-seq)
@@ -112,20 +118,8 @@
     (.mkdirs (io/file target-dir))
     (b/process {:command-args (concat ["clang" "-fpic" "-shared"]
                                       c-files
-                                      ["-o" test-c-library])})))
-
-(defn- arities [fn-var] (:arglists (meta fn-var)))
-(defn- niladic-only? [fn-var]
-  (let [ari (arities fn-var)
-        one-arity? (= 1 (count ari))
-        niladic? (= 0 (count (first ari)))]
-    (and one-arity? niladic?)))
-(defn- call-optionally [fn-sym arg]
-  (let [fn-var (resolve fn-sym)]
-    (if (niladic-only? fn-var)
-     (fn-var)
-     (fn-var arg))))
-(defn- call-optionally-with [arg] #(call-optionally % arg))
+                                      ["-o" test-c-library])})
+    opts))
 
 (defn run-tasks
   "Runs a series of tasks with a set of options.
@@ -133,20 +127,8 @@
   the option keys are passed unmodified."
   [opts]
   (binding [*ns* (find-ns 'build)]
-    (run! (call-optionally-with opts) (:tasks opts))))
-
-
-(def prep-all ['compile-java 'compile-test-library])
-
-(comment
-
-  (compile-java)
-
-  (compile-test-library)
-
-  (run-tasks prep-all)
-
-  (compile-test-library)
-
-)
-
+    (reduce
+     (fn [opts task]
+       ((resolve task) opts))
+     opts
+     (:tasks opts))))
