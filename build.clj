@@ -72,8 +72,8 @@
                   :src-dirs source-dirs})
     (b/copy-file {:src (b/pom-path {:lib lib-coord
                                     :class-dir class-dir})
-                  :target (str target-dir "pom.xml")})
-    opts))
+                  :target (str target-dir "pom.xml")}))
+  opts)
 
 (defn pom
   "Generates a `pom.xml` file in the `target/classes/META-INF` directory.
@@ -118,8 +118,8 @@
     (.mkdirs (io/file target-dir))
     (b/process {:command-args (concat ["clang" "-fpic" "-shared"]
                                       c-files
-                                      ["-o" test-c-library])})
-    opts))
+                                      ["-o" test-c-library])}))
+  opts)
 
 (defn run-tasks
   "Runs a series of tasks with a set of options.
