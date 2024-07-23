@@ -59,3 +59,12 @@
   (ffi/freset! (ffi/static-variable "counter" ::mem/int) 1)
   (t/is (= ((ffi/cfn "get_string1" [] ::mem/c-string))
            "Goodbye friend.")))
+
+(t/deftest can-call-with-trailing-string-arg
+  (t/is
+   (=
+    ((ffi/cfn "test_call_with_trailing_string_arg"
+              [::mem/int ::mem/int ::mem/c-string]
+              ::mem/void)
+     1 2 "third arg")
+           )))
