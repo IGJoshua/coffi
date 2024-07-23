@@ -66,5 +66,5 @@
     ((ffi/cfn "test_call_with_trailing_string_arg"
               [::mem/int ::mem/int ::mem/c-string]
               ::mem/void)
-     1 2 "third arg")
-           )))
+     1 2 "third arg"))))
+

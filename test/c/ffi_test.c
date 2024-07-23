@@ -73,7 +73,8 @@ AlignmentTest get_struct() {
 }
 
 void test_call_with_trailing_string_arg(int a, int b, char* text) {
-  printf("call of `test_call_with_trailing_string_arg` with a=%i b=%i text='%s'",a,b,text);
+  printf("call of `test_call_with_trailing_string_arg` with a=%i b=%i text='%s'",1,2,text);
+  printf("\r                                                                          ");
   return;
 }
 
