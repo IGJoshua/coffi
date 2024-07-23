@@ -1247,7 +1247,7 @@
 (defmethod serialize* ::c-string
   [obj _type ^Arena session]
   (if obj
-    (address-of (.allocateFrom session ^String obj))
+    (.allocateFrom session ^String obj)
     (MemorySegment/NULL)))
 
 (defmethod deserialize* ::c-string

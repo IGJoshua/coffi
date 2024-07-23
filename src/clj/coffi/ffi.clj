@@ -499,10 +499,6 @@
                                     inc)))
                          acc))
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
-                     (if (identical? ::mem/pointer (mem/primitive-type ret-type))
-                       [[:checkcast Long]
-                        [:invokevirtual Long "longValue" [:long]]
-                        [:invokestatic MemorySegment "ofAddress" [:long MemorySegment] true]])
                      (to-prim-asm ret-type)
                      [(return-for-type ret-type :areturn)]]}]})
 
