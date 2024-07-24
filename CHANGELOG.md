@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Added
+- Support for JDK 22
+
+### Fixed
+- Prep step when using coffi as a dependency wouldn't re-run if it failed during execution, e.g. when using the incorrect java version
 
 ## [0.6.409] - 2023-03-31
 ### Added
