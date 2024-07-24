@@ -39,42 +39,42 @@ char* upcall_test_int_fn_string_ret(int (*f)(void)) {
 }
 
 CString get_string1(void) {
-  return responses[counter++ % 3];
+    return responses[counter++ % 3];
 }
 
 CString get_string2(void) {
-  return "Alternate string";
+    return "Alternate string";
 }
 
 StringFactory get_downcall(int whichString) {
-  switch (whichString % 2) {
-  case 0:
-    return get_string1;
-  case 1:
-    return get_string2;
-  default:
-    return 0;
-  }
+    switch (whichString % 2) {
+    case 0:
+        return get_string1;
+    case 1:
+        return get_string2;
+    default:
+        return 0;
+    }
 }
 
 typedef struct alignment_test {
-  char a;
-  double x;
-  float y;
+    char a;
+    double x;
+    float y;
 } AlignmentTest;
 
 AlignmentTest get_struct() {
-  AlignmentTest ret = {};
-  ret.a = 'x';
-  ret.x = 3.14;
-  ret.y = 42.0;
+    AlignmentTest ret = {};
+    ret.a = 'x';
+    ret.x = 3.14;
+    ret.y = 42.0;
 
-  return ret;
+    return ret;
 }
 
 void test_call_with_trailing_string_arg(int a, int b, char* text) {
-  printf("call of `test_call_with_trailing_string_arg` with a=%i b=%i text='%s'",1,2,text);
-  printf("\r                                                                          ");
-  return;
+    printf("call of `test_call_with_trailing_string_arg` with a=%i b=%i text='%s'",1,2,text);
+    printf("\r                                                                          ");
+    return;
 }
 
