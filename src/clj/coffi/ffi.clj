@@ -135,6 +135,7 @@
   method handle without reflection, unboxing primitives when needed."
   [args ret]
   {:flags #{:public :final}
+   :version 8
     :super clojure.lang.AFunction
     :fields [{:name "downcall_handle"
               :type MethodHandle
@@ -291,7 +292,7 @@
 
                  ;; cast null pointers to something understood by panama
                  (#{::mem/pointer} type)
-                 `(or ~sym (MemoryAddress/NULL))
+                 `(or ~sym (MemorySegment/NULL))
 
                  (mem/primitive-type type)
                  `(mem/serialize* ~sym ~type-sym ~session)
@@ -466,6 +467,7 @@
   boxes any primitives passed to it and calls a closed over [[IFn]]."
   [arg-types ret-type]
   {:flags #{:public :final}
+   :version 8
    :fields [{:name "upcall_ifn"
              :type IFn
              :flags #{:final}}]
@@ -538,7 +540,6 @@
 
 (defmethod mem/serialize* ::fn
   [f [_fn arg-types ret-type & {:keys [raw-fn?]}] arena]
-  (println "Attempting to serialize function of type" (str ret-type "(*)(" (clojure.string/join "," arg-types) ")"))
   (.upcallStub
    (Linker/nativeLinker)
    ^MethodHandle (cond-> f

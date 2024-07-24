@@ -269,14 +269,12 @@
   (.addCloseAction session action)
   nil)
 
-;; TODO(Joshua): Determine if this needs to exist at all
-#_
 (defn as-segment
   "Dereferences an `address` into a memory segment associated with the `session`."
-  (^MemorySegment [^MemoryAddress address size]
-   (MemorySegment/ofAddress address (long size) (connected-session)))
-  (^MemorySegment [^MemoryAddress address size session]
-   (MemorySegment/ofAddress address (long size) session)))
+  (^MemorySegment [^MemorySegment address size]
+   (.reinterpret (MemorySegment/ofAddress address) (long size) (connected-session) nil))
+  (^MemorySegment [^MemorySegment address size session]
+   (.reinterpret (MemorySegment/ofAddress address) (long size) session nil)))
 
 (defn copy-segment
   "Copies the content to `dest` from `src`.
@@ -1247,15 +1245,15 @@
   ::pointer)
 
 (defmethod serialize* ::c-string
-  [obj _type session]
+  [obj _type ^Arena session]
   (if obj
-    (address-of (.allocateUtf8String (arena-allocator session) ^String obj))
+    (.allocateFrom session ^String obj)
     (MemorySegment/NULL)))
 
 (defmethod deserialize* ::c-string
   [addr _type]
   (when-not (null? addr)
-    (.getUtf8String (.reinterpret ^MemorySegment addr Integer/MAX_VALUE) 0)))
+    (.getString (.reinterpret ^MemorySegment addr Integer/MAX_VALUE) 0)))
 
 ;;; Union types
 
