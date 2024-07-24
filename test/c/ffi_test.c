@@ -26,9 +26,17 @@ CString upcall_test(StringFactory fun) {
     return fun();
 }
 
+int upcall_test2(int (*f)(void)) {
+    return f();
+}
+
 int counter = 0;
 
 static char* responses[] = { "Hello, world!", "Goodbye friend.", "co'oi prenu" };
+
+char* upcall_test_int_fn_string_ret(int (*f)(void)) {
+    return responses[f()];
+}
 
 CString get_string1(void) {
     return responses[counter++ % 3];
@@ -63,3 +71,10 @@ AlignmentTest get_struct() {
 
     return ret;
 }
+
+void test_call_with_trailing_string_arg(int a, int b, char* text) {
+    printf("call of `test_call_with_trailing_string_arg` with a=%i b=%i text='%s'",1,2,text);
+    printf("\r                                                                          ");
+    return;
+}
+
