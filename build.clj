@@ -49,11 +49,14 @@
   "Compiles java classes required for interop."
   [opts]
   (.mkdirs (io/file class-dir))
-  (b/process {:command-args ["javac" "--enable-preview"
-                             "src/java/coffi/ffi/Loader.java"
-                             "-d" class-dir
-                             "-target" "19"
-                             "-source" "19"]})
+  (let [compilation-result
+        (b/process {:command-args ["javac" "--enable-preview"
+                                   "src/java/coffi/ffi/Loader.java"
+                                   "-d" class-dir
+                                   "-target" "19"
+                                   "-source" "19"]})]
+    (when-not (zero? (:exit compilation-result))
+      (b/delete {:path class-dir})))
   opts)
 
 (defn- write-pom
