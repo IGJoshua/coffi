@@ -50,7 +50,7 @@
   [opts]
   (.mkdirs (io/file class-dir))
   (let [compilation-result
-        (b/process {:command-args ["javac" "--enable-preview"
+        (b/process {:command-args ["javac"
                                    "src/java/coffi/ffi/Loader.java"
                                    "-d" class-dir
                                    "-target" "22"
