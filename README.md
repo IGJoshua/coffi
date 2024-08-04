@@ -193,7 +193,7 @@ be found in `coffi.layout`.
     [[:a ::mem/char]
      [:x ::mem/float]]]))
 
-(mem/size-of ::needs-padding))
+(mem/size-of ::needs-padding)
 ;; => 8
 
 (mem/align-of ::needs-padding)
