@@ -1,5 +1,5 @@
 (ns coffi.mem
-  "Functions for managing native allocations, memory sessions, and (de)serialization.
+  "Functions for managing native allocations, memory arenas, and (de)serialization.
 
   For any new type to be implemented, three multimethods must be overriden, but
   which three depends on the native representation of the type.
@@ -34,6 +34,7 @@
     ValueLayout$OfFloat
     ValueLayout$OfDouble)
    (java.lang.ref Cleaner)
+   (java.util.function Consumer)
    (java.nio ByteOrder)))
 
 (set! *warn-on-reflection* true)
@@ -49,24 +50,6 @@
   (^Arena []
    (Arena/ofConfined)))
 
-(defn ^:deprecated stack-session
-  "Constructs a new session for use only in this thread.
-
-  The memory allocated within this session is cheap to allocate, like a native
-  stack."
-  (^Arena []
-   (confined-arena))
-  (^Arena [^Cleaner cleaner]
-   (assert false "Stack sessions with associated cleaners have been removed.")))
-
-(defn ^:deprecated stack-scope
-  "Constructs a new scope for use only in this thread.
-
-  The memory allocated within this scope is cheap to allocate, like a native
-  stack."
-  ^Arena []
-  (confined-arena))
-
 (defn shared-arena
   "Constructs a new shared memory arena.
 
@@ -74,24 +57,6 @@
   be cleaned up once any thread accessing the arena closes it."
   (^Arena []
    (Arena/ofShared)))
-
-(defn ^:deprecated shared-session
-  "Constructs a new shared memory session.
-
-  This session can be shared across threads and memory allocated in it will only
-  be cleaned up once every thread accessing the session closes it."
-  (^Arena []
-   (shared-arena))
-  (^Arena [^Cleaner cleaner]
-   (assert false "Shared sessions with associated cleaners have been removed.")))
-
-(defn ^:deprecated shared-scope
-  "Constructs a new shared scope.
-
-  This scope can be shared across threads and memory allocated in it will only
-  be cleaned up once every thread accessing the scope closes it."
-  ^Arena []
-  (shared-arena))
 
 (defn auto-arena
   "Constructs a new memory arena that is managed by the garbage collector.
@@ -104,28 +69,6 @@
   ^Arena []
   (Arena/ofAuto))
 
-(defn ^:deprecated connected-session
-  "Constructs a new memory session to reclaim all connected resources at once.
-
-  The session may be shared across threads, and all resources created with it
-  will be cleaned up at the same time, when all references have been collected.
-
-  This type of session cannot be closed, and therefore should not be created in
-  a [[with-open]] clause."
-  ^Arena []
-  (auto-arena))
-
-(defn ^:deprecated connected-scope
-  "Constructs a new scope to reclaim all connected resources at once.
-
-  The scope may be shared across threads, and all resources created with it will
-  be cleaned up at the same time, when all references have been collected.
-
-  This type of scope cannot be closed, and therefore should not be created in
-  a [[with-open]] clause."
-  ^Arena []
-  (auto-arena))
-
 (defn global-arena
   "Constructs the global arena, which will never reclaim its resources.
 
@@ -136,64 +79,16 @@
   ^Arena []
   (Arena/global))
 
-(defn ^:deprecated global-session
-  "Constructs the global session, which will never reclaim its resources.
-
-  This session may be shared across threads, but is intended mainly in cases
-  where memory is allocated with [[alloc]] but is either never freed or whose
-  management is relinquished to a native library, such as when returned from a
-  callback."
-  ^Arena []
-  (global-arena))
-
-(defn ^:deprecated global-scope
-  "Constructs the global scope, which will never reclaim its resources.
-
-  This scope may be shared across threads, but is intended mainly in cases where
-  memory is allocated with [[alloc]] but is either never freed or whose
-  management is relinquished to a native library, such as when returned from a
-  callback."
-  ^Arena []
-  (global-arena))
-
 (defn arena-allocator
   "Constructs a [[SegmentAllocator]] from the given [[Arena]].
 
   This is primarily used when working with unwrapped downcall functions. When a
   downcall function returns a non-primitive type, it must be provided with an
   allocator."
-  ^SegmentAllocator [^Arena scope]
+  ^SegmentAllocator [^Arena arena]
   (reify SegmentAllocator
     (^MemorySegment allocate [_this ^long byte-size ^long byte-alignment]
-      (.allocate scope ^long byte-size ^long byte-alignment))))
-
-(defn ^:deprecated session-allocator
-  "Constructs a segment allocator from the given `session`.
-
-  This is primarily used when working with unwrapped downcall functions. When a
-  downcall function returns a non-primitive type, it must be provided with an
-  allocator."
-  ^SegmentAllocator [^Arena session]
-  (arena-allocator session))
-
-(defn ^:deprecated scope-allocator
-  "Constructs a segment allocator from the given `scope`.
-
-  This is primarily used when working with unwrapped downcall functions. When a
-  downcall function returns a non-primitive type, it must be provided with an
-  allocator."
-  ^SegmentAllocator [^Arena scope]
-  (arena-allocator scope))
-
-(defn ^:deprecated segment-session
-  "Gets the memory session used to construct the `segment`."
-  ^Arena [^MemorySegment segment]
-  (assert false "Segment sessions no longer provide linkes to the arenas that allocated them."))
-
-(defn segment-scope
-  "Gets the scope associated with the `segment`."
-  ^MemorySegment$Scope [segment]
-  (.scope ^MemorySegment segment))
+      (.allocate arena ^long byte-size ^long byte-alignment))))
 
 (defn alloc
   "Allocates `size` bytes.
@@ -209,19 +104,6 @@
    (.allocate ^SegmentAllocator allocator (long size)))
   (^MemorySegment [allocator size alignment]
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
-
-(defmacro ^:deprecated with-acquired
-  "Acquires one or more `sessions` until the `body` completes.
-
-  This is only necessary to do on shared sessions, however if you are operating
-  on an arbitrary passed session, it is best practice to wrap code that
-  interacts with it wrapped in this."
-  {:style/indent 1}
-  [sessions & body]
-  (assert false "Support was removed for keeping a shared arena open."))
-(s/fdef with-acquired
-  :args (s/cat :sessions any?
-               :body (s/* any?)))
 
 (defn address-of
   "Gets the address of a given segment.
@@ -249,32 +131,34 @@
   (^MemorySegment [segment offset size]
    (.asSlice ^MemorySegment segment (long offset) (long size))))
 
-(defn ^:deprecated slice-into
-  "Get a slice into the `segment` starting at the `address`."
-  (^MemorySegment [address segment]
-   (.asSlice ^MemorySegment segment (address-of address)))
-  (^MemorySegment [address segment size]
-   (.asSlice ^MemorySegment segment (address-of address) (long size))))
+(defn reinterpret
+  "Reinterprets the `segment` as having the passed `size`.
 
-(defn ^:deprecated with-offset
-  "Get a new address `offset` from the old `address`."
-  ^MemorySegment [address offset]
-  (slice address offset))
-
-;; TODO(Joshua): Figure out if this can be replicated with [[Cleaner]]
-#_
-(defn add-close-action!
-  "Adds a 0-arity function to be run when the `session` closes."
-  [^MemorySession session ^Runnable action]
-  (.addCloseAction session action)
-  nil)
+  If `arena` is passed, the scope of the `segment` is associated with the arena,
+  as well as its access constraints. If `cleanup` is passed, it will be a
+  1-argument function of a fresh memory segment backed by the same memory as the
+  returned segment which should perform any required cleanup operations. It will
+  be called when the `arena` is closed."
+  (^MemorySegment [^MemorySegment segment size]
+   (.reinterpret segment (long size) (auto-arena) nil))
+  (^MemorySegment [^MemorySegment segment size ^Arena arena]
+   (.reinterpret segment (long size) arena nil))
+  (^MemorySegment [^MemorySegment segment size ^Arena arena cleanup]
+   (.reinterpret segment (long size) arena
+                 (reify Consumer
+                   (accept [_this segment]
+                     (cleanup segment))))))
 
 (defn as-segment
-  "Dereferences an `address` into a memory segment associated with the `session`."
-  (^MemorySegment [^MemorySegment address size]
-   (.reinterpret (MemorySegment/ofAddress address) (long size) (connected-session) nil))
-  (^MemorySegment [^MemorySegment address size session]
-   (.reinterpret (MemorySegment/ofAddress address) (long size) session nil)))
+  "Dereferences an `address` into a memory segment associated with the `arena` (default global)."
+  (^MemorySegment [^long address]
+   (MemorySegment/ofAddress address))
+  (^MemorySegment [^long address size]
+   (reinterpret (MemorySegment/ofAddress address) size))
+  (^MemorySegment [^long address size ^Arena arena]
+   (reinterpret (MemorySegment/ofAddress address) (long size) arena nil))
+  (^MemorySegment [^long address size ^Arena arena cleanup]
+   (reinterpret (MemorySegment/ofAddress address) (long size) arena cleanup)))
 
 (defn copy-segment
   "Copies the content to `dest` from `src`.
@@ -285,9 +169,9 @@
 
 (defn clone-segment
   "Clones the content of `segment` into a new segment of the same size."
-  (^MemorySegment [segment] (clone-segment segment (connected-session)))
-  (^MemorySegment [^MemorySegment segment session]
-   (copy-segment ^MemorySegment (alloc (.byteSize segment) session) segment)))
+  (^MemorySegment [segment] (clone-segment segment (auto-arena)))
+  (^MemorySegment [^MemorySegment segment ^Arena arena]
+   (copy-segment ^MemorySegment (alloc (.byteSize segment) arena) segment)))
 
 (defn slice-segments
   "Constructs a lazy seq of `size`-length memory segments, sliced from `segment`."
@@ -938,67 +822,67 @@
   "Constructs a serialized version of the `obj` and returns it.
 
   Any new allocations made during the serialization should be tied to the given
-  `session`, except in extenuating circumstances.
+  `arena`, except in extenuating circumstances.
 
   This method should only be implemented for types that serialize to primitives."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
-    [obj type session]
+    [obj type arena]
     (type-dispatch type)))
 
 (defmethod serialize* :default
-  [obj type _session]
+  [obj type _arena]
   (throw (ex-info "Attempted to serialize a non-primitive type with primitive methods"
                   {:type type
                    :object obj})))
 
 (defmethod serialize* ::byte
-  [obj _type _session]
+  [obj _type _arena]
   (byte obj))
 
 (defmethod serialize* ::short
-  [obj _type _session]
+  [obj _type _arena]
   (short obj))
 
 (defmethod serialize* ::int
-  [obj _type _session]
+  [obj _type _arena]
   (int obj))
 
 (defmethod serialize* ::long
-  [obj _type _session]
+  [obj _type _arena]
   (long obj))
 
 (defmethod serialize* ::char
-  [obj _type _session]
+  [obj _type _arena]
   (char obj))
 
 (defmethod serialize* ::float
-  [obj _type _session]
+  [obj _type _arena]
   (float obj))
 
 (defmethod serialize* ::double
-  [obj _type _session]
+  [obj _type _arena]
   (double obj))
 
 (defmethod serialize* ::pointer
-  [obj type session]
+  [obj type arena]
   (if-not (null? obj)
     (if (sequential? type)
-      (let [segment (alloc-instance (second type) session)]
-        (serialize-into obj (second type) segment session)
+      (let [segment (alloc-instance (second type) arena)]
+        (serialize-into obj (second type) segment arena)
         (address-of segment))
       obj)
     (MemorySegment/NULL)))
 
 (defmethod serialize* ::void
-  [_obj _type _session]
+  [_obj _type _arena]
   nil)
 
 (defmulti serialize-into
   "Writes a serialized version of the `obj` to the given `segment`.
 
   Any new allocations made during the serialization should be tied to the given
-  `session`, except in extenuating circumstances.
+  `arena`, except in extenuating circumstances.
 
   This method should be implemented for any type which does not
   override [[c-layout]].
@@ -1007,61 +891,61 @@
   the result value into the `segment`."
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
-    [obj type segment session]
+    [obj type segment arena]
     (type-dispatch type)))
 
 (defmethod serialize-into :default
-  [obj type segment session]
+  [obj type segment arena]
   (if-some [prim-layout (primitive-type type)]
-    (serialize-into (serialize* obj type session) prim-layout segment session)
+    (serialize-into (serialize* obj type arena) prim-layout segment arena)
     (throw (ex-info "Attempted to serialize an object to a type that has not been overridden"
                     {:type type
                      :object obj}))))
 
 (defmethod serialize-into ::byte
-  [obj _type segment _session]
+  [obj _type segment _arena]
   (write-byte segment (byte obj)))
 
 (defmethod serialize-into ::short
-  [obj type segment _session]
+  [obj type segment _arena]
   (if (sequential? type)
     (write-short segment 0 (second type) (short obj))
     (write-short segment (short obj))))
 
 (defmethod serialize-into ::int
-  [obj type segment _session]
+  [obj type segment _arena]
   (if (sequential? type)
     (write-int segment 0 (second type) (int obj))
     (write-int segment (int obj))))
 
 (defmethod serialize-into ::long
-  [obj type segment _session]
+  [obj type segment _arena]
   (if (sequential? type)
     (write-long segment 0 (second type) (long obj))
     (write-long segment (long obj))))
 
 (defmethod serialize-into ::char
-  [obj _type segment _session]
+  [obj _type segment _arena]
   (write-char segment (char obj)))
 
 (defmethod serialize-into ::float
-  [obj type segment _session]
+  [obj type segment _arena]
   (if (sequential? type)
     (write-float segment 0 (second type) (float obj))
     (write-float segment (float obj))))
 
 (defmethod serialize-into ::double
-  [obj type segment _session]
+  [obj type segment _arena]
   (if (sequential? type)
     (write-double segment 0 (second type) (double obj))
     (write-double segment (double obj))))
 
 (defmethod serialize-into ::pointer
-  [obj type segment session]
+  [obj type segment arena]
   (write-address
    segment
    (cond-> obj
-     (sequential? type) (serialize* type session))))
+     (sequential? type) (serialize* type arena))))
 
 (defn serialize
   "Serializes an arbitrary type.
@@ -1069,12 +953,12 @@
   For types which have a primitive representation, this serializes into that
   representation. For types which do not, it allocates a new segment and
   serializes into that."
-  ([obj type] (serialize obj type (connected-session)))
-  ([obj type session]
+  ([obj type] (serialize obj type (auto-arena)))
+  ([obj type arena]
    (if (primitive-type type)
-     (serialize* obj type session)
-     (let [segment (alloc-instance type session)]
-       (serialize-into obj type segment session)
+     (serialize* obj type arena)
+     (let [segment (alloc-instance type arena)]
+       (serialize-into obj type segment arena)
        segment))))
 
 (declare deserialize deserialize*)
@@ -1227,7 +1111,7 @@
   (c-layout type))
 
 (defmethod serialize-into ::raw
-  [obj _type segment _session]
+  [obj _type segment _arena]
   (if (instance? MemorySegment obj)
     (copy-segment segment obj)
     obj))
@@ -1245,9 +1129,9 @@
   ::pointer)
 
 (defmethod serialize* ::c-string
-  [obj _type ^Arena session]
+  [obj _type ^Arena arena]
   (if obj
-    (.allocateFrom session ^String obj)
+    (.allocateFrom arena ^String obj)
     (MemorySegment/NULL)))
 
 (defmethod deserialize* ::c-string
@@ -1264,7 +1148,7 @@
      (into-array MemoryLayout items))))
 
 (defmethod serialize-into ::union
-  [obj [_union _types & {:keys [dispatch extract]} :as type] segment session]
+  [obj [_union _types & {:keys [dispatch extract]} :as type] segment arena]
   (when-not dispatch
     (throw (ex-info "Attempted to serialize a union with no dispatch function"
                     {:type type
@@ -1276,7 +1160,7 @@
        obj)
      type
      segment
-     session)))
+     arena)))
 
 (defmethod deserialize-from ::union
   [segment type]
@@ -1293,7 +1177,7 @@
      (into-array MemoryLayout fields))))
 
 (defmethod serialize-into ::struct
-  [obj [_struct fields] segment session]
+  [obj [_struct fields] segment arena]
   (loop [offset 0
          fields fields]
     (when (seq fields)
@@ -1301,7 +1185,7 @@
             size (size-of type)]
         (serialize-into
          (get obj field) type
-         (slice segment offset size) session)
+         (slice segment offset size) arena)
         (recur (long (+ offset size)) (rest fields))))))
 
 (defmethod deserialize-from ::struct
@@ -1327,7 +1211,7 @@
   (MemoryLayout/paddingLayout size))
 
 (defmethod serialize-into ::padding
-  [_obj [_padding _size] _segment _session]
+  [_obj [_padding _size] _segment _arena]
   nil)
 
 (defmethod deserialize-from ::padding
@@ -1343,9 +1227,9 @@
    (c-layout type)))
 
 (defmethod serialize-into ::array
-  [obj [_array type count] segment session]
+  [obj [_array type count] segment arena]
   (dorun
-   (map #(serialize-into %1 type %2 session)
+   (map #(serialize-into %1 type %2 arena)
         obj
         (slice-segments (slice segment 0 (* count (size-of type)))
                         (size-of type)))))
@@ -1390,10 +1274,10 @@
       variants))))
 
 (defmethod serialize* ::enum
-  [obj [_enum variants & {:keys [repr]}] session]
+  [obj [_enum variants & {:keys [repr]}] arena]
   (serialize* ((enum-variants-map variants) obj)
               (or repr ::int)
-              session))
+              arena))
 
 (defmethod deserialize* ::enum
   [obj [_enum variants & {:keys [_repr]}]]
@@ -1408,9 +1292,9 @@
     ::int))
 
 (defmethod serialize* ::flagset
-  [obj [_flagset bits & {:keys [repr]}] session]
+  [obj [_flagset bits & {:keys [repr]}] arena]
   (let [bits-map (enum-variants-map bits)]
-    (reduce #(bit-set %1 (get bits-map %2)) (serialize* 0 (or repr ::int) session) obj)))
+    (reduce #(bit-set %1 (get bits-map %2)) (serialize* 0 (or repr ::int) arena) obj)))
 
 (defmethod deserialize* ::flagset
   [obj [_flagset bits & {:keys [repr]}]]
@@ -1442,8 +1326,8 @@
          [_type#]
          (primitive-type aliased#))
        (defmethod serialize* ~new-type
-         [obj# _type# session#]
-         (serialize* obj# aliased# session#))
+         [obj# _type# arena#]
+         (serialize* obj# aliased# arena#))
        (defmethod deserialize* ~new-type
          [obj# _type#]
          (deserialize* obj# aliased#)))
@@ -1452,8 +1336,8 @@
          [_type#]
          (c-layout aliased#))
        (defmethod serialize-into ~new-type
-         [obj# _type# segment# session#]
-         (serialize-into obj# aliased# segment# session#))
+         [obj# _type# segment# arena#]
+         (serialize-into obj# aliased# segment# arena#))
        (defmethod deserialize-from ~new-type
          [segment# _type#]
          (deserialize-from segment# aliased#)))))

@@ -236,20 +236,20 @@
   The return type and any arguments that are primitives will not
   be (de)serialized except to be cast. If all arguments and return are
   primitive, the `downcall` is returned directly. In cases where arguments must
-  be serialized, a new [[mem/stack-session]] is generated."
+  be serialized, a new [[mem/confined-arena]] is generated."
   [downcall arg-types ret-type]
   (let [;; Complexity of types
         const-args? (or (vector? arg-types) (nil? arg-types))
         simple-args? (when const-args?
                        (and (every? mem/primitive? arg-types)
                             ;; NOTE(Joshua): Pointer types with serdes (e.g. [::mem/pointer ::mem/int])
-                            ;; still require a session, making them not qualify as "simple".
+                            ;; still require an arena, making them not qualify as "simple".
                             (every? keyword? (filter (comp #{::mem/pointer} mem/primitive-type) arg-types))))
         const-ret? (s/valid? ::mem/type ret-type)
         primitive-ret? (and const-ret?
                             (or (and (mem/primitive? ret-type)
                                      ;; NOTE(Joshua): Pointer types with serdes require deserializing the
-                                     ;; return value, but don't require passing a session to the downcall,
+                                     ;; return value, but don't require passing an arena to the downcall,
                                      ;; making them cause the return to not be primitive, but it may still
                                      ;; be "simple".
                                      (or (keyword? ret-type) (not (#{::mem/pointer} (mem/primitive-type ret-type)))))
@@ -265,7 +265,7 @@
          ~ret-type
          downcall#)
       (let [;; All our symbols
-            session (gensym "session")
+            arena (gensym "arena")
             downcall-sym (gensym "downcall")
             args-sym (when-not const-args?
                        (gensym "args"))
@@ -284,7 +284,7 @@
               (some->>
                (cond
                  (not (s/valid? ::mem/type type))
-                 `(mem/serialize ~sym ~type-sym ~session)
+                 `(mem/serialize ~sym ~type-sym ~arena)
 
                  (and (mem/primitive? type)
                       (not (#{::mem/pointer} (mem/primitive-type type))))
@@ -295,11 +295,11 @@
                  `(or ~sym (MemorySegment/NULL))
 
                  (mem/primitive-type type)
-                 `(mem/serialize* ~sym ~type-sym ~session)
+                 `(mem/serialize* ~sym ~type-sym ~arena)
 
                  :else
                  `(let [alloc# (mem/alloc-instance ~type-sym)]
-                    (mem/serialize-into ~sym ~type-sym alloc# ~session)
+                    (mem/serialize-into ~sym ~type-sym alloc# ~arena)
                     alloc#))
                (list sym)))
 
@@ -326,7 +326,7 @@
 
                 :else
                 `(let [~args-sym (map (fn [obj# type#]
-                                        (mem/serialize obj# type# ~session))
+                                        (mem/serialize obj# type# ~arena))
                                       ~args-sym ~args-types-sym)]
                    ~expr)))
 
@@ -335,7 +335,7 @@
                         ;; taking restargs, and so the downcall must be applied
                         (-> `(~@(when (symbol? args) [`apply])
                               ~downcall-sym
-                              ~@(when allocator? [`(mem/arena-allocator ~session)])
+                              ~@(when allocator? [`(mem/arena-allocator ~arena)])
                               ~@(if (symbol? args)
                                   [args]
                                   args))
@@ -358,12 +358,12 @@
                                 :else
                                 (deserialize-segment expr)))
 
-            wrap-session (fn [expr]
-                           `(with-open [~session (mem/stack-session)]
+            wrap-arena (fn [expr]
+                           `(with-open [~arena (mem/confined-arena)]
                               ~expr))
-            wrap-fn (fn [call needs-session?]
+            wrap-fn (fn [call needs-arena?]
                       `(fn [~@(if const-args? arg-syms ['& args-sym])]
-                         ~(cond-> call needs-session? wrap-session)))]
+                         ~(cond-> call needs-arena? wrap-arena)))]
         `(let [;; NOTE(Joshua): To ensure all arguments are evaluated once and
                ;; in-order, they must be bound here
                ~downcall-sym ~downcall
@@ -395,15 +395,15 @@
   [downcall arg-types ret-type]
   (if (mem/primitive-type ret-type)
     (fn native-fn [& args]
-      (with-open [session (mem/stack-session)]
+      (with-open [arena (mem/confined-arena)]
         (mem/deserialize*
-         (apply downcall (map #(mem/serialize %1 %2 session) args arg-types))
+         (apply downcall (map #(mem/serialize %1 %2 arena) args arg-types))
          ret-type)))
     (fn native-fn [& args]
-      (with-open [session (mem/stack-session)]
+      (with-open [arena (mem/confined-arena)]
         (mem/deserialize-from
-         (apply downcall (mem/arena-allocator session)
-                (map #(mem/serialize %1 %2 session) args arg-types))
+         (apply downcall (mem/arena-allocator arena)
+                (map #(mem/serialize %1 %2 arena) args arg-types))
          ret-type)))))
 
 (defn make-serde-varargs-wrapper
@@ -530,13 +530,13 @@
 
 (defn- upcall-serde-wrapper
   "Creates a function that wraps `f` which deserializes the arguments and
-  serializes the return type in the [[global-session]]."
+  serializes the return type in the [[global-arena]]."
   [f arg-types ret-type]
   (fn [& args]
     (mem/serialize
      (apply f (map mem/deserialize args arg-types))
      ret-type
-     (mem/global-session))))
+     (mem/global-arena))))
 
 (defmethod mem/serialize* ::fn
   [f [_fn arg-types ret-type & {:keys [raw-fn?]}] arena]
@@ -608,7 +608,7 @@
   (mem/serialize-into
    newval (.-type static-var)
    (.-seg static-var)
-   (mem/global-session))
+   (mem/global-arena))
   newval)
 
 (defn fswap!
