@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. This change
 ## [Unreleased]
 ### Added
 - Support for JDK 22
+- `reinterpret` function which changes the size associated with a segment, optionally associating it with an arena and cleanup action
+
+### Changed
+- Arglists and docstrings of functions to refer to arenas rather than the outdated terms scope or session
+- Change the arguments to `as-segment` to take longs to account for the removal of an Address type
+
+### Removed
+- Deprecated functions referring to sessions and scopes
+- Deprecated functions `slice-into` and `with-offset`, replaced by the function `slice`
 
 ### Fixed
 - Prep step when using coffi as a dependency wouldn't re-run if it failed during execution, e.g. when using the incorrect java version
