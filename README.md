@@ -638,14 +638,18 @@ As an example, when wrapping a function that returns an array of big-endian
 floats, the following code might be used.
 
 ``` clojure
+;; int returns_float_array(float **arr)
 (def ^:private returns-float-array* (ffi/make-downcall "returns_float_array" [::mem/pointer] ::mem/int))
+;; void releases_float_array(float *arr)
 (def ^:private release-floats* (ffi/make-downcall "releases_float_array" [::mem/pointer] ::mem/void))
 
 (defn returns-float-array
   []
-  (with-open [session (mem/stack-session)]
-    (let [out-floats (mem/alloc mem/pointer-size session)
-          num-floats (function-handle (mem/address-of out-floats))
+  (with-open [arena (mem/confined-arena)]
+    ;; float *out_floats;
+    ;; int num_floats = returns_float_array(&out_floats);
+    (let [out-floats (mem/alloc mem/pointer-size arena)
+          num-floats (returns-float-array* (mem/address-of out-floats))
           floats-addr (mem/read-address out-floats)
           floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
       ;; Using a try/finally to perform an operation when the stack frame exits,
@@ -660,7 +664,7 @@ floats, the following code might be used.
                                                  mem/big-endian))
                    (unchecked-inc-int index))))
         (finally
-          (release-floats floats-addr))))))
+          (release-floats* floats-addr))))))
 ```
 
 The above code manually performs all memory operations rather than relying on
@@ -714,6 +718,8 @@ the multimethod `reify-symbolspec`, although it's recommended that for any
 library authors who do so, namespaced keywords be used to name types.
 
 ## Alternatives
+**ALTERNATIVES INFORMATION IS OUT OF DATE. THE LINKS ARE FINE, BUT DESCRIPTIONS WILL BE UPDATED AT A LATER DATE.**
+
 This library is not the only Clojure library providing access to native code. In
 addition the following libraries exist:
 
@@ -743,7 +749,7 @@ appealing, as they have a smaller API surface area and it's easier to wrap
 functions.
 
 ### Benchmarks
-**BENCHMARKS FOR COFFI AND DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE CREATED WHEN PANAMA COMES OUT OF PREVIEW**
+**BENCHMARKS FOR COFFI AND DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE CREATED SOON.**
 
 An additional consideration when thinking about alternatives is the performance
 of each available option. It's an established fact that JNA (used by all three
@@ -1134,24 +1140,6 @@ These features are planned for future releases.
 - Improve error messages from defcfn macro
 - Mapped memory
 - Helper macros for custom serde implementations for composite data types
-
-### Future JDKs
-The purpose of coffi is to provide a wrapper for published versions of Project
-Panama, starting with JDK 17. As new JDKs are released, coffi will be ported to
-the newer versions of Panama. Version `0.4.341` is the last version compatible
-with JDK 17. Version `0.5.357` is the last version compatible with JDK 18.
-Version `0.6.409` is the latest version compatible with JDK 19. Bugfixes, and
-potential backports of newer coffi features may be found on the `jdk17-lts`
-branch. Development of new features and fixes as well as support for new Panama
-idioms and features will continue with focus only on the latest JDK. If a
-particular feature is not specific to the newer JDK, PRs backporting it to
-versions of coffi supporting Java 17 will likely be accepted.
-
-### 1.0 Release
-Because the feature that coffi wraps in the JDK is in preview as of JDK 19,
-coffi itself will not be released in a 1.0.x version until the feature becomes a
-core part of the JDK, likely before or during the next LTS release, Java 21, in
-September 2023.
 
 ## License
 
