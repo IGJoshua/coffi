@@ -1126,7 +1126,10 @@ stands, coffi is the fastest FFI available to Clojure developers.
 The project author is aware of these issues and plans to fix them in a future
 release:
 
-No known issues, hooray!
+- When generating docs with codox in a library that depends on coffi, the below error will be produced. A temporary workaround is to add an explicit dependency in your codox build on insn at version 0.2.1
+``` clojure
+Unable to find static field: ACC_OPEN in interface org.objectweb.asm.Opcodes
+```
 
 ## Future Plans
 These features are planned for future releases.
