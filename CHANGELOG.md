@@ -1,6 +1,22 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [1.0.450] - 2024-10-02
+### Added
+- Support for JDK 22
+- `reinterpret` function which changes the size associated with a segment, optionally associating it with an arena and cleanup action
+
+### Changed
+- Arglists and docstrings of functions to refer to arenas rather than the outdated terms scope or session
+- Change the arguments to `as-segment` to take longs to account for the removal of an Address type
+
+### Removed
+- Deprecated functions referring to sessions and scopes
+- Deprecated functions `slice-into` and `with-offset`, replaced by the function `slice`
+
+### Fixed
+- Prep step when using coffi as a dependency wouldn't re-run if it failed during execution, e.g. when using the incorrect java version
+
 ## [0.6.409] - 2023-03-31
 ### Added
 - Support for JDK 19
@@ -117,6 +133,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[Unreleased]: https://github.com/IGJoshua/coffi/compare/v0.6.409...develop
 [0.6.409]: https://github.com/IGJoshua/coffi/compare/v0.5.357...v0.6.409
 [0.5.357]: https://github.com/IGJoshua/coffi/compare/v0.4.341...v0.5.357
 [0.4.341]: https://github.com/IGJoshua/coffi/compare/v0.3.298...v0.4.341

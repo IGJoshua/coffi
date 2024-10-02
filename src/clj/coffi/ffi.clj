@@ -14,10 +14,9 @@
     MethodHandles
     MethodType)
    (java.lang.foreign
-    Addressable
     Linker
+    Linker$Option
     FunctionDescriptor
-    MemoryAddress
     MemoryLayout
     MemorySegment
     SegmentAllocator)))
@@ -56,7 +55,8 @@
 (defn- downcall-handle
   "Gets the [[MethodHandle]] for the function at the `sym`."
   [sym function-descriptor]
-  (.downcallHandle (Linker/nativeLinker) sym function-descriptor))
+  (.downcallHandle (Linker/nativeLinker) sym function-descriptor
+                   (make-array Linker$Option 0)))
 
 (def ^:private load-instructions
   "Mapping from primitive types to the instruction used to load them onto the stack."
@@ -130,20 +130,12 @@
          [:invokevirtual (prim-classes prim-type) (unbox-fn-for-type prim-type) [prim]]]
         []))))
 
-(defn- coerce-addressable
-  "If the passed `type` is [[MemoryAddress]], returns [[Addressable]], otherwise returns `type`.
-
-  This is used to declare the return types of upcall stubs."
-  [type]
-  (if (= type MemoryAddress)
-    Addressable
-    type))
-
 (defn- downcall-class
   "Class definition for an implementation of [[IFn]] which calls a closed over
   method handle without reflection, unboxing primitives when needed."
   [args ret]
   {:flags #{:public :final}
+   :version 8
     :super clojure.lang.AFunction
     :fields [{:name "downcall_handle"
               :type MethodHandle
@@ -175,7 +167,7 @@
                        args)
                       [:invokevirtual MethodHandle "invokeExact"
                        (cond->>
-                           (conj (mapv (comp coerce-addressable insn-layout) args)
+                           (conj (mapv insn-layout args)
                                  (insn-layout ret))
                          (not (mem/primitive-type ret)) (cons SegmentAllocator))]
                       (to-object-asm ret)
@@ -244,20 +236,20 @@
   The return type and any arguments that are primitives will not
   be (de)serialized except to be cast. If all arguments and return are
   primitive, the `downcall` is returned directly. In cases where arguments must
-  be serialized, a new [[mem/stack-session]] is generated."
+  be serialized, a new [[mem/confined-arena]] is generated."
   [downcall arg-types ret-type]
   (let [;; Complexity of types
         const-args? (or (vector? arg-types) (nil? arg-types))
         simple-args? (when const-args?
                        (and (every? mem/primitive? arg-types)
                             ;; NOTE(Joshua): Pointer types with serdes (e.g. [::mem/pointer ::mem/int])
-                            ;; still require a session, making them not qualify as "simple".
+                            ;; still require an arena, making them not qualify as "simple".
                             (every? keyword? (filter (comp #{::mem/pointer} mem/primitive-type) arg-types))))
         const-ret? (s/valid? ::mem/type ret-type)
         primitive-ret? (and const-ret?
                             (or (and (mem/primitive? ret-type)
                                      ;; NOTE(Joshua): Pointer types with serdes require deserializing the
-                                     ;; return value, but don't require passing a session to the downcall,
+                                     ;; return value, but don't require passing an arena to the downcall,
                                      ;; making them cause the return to not be primitive, but it may still
                                      ;; be "simple".
                                      (or (keyword? ret-type) (not (#{::mem/pointer} (mem/primitive-type ret-type)))))
@@ -273,7 +265,7 @@
          ~ret-type
          downcall#)
       (let [;; All our symbols
-            session (gensym "session")
+            arena (gensym "arena")
             downcall-sym (gensym "downcall")
             args-sym (when-not const-args?
                        (gensym "args"))
@@ -292,7 +284,7 @@
               (some->>
                (cond
                  (not (s/valid? ::mem/type type))
-                 `(mem/serialize ~sym ~type-sym ~session)
+                 `(mem/serialize ~sym ~type-sym ~arena)
 
                  (and (mem/primitive? type)
                       (not (#{::mem/pointer} (mem/primitive-type type))))
@@ -300,14 +292,14 @@
 
                  ;; cast null pointers to something understood by panama
                  (#{::mem/pointer} type)
-                 `(or ~sym (MemoryAddress/NULL))
+                 `(or ~sym (MemorySegment/NULL))
 
                  (mem/primitive-type type)
-                 `(mem/serialize* ~sym ~type-sym ~session)
+                 `(mem/serialize* ~sym ~type-sym ~arena)
 
                  :else
                  `(let [alloc# (mem/alloc-instance ~type-sym)]
-                    (mem/serialize-into ~sym ~type-sym alloc# ~session)
+                    (mem/serialize-into ~sym ~type-sym alloc# ~arena)
                     alloc#))
                (list sym)))
 
@@ -334,7 +326,7 @@
 
                 :else
                 `(let [~args-sym (map (fn [obj# type#]
-                                        (mem/serialize obj# type# ~session))
+                                        (mem/serialize obj# type# ~arena))
                                       ~args-sym ~args-types-sym)]
                    ~expr)))
 
@@ -343,7 +335,7 @@
                         ;; taking restargs, and so the downcall must be applied
                         (-> `(~@(when (symbol? args) [`apply])
                               ~downcall-sym
-                              ~@(when allocator? [`(mem/session-allocator ~session)])
+                              ~@(when allocator? [`(mem/arena-allocator ~arena)])
                               ~@(if (symbol? args)
                                   [args]
                                   args))
@@ -366,12 +358,12 @@
                                 :else
                                 (deserialize-segment expr)))
 
-            wrap-session (fn [expr]
-                           `(with-open [~session (mem/stack-session)]
+            wrap-arena (fn [expr]
+                           `(with-open [~arena (mem/confined-arena)]
                               ~expr))
-            wrap-fn (fn [call needs-session?]
+            wrap-fn (fn [call needs-arena?]
                       `(fn [~@(if const-args? arg-syms ['& args-sym])]
-                         ~(cond-> call needs-session? wrap-session)))]
+                         ~(cond-> call needs-arena? wrap-arena)))]
         `(let [;; NOTE(Joshua): To ensure all arguments are evaluated once and
                ;; in-order, they must be bound here
                ~downcall-sym ~downcall
@@ -403,15 +395,15 @@
   [downcall arg-types ret-type]
   (if (mem/primitive-type ret-type)
     (fn native-fn [& args]
-      (with-open [session (mem/stack-session)]
+      (with-open [arena (mem/confined-arena)]
         (mem/deserialize*
-         (apply downcall (map #(mem/serialize %1 %2 session) args arg-types))
+         (apply downcall (map #(mem/serialize %1 %2 arena) args arg-types))
          ret-type)))
     (fn native-fn [& args]
-      (with-open [session (mem/stack-session)]
+      (with-open [arena (mem/confined-arena)]
         (mem/deserialize-from
-         (apply downcall (mem/session-allocator session)
-                (map #(mem/serialize %1 %2 session) args arg-types))
+         (apply downcall (mem/arena-allocator arena)
+                (map #(mem/serialize %1 %2 arena) args arg-types))
          ret-type)))))
 
 (defn make-serde-varargs-wrapper
@@ -435,6 +427,7 @@
   If your `args` and `ret` are constants, then it is more efficient to
   call [[make-downcall]] followed by [[make-serde-wrapper]] because the latter
   has an inline definition which will result in less overhead from serdes."
+  ;; TODO(Joshua): Add an inline arity for when the args and ret types are constant
   [symbol args ret]
   (-> symbol
       (make-downcall args ret)
@@ -474,6 +467,7 @@
   boxes any primitives passed to it and calls a closed over [[IFn]]."
   [arg-types ret-type]
   {:flags #{:public :final}
+   :version 8
    :fields [{:name "upcall_ifn"
              :type IFn
              :flags #{:final}}]
@@ -489,7 +483,7 @@
              {:name :upcall
               :flags #{:public}
               :desc (conj (mapv insn-layout arg-types)
-                          (coerce-addressable (insn-layout ret-type)))
+                          (insn-layout ret-type))
               :emit [[:aload 0]
                      [:getfield :this "upcall_ifn" IFn]
                      (loop [types arg-types
@@ -505,7 +499,7 @@
                                     inc)))
                          acc))
                      [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
-                     (to-prim-asm (coerce-addressable ret-type))
+                     (to-prim-asm ret-type)
                      [(return-for-type ret-type :areturn)]]}]})
 
 (defn- upcall
@@ -518,7 +512,7 @@
   ([args] (method-type args ::mem/void))
   ([args ret]
    (MethodType/methodType
-    ^Class (coerce-addressable (mem/java-layout ret))
+    ^Class (mem/java-layout ret)
     ^"[Ljava.lang.Class;" (into-array Class (map mem/java-layout args)))))
 
 (defn- upcall-handle
@@ -536,30 +530,30 @@
 
 (defn- upcall-serde-wrapper
   "Creates a function that wraps `f` which deserializes the arguments and
-  serializes the return type in the [[global-session]]."
+  serializes the return type in the [[global-arena]]."
   [f arg-types ret-type]
   (fn [& args]
     (mem/serialize
      (apply f (map mem/deserialize args arg-types))
      ret-type
-     (mem/global-session))))
+     (mem/global-arena))))
 
 (defmethod mem/serialize* ::fn
-  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] session]
+  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] arena]
   (.upcallStub
    (Linker/nativeLinker)
-   (cond-> f
-     (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
-     :always (upcall-handle arg-types ret-type))
-   (function-descriptor arg-types ret-type)
-   session))
+   ^MethodHandle (cond-> f
+                   (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
+                   :always (upcall-handle arg-types ret-type))
+   ^FunctionDescriptor (function-descriptor arg-types ret-type)
+   ^Arena arena
+   (make-array Linker$Option 0)))
 
 (defmethod mem/deserialize* ::fn
   [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
   (when-not (mem/null? addr)
     (vary-meta
-      (-> addr
-          (MemorySegment/ofAddress mem/pointer-size (mem/connected-session))
+      (-> ^MemorySegment addr
           (downcall-handle (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
           (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
@@ -614,7 +608,7 @@
   (mem/serialize-into
    newval (.-type static-var)
    (.-seg static-var)
-   (mem/global-session))
+   (mem/global-arena))
   newval)
 
 (defn fswap!
@@ -640,9 +634,8 @@
 
   See [[freset!]], [[fswap!]]."
   [symbol-or-addr type]
-  (StaticVariable. (mem/as-segment (.address (ensure-symbol symbol-or-addr))
-                                   (mem/size-of type)
-                                   (mem/global-session))
+  (StaticVariable. (.reinterpret ^MemorySegment (ensure-symbol symbol-or-addr)
+                                 ^long (mem/size-of type))
                    type (atom nil)))
 
 (defmacro defvar

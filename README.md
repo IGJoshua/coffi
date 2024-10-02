@@ -1,23 +1,23 @@
 # coffi
 [![Clojars Project](https://img.shields.io/clojars/v/org.suskalo/coffi.svg)](https://clojars.org/org.suskalo/coffi)
 
-Coffi is a foreign function interface library for Clojure, using the new
-[Project Panama](https://openjdk.java.net/projects/panama/) that's a part of the
-preview in Java 19. This allows calling native code directly from Clojure
-without the need for either Java or native code specific to the library, as e.g.
-the JNI does. Coffi focuses on ease of use, including functions and macros for
-creating wrappers to allow the resulting native functions to act just like
-Clojure ones, however this doesn't remove the ability to write systems which
-minimize the cost of marshaling data and optimize for performance, to make use
-of the low-level access Panama gives us.
+Coffi is a foreign function interface library for Clojure, using the [Foreign
+Function & Memory API](https://openjdk.org/jeps/454) in JDK 22 and later. This
+allows calling native code directly from Clojure without the need for either
+Java or native code specific to the library, as e.g. the JNI does. Coffi focuses
+on ease of use, including functions and macros for creating wrappers to allow
+the resulting native functions to act just like Clojure ones, however this
+doesn't remove the ability to write systems which minimize the cost of
+marshaling data and optimize for performance, to make use of the low-level
+access Panama gives us.
 
 ## Installation
 This library is available on Clojars. Add one of the following entries to the
 `:deps` key of your `deps.edn`:
 
 ```clojure
-org.suskalo/coffi {:mvn/version "0.6.409"}
-io.github.IGJoshua/coffi {:git/tag "v0.6.409" :git/sha "f974446"}
+org.suskalo/coffi {:mvn/version "1.0.450"}
+io.github.IGJoshua/coffi {:git/tag "v1.0.450" :git/sha "2676a7a"}
 ```
 
 If you use this library as a git dependency, you will need to prepare the
@@ -27,19 +27,20 @@ library.
 $ clj -X:deps prep
 ```
 
-Coffi requires usage of the package `java.lang.foreign`, and everything in this
-package is considered to be a preview release, which are disabled by default. In
-order to use coffi, add the following JVM arguments to your application.
+Coffi requires usage of the package `java.lang.foreign`, and most of the
+operations are considered unsafe by the JDK, and are therefore unavailable to
+your code without passing some command line flags. In order to use coffi, add
+the following JVM arguments to your application.
 
 ```sh
---enable-preview --enable-native-access=ALL-UNNAMED
+--enable-native-access=ALL-UNNAMED
 ```
 
 You can specify JVM arguments in a particular invocation of the Clojure CLI with
 the -J flag like so:
 
 ``` sh
-clj -J--enable-preview -J--enable-native-access=ALL-UNNAMED
+clj -J--enable-native-access=ALL-UNNAMED
 ```
 
 You can also specify them in an alias in your `deps.edn` file under the
@@ -47,15 +48,20 @@ You can also specify them in an alias in your `deps.edn` file under the
 using `-M`, `-A`, or `-X`.
 
 ``` clojure
-{:aliases {:dev {:jvm-opts ["--enable-preview" "--enable-native-access=ALL-UNNAMED"]}}}
+{:aliases {:dev {:jvm-opts ["--enable-native-access=ALL-UNNAMED"]}}}
 ```
 
 Other build tools should provide similar functionality if you check their
 documentation.
 
+When creating an executable jar file, you can avoid the need to pass this
+argument by adding the manifest attribute `Enable-Native-Access: ALL-UNNAMED` to
+your jar.
+
 Coffi also includes support for the linter clj-kondo. If you use clj-kondo and
 this library's macros are not linting correctly, you may need to install the
-config bundled with the library. You can do so with the following shell command:
+config bundled with the library. You can do so with the following shell command,
+run from your project directory:
 
 ```sh
 $ clj-kondo --copy-configs --dependencies --lint "$(clojure -Spath)"
@@ -193,7 +199,7 @@ be found in `coffi.layout`.
     [[:a ::mem/char]
      [:x ::mem/float]]]))
 
-(mem/size-of ::needs-padding))
+(mem/size-of ::needs-padding)
 ;; => 8
 
 (mem/align-of ::needs-padding)
@@ -331,7 +337,7 @@ Clojure code to make this easier.
   native-fn
   [ints]
   (let [arr-len (count ints)
-        int-array (serialize ints [::mem/array ::mem/int arr-len])]
+        int-array (mem/serialize ints [::mem/array ::mem/int arr-len])]
     (native-fn (mem/address-of int-array) arr-len)))
 ```
 
@@ -349,38 +355,34 @@ This can be used to implement out variables often seen in native code.
   "out_int" [::mem/pointer] ::mem/void
   native-fn
   [i]
-  (let [int-ptr (serialize i [::mem/pointer ::mem/int])]
+  (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int])]
     (native-fn int-ptr)
-    (deserialize int-ptr [::mem/pointer ::mem/int])))
+    (mem/deserialize int-ptr [::mem/pointer ::mem/int])))
 ```
 
-### Sessions
-**Before JDK 19 Sessions were called Scopes. Coffi retains functions that are
-named for creating scopes for backwards compatibility, but they will be removed
-in version 1.0.**
-
+### Arenas
 In order to serialize any non-primitive type (such as the previous
 `[::mem/pointer ::mem/int]`), off-heap memory needs to be allocated. When memory
-is allocated inside the JVM, the memory is associated with a session. Because
-none was provided here, the session is an implicit session, and the memory will
-be freed when the serialized object is garbage collected.
+is allocated inside the JVM, the memory is associated with an arena. Because
+none was provided here, the arena is an implicit arena, and the memory will be
+freed when the serialized object is garbage collected.
 
 In many cases this is not desirable, because the memory is not freed in a
 deterministic manner, causing garbage collection pauses to become longer, as
-well as changing allocation performance. Instead of an implicit session, there
-are other kinds of sessions as well. A `stack-session` is a thread-local
-session. Stack sessions are `Closeable`, which means they should usually be used
-in a `with-open` form. When a `stack-session` is closed, it immediately frees
-all the memory associated with it. The previous example, `out-int`, can be
-implemented with a stack session.
+well as changing allocation performance. Instead of an implicit arena, there
+are other kinds of arenas as well. A `confined-arena` is a thread-local arena.
+Confined arenas are `Closeable`, which means they should usually be used in a
+`with-open` form. When a `confined-arena` is closed, it immediately frees all
+the memory associated with it. The previous example, `out-int`, can be
+implemented with a confined arena.
 
 ```clojure
 (defcfn out-int
   "out_int" [::mem/pointer] ::mem/void
   native-fn
   [i]
-  (with-open [session (mem/stack-session)]
-    (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int] session)]
+  (with-open [arena (mem/confined-arena)]
+    (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int] arena)]
       (native-fn int-ptr)
       (mem/deserialize int-ptr [::mem/pointer ::mem/int]))))
 ```
@@ -388,15 +390,15 @@ implemented with a stack session.
 This will free the pointer immediately upon leaving the function.
 
 When memory needs to be accessible from multiple threads, there's
-`shared-session`. When using a `shared-session`, it should be accessed inside a
-`with-acquired` block. When a `shared-session` is `.close`d, it will release all
-its associated memory when every `with-acquired` block associated with it is
-exited.
+`shared-arena`. When a `shared-arena` is `.close`d, it will release all its
+associated memory immediately, and so this should only be done once all other
+threads are done accessing memory associated with it.
 
-In addition, two non-`Closeable` sessions are `global-session`, which never
-frees the resources associated with it, and `connected-session`, which is a
-session that frees its resources on garbage collection, like an implicit
-session.
+In addition, two non-`Closeable` arenas are `global-arena`, which never frees
+the resources associated with it, and `auto-arena`, which is an arena that frees
+its resources once all of them are unreachable during a garbage collection
+cycle, like an implicit arena, but potentially for multiple allocations rather
+than just one.
 
 ### Serialization and Deserialization
 Custom serializers and deserializers may also be created. This is done using two
@@ -426,34 +428,35 @@ serialize to primitives.
 
 ```clojure
 (defmethod mem/serialize* ::vector
-  [obj _type session]
-  (mem/address-of (mem/serialize obj [::mem/array ::mem/float 3] session)))
+  [obj _type arena]
+  (mem/serialize obj [::mem/array ::mem/float 3] arena))
 
 (defmethod mem/deserialize* ::vector
-  [addr _type]
-  (mem/deserialize (mem/slice-global addr (mem/size-of [::mem/array ::mem/float 3]))
+  [segment _type]
+  (mem/deserialize (mem/reinterpret segment (mem/size-of [::mem/array ::mem/float 3]))
                    [::mem/array ::mem/float 3]))
 ```
 
-The `slice-global` function allows you to take an address without an associated
-session and get a memory segment which can be deserialized.
+The `reinterpret` function allows you to take a segment and decorate it with a
+new size, and possibly associate it with an arena or add cleanup functions on
+it.
 
-In cases like this where we don't know the session of the pointer, we could use
-`add-close-action!` to ensure it's freed. For example if a `free-vector!`
-function that takes a pointer exists, we could use this:
+In cases like this where we don't know the arena of the pointer, we could use
+`reinterpret` to ensure it's freed. For example if a `free-vector!` function
+that takes a pointer exists, we could use this:
 
 ```clojure
 (defcfn returns-vector
   "returns_vector" [] ::mem/pointer
   native-fn
-  [session]
+  [arena]
   (let [ret-ptr (native-fn)]
-    (add-close-action! session #(free-vector! ret-ptr))
-    (deserialize ret-ptr ::vector)))
+    (-> (reinterpret ret-ptr (mem/size-of ::vector) arena free-vector!)
+        (deserialize ::vector))))
 ```
 
-This function takes a session and returns the deserialized vector, and it will
-free the pointer when the session closes.
+This function takes an arena and returns the deserialized vector, and it will
+free the pointer when the arena closes.
 
 #### Tagged Union
 For the tagged union type, we will represent the value as a vector of a keyword
@@ -505,7 +508,7 @@ deserialize the value into and out of memory segments. This is accomplished with
         (map first))))
 
 (defmethod mem/serialize-into ::tagged-union
-  [obj [_tagged-union tags type-map] segment session]
+  [obj [_tagged-union tags type-map] segment arena]
   (mem/serialize-into
    {:tag (item-index tags (first obj))
     :value (second obj)}
@@ -513,7 +516,7 @@ deserialize the value into and out of memory segments. This is accomplished with
     [[:tag ::mem/long]
      [:value (get type-map (first obj))]]]
    segment
-   session))
+   arena))
 ```
 
 This serialization method is rather simple, it just turns the vector value into
@@ -570,7 +573,7 @@ it could be represented for serialization purposes like so:
 This union however would not include the tag when serialized.
 
 If a union is deserialized, then all that coffi does is to allocate a new
-segment of the appropriate size with an implicit session so that it may later be
+segment of the appropriate size with an implicit arena so that it may later be
 garbage collected, and copies the data from the source segment into it. It's up
 to the user to call `deserialize-from` on that segment with the appropriate
 type.
@@ -593,14 +596,14 @@ create raw function handles.
 
 With raw handles, the argument types are expected to exactly match the types
 expected by the native function. For primitive types, those are primitives. For
-addresses, that is `MemoryAddress`, and for composite types like structs and
-unions, that is `MemorySegment`. Both `MemoryAddress` and `MemorySegment` come
-from the `java.lang.foreign` package.
+pointers, that is `MemorySegment`, and for composite types like structs and
+unions, that is also `MemorySegment`. `MemorySegment` comes from the
+`java.lang.foreign` package.
 
 In addition, when a raw handle returns a composite type represented with a
 `MemorySegment`, it requires an additional first argument, a `SegmentAllocator`,
-which can be acquired with `session-allocator` to get one associated with a
-specific session. The returned value will live until that session is released.
+which can be acquired with `arena-allocator` to get one associated with a
+specific arena. The returned value will live until that arena is released.
 
 In addition, function types can be specified as being raw, in the following
 manner:
@@ -635,14 +638,18 @@ As an example, when wrapping a function that returns an array of big-endian
 floats, the following code might be used.
 
 ``` clojure
+;; int returns_float_array(float **arr)
 (def ^:private returns-float-array* (ffi/make-downcall "returns_float_array" [::mem/pointer] ::mem/int))
+;; void releases_float_array(float *arr)
 (def ^:private release-floats* (ffi/make-downcall "releases_float_array" [::mem/pointer] ::mem/void))
 
 (defn returns-float-array
   []
-  (with-open [session (mem/stack-session)]
-    (let [out-floats (mem/alloc mem/pointer-size session)
-          num-floats (function-handle (mem/address-of out-floats))
+  (with-open [arena (mem/confined-arena)]
+    ;; float *out_floats;
+    ;; int num_floats = returns_float_array(&out_floats);
+    (let [out-floats (mem/alloc mem/pointer-size arena)
+          num-floats (returns-float-array* (mem/address-of out-floats))
           floats-addr (mem/read-address out-floats)
           floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
       ;; Using a try/finally to perform an operation when the stack frame exits,
@@ -657,7 +664,7 @@ floats, the following code might be used.
                                                  mem/big-endian))
                    (unchecked-inc-int index))))
         (finally
-          (release-floats floats-addr))))))
+          (release-floats* floats-addr))))))
 ```
 
 The above code manually performs all memory operations rather than relying on
@@ -711,6 +718,8 @@ the multimethod `reify-symbolspec`, although it's recommended that for any
 library authors who do so, namespaced keywords be used to name types.
 
 ## Alternatives
+**ALTERNATIVES INFORMATION IS OUT OF DATE. THE LINKS ARE FINE, BUT DESCRIPTIONS WILL BE UPDATED AT A LATER DATE.**
+
 This library is not the only Clojure library providing access to native code. In
 addition the following libraries exist:
 
@@ -740,7 +749,7 @@ appealing, as they have a smaller API surface area and it's easier to wrap
 functions.
 
 ### Benchmarks
-**BENCHMARKS FOR COFFI AND DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE CREATED WHEN PANAMA COMES OUT OF PREVIEW**
+**BENCHMARKS FOR COFFI AND DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE CREATED SOON.**
 
 An additional consideration when thinking about alternatives is the performance
 of each available option. It's an established fact that JNA (used by all three
@@ -1131,24 +1140,6 @@ These features are planned for future releases.
 - Improve error messages from defcfn macro
 - Mapped memory
 - Helper macros for custom serde implementations for composite data types
-
-### Future JDKs
-The purpose of coffi is to provide a wrapper for published versions of Project
-Panama, starting with JDK 17. As new JDKs are released, coffi will be ported to
-the newer versions of Panama. Version `0.4.341` is the last version compatible
-with JDK 17. Version `0.5.357` is the last version compatible with JDK 18.
-Version `0.6.409` is the latest version compatible with JDK 19. Bugfixes, and
-potential backports of newer coffi features may be found on the `jdk17-lts`
-branch. Development of new features and fixes as well as support for new Panama
-idioms and features will continue with focus only on the latest JDK. If a
-particular feature is not specific to the newer JDK, PRs backporting it to
-versions of coffi supporting Java 17 will likely be accepted.
-
-### 1.0 Release
-Because the feature that coffi wraps in the JDK is in preview as of JDK 19,
-coffi itself will not be released in a 1.0.x version until the feature becomes a
-core part of the JDK, likely before or during the next LTS release, Java 21, in
-September 2023.
 
 ## License
 

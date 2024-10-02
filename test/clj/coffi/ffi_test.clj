@@ -29,8 +29,18 @@
 
 (t/deftest can-make-upcall
   (t/is (= ((ffi/cfn "upcall_test" [[::ffi/fn [] ::mem/c-string]] ::mem/c-string)
-            (fn [] "hello"))
-           "hello")))
+            (fn [] "hello from clojure from c from clojure"))
+           "hello from clojure from c from clojure")))
+
+(t/deftest can-make-upcall2
+  (t/is (= ((ffi/cfn "upcall_test2" [[::ffi/fn [] ::mem/int]] ::mem/int)
+            (fn [] 5))
+           5)))
+
+(t/deftest can-make-upcall-int-fn-string-ret
+  (t/is (= ((ffi/cfn "upcall_test_int_fn_string_ret" [[::ffi/fn [] ::mem/int]] ::mem/c-string)
+            (fn [] 2))
+           "co'oi prenu")))
 
 (mem/defalias ::alignment-test
   (layout/with-c-layout
@@ -49,3 +59,12 @@
   (ffi/freset! (ffi/static-variable "counter" ::mem/int) 1)
   (t/is (= ((ffi/cfn "get_string1" [] ::mem/c-string))
            "Goodbye friend.")))
+
+(t/deftest can-call-with-trailing-string-arg
+  (t/is
+   (=
+    ((ffi/cfn "test_call_with_trailing_string_arg"
+              [::mem/int ::mem/int ::mem/c-string]
+              ::mem/void)
+     1 2 "third arg"))))
+
