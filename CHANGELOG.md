@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [1.0.450] - 2024-10-02
 ### Added
 - Support for JDK 22
 - `reinterpret` function which changes the size associated with a segment, optionally associating it with an arena and cleanup action
