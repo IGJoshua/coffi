@@ -292,7 +292,7 @@
 
                  ;; cast null pointers to something understood by panama
                  (#{::mem/pointer} type)
-                 `(or ~sym MemorySegment/NULL)
+                 `(or ~sym mem/null)
 
                  (mem/primitive-type type)
                  `(mem/serialize* ~sym ~type-sym ~arena)

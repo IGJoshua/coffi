@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [UNRELEASED]
+### Added
+- New `coffi.mem/null` var for implementing custom types
+
 ### Fixed
 - Usage of deprecated `(Class/STATIC_FIELD)` access pattern
 
