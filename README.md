@@ -1127,9 +1127,10 @@ The project author is aware of these issues and plans to fix them in a future
 release:
 
 - When generating docs with codox in a library that depends on coffi, the below error will be produced. A temporary workaround is to add an explicit dependency in your codox build on insn at version 0.2.1
-``` clojure
-Unable to find static field: ACC_OPEN in interface org.objectweb.asm.Opcodes
-```
+  ```
+  Unable to find static field: ACC_OPEN in interface org.objectweb.asm.Opcodes
+  ```
+- Pointer wrapper types like `[::mem/pointer ::mem/int]` currently use one too many layers of indirection. This is fixed on develop.
 
 ## Future Plans
 These features are planned for future releases.
