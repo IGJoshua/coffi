@@ -649,9 +649,9 @@ floats, the following code might be used.
     ;; float *out_floats;
     ;; int num_floats = returns_float_array(&out_floats);
     (let [out-floats (mem/alloc mem/pointer-size arena)
-          num-floats (returns-float-array* (mem/address-of out-floats))
+          num-floats (returns-float-array* out-floats)
           floats-addr (mem/read-address out-floats)
-          floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
+          floats-slice (mem/reinterpret floats-addr (unchecked-multiply-int mem/float-size num-floats))]
       ;; Using a try/finally to perform an operation when the stack frame exits,
       ;; but not to try to catch anything.
       (try
@@ -1127,9 +1127,10 @@ The project author is aware of these issues and plans to fix them in a future
 release:
 
 - When generating docs with codox in a library that depends on coffi, the below error will be produced. A temporary workaround is to add an explicit dependency in your codox build on insn at version 0.2.1
-``` clojure
-Unable to find static field: ACC_OPEN in interface org.objectweb.asm.Opcodes
-```
+  ```
+  Unable to find static field: ACC_OPEN in interface org.objectweb.asm.Opcodes
+  ```
+- Pointer wrapper types like `[::mem/pointer ::mem/int]` currently use one too many layers of indirection. This is fixed on develop.
 
 ## Future Plans
 These features are planned for future releases.
