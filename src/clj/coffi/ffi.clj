@@ -130,53 +130,70 @@
          [:invokevirtual (prim-classes prim-type) (unbox-fn-for-type prim-type) [prim]]]
         []))))
 
-(defn- downcall-class
-  "Class definition for an implementation of [[IFn]] which calls a closed over
+(defn- downcall-class-ctor*
+  "Returns a function to construct a downcall class for the given `args` and `ret` types.
+
+  A downcall class is an implementation of [[IFn]] which calls a closed over
   method handle without reflection, unboxing primitives when needed."
   [args ret]
-  {:flags #{:public :final}
-   :version 8
-    :super clojure.lang.AFunction
-    :fields [{:name "downcall_handle"
-              :type MethodHandle
-              :flags #{:final}}]
-    :methods [{:name :init
-               :flags #{:public}
-               :desc [MethodHandle :void]
-               :emit [[:aload 0]
-                      [:dup]
-                      [:invokespecial :super :init [:void]]
-                      [:aload 1]
-                      [:putfield :this "downcall_handle" MethodHandle]
-                      [:return]]}
-              {:name :invoke
-               :flags #{:public}
-               :desc (repeat (cond-> (inc (count args))
-                               (not (mem/primitive-type ret)) inc)
-                             Object)
-               :emit [[:aload 0]
-                      [:getfield :this "downcall_handle" MethodHandle]
-                      (when-not (mem/primitive-type ret)
-                        [[:aload 1]
-                         [:checkcast SegmentAllocator]])
-                      (map-indexed
-                       (fn [idx arg]
-                         [[:aload (cond-> (inc idx)
-                                    (not (mem/primitive-type ret)) inc)]
-                          (to-prim-asm arg)])
-                       args)
-                      [:invokevirtual MethodHandle "invokeExact"
-                       (cond->>
-                           (conj (mapv insn-layout args)
-                                 (insn-layout ret))
-                         (not (mem/primitive-type ret)) (cons SegmentAllocator))]
-                      (to-object-asm ret)
-                      [:areturn]]}]})
+  (let [klass (insn/define
+                {:flags #{:public :final}
+                 :version 8
+                 :super clojure.lang.AFunction
+                 :fields [{:name "downcall_handle"
+                           :type MethodHandle
+                           :flags #{:final}}]
+                 :methods [{:name :init
+                            :flags #{:public}
+                            :desc [MethodHandle :void]
+                            :emit [[:aload 0]
+                                   [:dup]
+                                   [:invokespecial :super :init [:void]]
+                                   [:aload 1]
+                                   [:putfield :this "downcall_handle" MethodHandle]
+                                   [:return]]}
+                           {:name :invoke
+                            :flags #{:public}
+                            :desc (repeat (cond-> (inc (count args))
+                                            (not (mem/primitive-type ret)) inc)
+                                          Object)
+                            :emit [[:aload 0]
+                                   [:getfield :this "downcall_handle" MethodHandle]
+                                   (when-not (mem/primitive-type ret)
+                                     [[:aload 1]
+                                      [:checkcast SegmentAllocator]])
+                                   (map-indexed
+                                    (fn [idx arg]
+                                      [[:aload (cond-> (inc idx)
+                                                 (not (mem/primitive-type ret)) inc)]
+                                       (to-prim-asm arg)])
+                                    args)
+                                   [:invokevirtual MethodHandle "invokeExact"
+                                    (cond->>
+                                        (conj (mapv insn-layout args)
+                                              (insn-layout ret))
+                                      (not (mem/primitive-type ret)) (cons SegmentAllocator))]
+                                   (to-object-asm ret)
+                                   [:areturn]]}]})
+        ctor (.getConstructor klass
+                              (doto ^"[Ljava.lang.Class;" (make-array Class 1)
+                                (aset 0 MethodHandle)))]
+    (fn [^MethodHandle h]
+      (.newInstance ctor
+                    (doto (object-array 1)
+                      (aset 0 h))))))
+
+(def ^:private downcall-class-ctor
+  "Returns a function to construct a downcall class for the given memoized `args` and `ret` types.
+
+  A downcall class is an implementation of [[IFn]] which calls a closed over
+  method handle without reflection, unboxing primitives when needed."
+  (memoize downcall-class-ctor*))
 
 (defn- downcall-fn
   "Creates a function to call `handle` without reflection."
   [handle args ret]
-  (insn/new-instance (downcall-class args ret) ^MethodHandle handle))
+  ((downcall-class-ctor args ret) ^MethodHandle handle))
 
 (defn ensure-symbol
   "Returns the argument if it is a [[MemorySegment]], otherwise
@@ -292,7 +309,7 @@
 
                  ;; cast null pointers to something understood by panama
                  (#{::mem/pointer} type)
-                 `(or ~sym (MemorySegment/NULL))
+                 `(or ~sym mem/null)
 
                  (mem/primitive-type type)
                  `(mem/serialize* ~sym ~type-sym ~arena)
@@ -462,50 +479,69 @@
   "Set of primitive types which require 2 indices in the constant pool."
   #{::mem/double ::mem/long})
 
-(defn- upcall-class
-  "Constructs a class definition for a class with a single method, `upcall`, which
-  boxes any primitives passed to it and calls a closed over [[IFn]]."
+(defn- upcall-class-ctor*
+  "Returns a function to construct an upcall class for the given `arg-types` and `ret-types`.
+
+  An upcall class is a class with a single method, `upcall`, which boxes any
+  primitives passed to it and calls a closed over [[IFn]]."
   [arg-types ret-type]
-  {:flags #{:public :final}
-   :version 8
-   :fields [{:name "upcall_ifn"
-             :type IFn
-             :flags #{:final}}]
-   :methods [{:name :init
-              :flags #{:public}
-              :desc [IFn :void]
-              :emit [[:aload 0]
-                     [:dup]
-                     [:invokespecial :super :init [:void]]
-                     [:aload 1]
-                     [:putfield :this "upcall_ifn" IFn]
-                     [:return]]}
-             {:name :upcall
-              :flags #{:public}
-              :desc (conj (mapv insn-layout arg-types)
-                          (insn-layout ret-type))
-              :emit [[:aload 0]
-                     [:getfield :this "upcall_ifn" IFn]
-                     (loop [types arg-types
-                            acc []
-                            idx 1]
-                       (if (seq types)
-                         (let [prim (mem/primitive-type (first types))]
-                           (recur (rest types)
-                                  (conj acc [[(load-instructions prim :aload) idx]
-                                             (to-object-asm (first types))])
-                                  (cond-> (inc idx)
-                                    (double-sized? prim)
-                                    inc)))
-                         acc))
-                     [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
-                     (to-prim-asm ret-type)
-                     [(return-for-type ret-type :areturn)]]}]})
+  (let [klass (insn/define
+                {:flags #{:public :final}
+                 :version 8
+                 :fields [{:name "upcall_ifn"
+                           :type IFn
+                           :flags #{:final}}]
+                 :methods [{:name :init
+                            :flags #{:public}
+                            :desc [IFn :void]
+                            :emit [[:aload 0]
+                                   [:dup]
+                                   [:invokespecial :super :init [:void]]
+                                   [:aload 1]
+                                   [:putfield :this "upcall_ifn" IFn]
+                                   [:return]]}
+                           {:name :upcall
+                            :flags #{:public}
+                            :desc (conj (mapv insn-layout arg-types)
+                                        (insn-layout ret-type))
+                            :emit [[:aload 0]
+                                   [:getfield :this "upcall_ifn" IFn]
+                                   (loop [types arg-types
+                                          acc []
+                                          idx 1]
+                                     (if (seq types)
+                                       (let [prim (mem/primitive-type (first types))]
+                                         (recur (rest types)
+                                                (conj acc [[(load-instructions prim :aload) idx]
+                                                           (to-object-asm (first types))])
+                                                (cond-> (inc idx)
+                                                  (double-sized? prim)
+                                                  inc)))
+                                       acc))
+                                   [:invokeinterface IFn "invoke" (repeat (inc (count arg-types)) Object)]
+                                   (to-prim-asm ret-type)
+                                   [(return-for-type ret-type :areturn)]]}]})
+        ctor (.getConstructor klass
+                              (doto ^"[Ljava.lang.Class;" (make-array Class 1)
+                                (aset 0 IFn)))]
+    (fn [^IFn f]
+      (.newInstance ctor
+                    (doto (object-array 1)
+                      (aset 0 f))))))
+
+(def ^:private upcall-class-ctor
+  "Returns a function to construct an upcall class for the given memoized `arg-types` and `ret-types`.
+
+  An upcall class is a class with a single method, `upcall`, which boxes any
+  primitives passed to it and calls a closed over [[IFn]]."
+  (memoize upcall-class-ctor*))
 
 (defn- upcall
-  "Constructs an instance of [[upcall-class]], closing over `f`."
+  "Constructs an instance of an upcall class, closing over `f`.
+
+  See [[upcall-class-ctor]]."
   [f arg-types ret-type]
-  (insn/new-instance (upcall-class arg-types ret-type) ^IFn f))
+  ((upcall-class-ctor arg-types ret-type) ^IFn f))
 
 (defn- method-type
   "Gets the [[MethodType]] for a set of `args` and `ret` types."
@@ -539,25 +575,31 @@
      (mem/global-arena))))
 
 (defmethod mem/serialize* ::fn
-  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] arena]
-  (.upcallStub
-   (Linker/nativeLinker)
-   ^MethodHandle (cond-> f
-                   (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
-                   :always (upcall-handle arg-types ret-type))
-   ^FunctionDescriptor (function-descriptor arg-types ret-type)
-   ^Arena arena
-   (make-array Linker$Option 0)))
+  [f [_fn arg-types ret-type & {:keys [raw-fn?]} :as typ] arena]
+  (if-let [address (::address (meta f))]
+    (do (assert (= typ (::type (meta f)))
+                "The type of a deserialized function must match the type it is re-serialized to.")
+        address)
+    (.upcallStub
+     (Linker/nativeLinker)
+     ^MethodHandle (cond-> f
+                     (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
+                     :always (upcall-handle arg-types ret-type))
+     ^FunctionDescriptor (function-descriptor arg-types ret-type)
+     ^Arena arena
+     (make-array Linker$Option 0))))
 
 (defmethod mem/deserialize* ::fn
-  [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
+  [addr [_fn arg-types ret-type & {:keys [raw-fn?] :as typ}]]
   (when-not (mem/null? addr)
     (vary-meta
       (-> ^MemorySegment addr
           (downcall-handle (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
           (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
-      assoc ::address addr)))
+      assoc
+      ::address addr
+      ::type typ)))
 
 ;;; Static memory access
 

@@ -1,6 +1,18 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [1.0.472] - 2024-10-03
+### Added
+- New `coffi.mem/null` var for implementing custom types
+
+### Performance
+- Upcall functions serialized from functions returned by deserializing function pointers now use the backing function pointer directly
+- Upcall and downcall classes have been changed to be memoized, meaning ASM is no longer invoked every time a function is serialized, which should drastically improve performance where functions are serialized in a hot loop
+
+### Fixed
+- Incorrect docstring on `coffi.mem/address-of` that implied some type of pointer type was returned rather than a long
+- Usage of deprecated `(Class/STATIC_FIELD)` access pattern
+
 ## [1.0.450] - 2024-10-02
 ### Added
 - Support for JDK 22
@@ -133,6 +145,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[1.0.472]: https://github.com/IGJoshua/coffi/compare/v1.0.450...v1.0.472
 [1.0.450]: https://github.com/IGJoshua/coffi/compare/v0.6.409...v1.0.450
 [0.6.409]: https://github.com/IGJoshua/coffi/compare/v0.5.357...v0.6.409
 [0.5.357]: https://github.com/IGJoshua/coffi/compare/v0.4.341...v0.5.357

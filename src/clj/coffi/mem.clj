@@ -106,16 +106,22 @@
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
 (defn address-of
-  "Gets the address of a given segment.
-
-  This value can be used as an argument to functions which take a pointer."
+  "Gets the address of a given segment as a number."
   ^long [addressable]
   (.address ^MemorySegment addressable))
+
+(def ^MemorySegment null
+  "The NULL pointer object.
+
+  While this object is safe to pass to functions which serialize to a pointer,
+  it's generally encouraged to simply pass `nil`. This value primarily exists to
+  make it easier to write custom types with a primitive pointer representation."
+  MemorySegment/NULL)
 
 (defn null?
   "Checks if a memory address is null."
   [addr]
-  (or (.equals (MemorySegment/NULL) addr) (not addr)))
+  (or (.equals null addr) (not addr)))
 
 (defn address?
   "Checks if an object is a memory address.
@@ -872,7 +878,7 @@
         (serialize-into obj (second type) segment arena)
         (address-of segment))
       obj)
-    (MemorySegment/NULL)))
+    null))
 
 (defmethod serialize* ::void
   [_obj _type _arena]
@@ -1132,7 +1138,7 @@
   [obj _type ^Arena arena]
   (if obj
     (.allocateFrom arena ^String obj)
-    (MemorySegment/NULL)))
+    null))
 
 (defmethod deserialize* ::c-string
   [addr _type]
