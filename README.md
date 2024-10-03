@@ -649,7 +649,7 @@ floats, the following code might be used.
     ;; float *out_floats;
     ;; int num_floats = returns_float_array(&out_floats);
     (let [out-floats (mem/alloc mem/pointer-size arena)
-          num-floats (returns-float-array* (mem/address-of out-floats))
+          num-floats (returns-float-array* out-floats)
           floats-addr (mem/read-address out-floats)
           floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
       ;; Using a try/finally to perform an operation when the stack frame exits,
