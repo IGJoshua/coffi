@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. This change
 - New `coffi.mem/null` var for implementing custom types
 
 ### Performance
+- Upcall functions serialized from functions returned by deserializing function pointers now use the backing function pointer directly
 - Upcall and downcall classes have been changed to be memoized, meaning ASM is no longer invoked every time a function is serialized, which should drastically improve performance where functions are serialized in a hot loop
 
 ### Fixed

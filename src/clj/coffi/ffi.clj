@@ -575,25 +575,31 @@
      (mem/global-arena))))
 
 (defmethod mem/serialize* ::fn
-  [f [_fn arg-types ret-type & {:keys [raw-fn?]}] arena]
-  (.upcallStub
-   (Linker/nativeLinker)
-   ^MethodHandle (cond-> f
-                   (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
-                   :always (upcall-handle arg-types ret-type))
-   ^FunctionDescriptor (function-descriptor arg-types ret-type)
-   ^Arena arena
-   (make-array Linker$Option 0)))
+  [f [_fn arg-types ret-type & {:keys [raw-fn?]} :as typ] arena]
+  (if-let [address (::address (meta f))]
+    (do (assert (= typ (::type (meta f)))
+                "The type of a deserialized function must match the type it is re-serialized to.")
+        address)
+    (.upcallStub
+     (Linker/nativeLinker)
+     ^MethodHandle (cond-> f
+                     (not raw-fn?) (upcall-serde-wrapper arg-types ret-type)
+                     :always (upcall-handle arg-types ret-type))
+     ^FunctionDescriptor (function-descriptor arg-types ret-type)
+     ^Arena arena
+     (make-array Linker$Option 0))))
 
 (defmethod mem/deserialize* ::fn
-  [addr [_fn arg-types ret-type & {:keys [raw-fn?]}]]
+  [addr [_fn arg-types ret-type & {:keys [raw-fn?] :as typ}]]
   (when-not (mem/null? addr)
     (vary-meta
       (-> ^MemorySegment addr
           (downcall-handle (function-descriptor arg-types ret-type))
           (downcall-fn arg-types ret-type)
           (cond-> (not raw-fn?) (make-serde-wrapper arg-types ret-type)))
-      assoc ::address addr)))
+      assoc
+      ::address addr
+      ::type typ)))
 
 ;;; Static memory access
 
