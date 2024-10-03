@@ -9,7 +9,8 @@
  :aliases
  {:dev {:extra-paths ["."]
         :extra-deps {io.github.clojure/tools.build {:git/tag "v0.3.0" :git/sha "e418fc9"}
-                     nodisassemble/nodisassemble {:mvn/version "0.1.3"}}
+                     nodisassemble/nodisassemble {:mvn/version "0.1.3"}
+                     criterium/criterium {:mvn/version "0.4.6"}}
         ;; NOTE(Joshua): If you want to use nodisassemble you should also add a
         ;; -javaagent for the resolved location
         :jvm-opts ["--enable-native-access=ALL-UNNAMED"]}
