@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [UNRELEASED]
+## [1.0.472] - 2024-10-03
 ### Added
 - New `coffi.mem/null` var for implementing custom types
 
@@ -145,7 +145,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
-[UNRELEASED]: https://github.com/IGJoshua/coffi/compare/v1.0.450...develop
+[1.0.472]: https://github.com/IGJoshua/coffi/compare/v1.0.450...v1.0.472
 [1.0.450]: https://github.com/IGJoshua/coffi/compare/v0.6.409...v1.0.450
 [0.6.409]: https://github.com/IGJoshua/coffi/compare/v0.5.357...v0.6.409
 [0.5.357]: https://github.com/IGJoshua/coffi/compare/v0.4.341...v0.5.357

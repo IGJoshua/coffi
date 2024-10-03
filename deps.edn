@@ -26,7 +26,7 @@
                        insn/insn {:mvn/version "0.2.1"}}
           :exec-fn codox.main/generate-docs
           :exec-args {:name "coffi"
-                      :version "v1.0.450"
+                      :version "v1.0.471"
                       :description "A Foreign Function Interface in Clojure for JDK 22+."
                       :source-paths  ["src/clj"]
                       :output-path "docs"
