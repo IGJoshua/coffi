@@ -106,9 +106,7 @@
    (.allocate ^SegmentAllocator allocator (long size) (long alignment))))
 
 (defn address-of
-  "Gets the address of a given segment.
-
-  This value can be used as an argument to functions which take a pointer."
+  "Gets the address of a given segment as a number."
   ^long [addressable]
   (.address ^MemorySegment addressable))
 

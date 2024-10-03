@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. This change
 - Upcall and downcall classes have been changed to be memoized, meaning ASM is no longer invoked every time a function is serialized, which should drastically improve performance where functions are serialized in a hot loop
 
 ### Fixed
+- Incorrect docstring on `coffi.mem/address-of` that implied some type of pointer type was returned rather than a long
 - Usage of deprecated `(Class/STATIC_FIELD)` access pattern
 
 ## [1.0.450] - 2024-10-02
