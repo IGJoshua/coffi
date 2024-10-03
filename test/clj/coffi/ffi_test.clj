@@ -62,9 +62,11 @@
 
 (t/deftest can-call-with-trailing-string-arg
   (t/is
-   (=
-    ((ffi/cfn "test_call_with_trailing_string_arg"
-              [::mem/int ::mem/int ::mem/c-string]
-              ::mem/void)
-     1 2 "third arg"))))
-
+   (= (try ((ffi/cfn "test_call_with_trailing_string_arg"
+                     [::mem/int ::mem/int ::mem/c-string]
+                     ::mem/void)
+            1 2 "third arg")
+           :ok
+           (catch Throwable _t
+             :err))
+      :ok)))
