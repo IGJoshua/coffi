@@ -651,7 +651,7 @@ floats, the following code might be used.
     (let [out-floats (mem/alloc mem/pointer-size arena)
           num-floats (returns-float-array* out-floats)
           floats-addr (mem/read-address out-floats)
-          floats-slice (mem/slice-global floats-addr (unchecked-multiply-int mem/float-size num-floats))]
+          floats-slice (mem/reinterpret floats-addr (unchecked-multiply-int mem/float-size num-floats))]
       ;; Using a try/finally to perform an operation when the stack frame exits,
       ;; but not to try to catch anything.
       (try
