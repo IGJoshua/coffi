@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file. This change
 ### Added
 - New `coffi.mem/null` var for implementing custom types
 
+### Performance
+- Upcall and downcall classes have been changed to be memoized, meaning ASM is no longer invoked every time a function is serialized, which should drastically improve performance where functions are serialized in a hot loop
+
 ### Fixed
 - Usage of deprecated `(Class/STATIC_FIELD)` access pattern
 
