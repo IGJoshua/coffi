@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- Bug where one too many indirections is used when serializing/deserializing pointer types
 
 ## [1.0.472] - 2024-10-03
 ### Added

@@ -876,7 +876,7 @@
     (if (sequential? type)
       (let [segment (alloc-instance (second type) arena)]
         (serialize-into obj (second type) segment arena)
-        (address-of segment))
+        segment)
       obj)
     null))
 
@@ -1082,7 +1082,7 @@
     (if (sequential? type)
       (let [target-type (second type)]
         (deserialize-from
-         (.reinterpret ^MemorySegment (read-address addr)
+         (.reinterpret ^MemorySegment addr
                        ^long (size-of target-type))
          target-type))
       addr)))
