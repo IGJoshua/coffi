@@ -338,7 +338,7 @@ Clojure code to make this easier.
   [ints]
   (let [arr-len (count ints)
         int-array (mem/serialize ints [::mem/array ::mem/int arr-len])]
-    (native-fn (mem/address-of int-array) arr-len)))
+    (native-fn int-array arr-len)))
 ```
 
 The symbol `native-fn` can be any unqualified symbol, and names the native
