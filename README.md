@@ -1130,7 +1130,6 @@ release:
   ```
   Unable to find static field: ACC_OPEN in interface org.objectweb.asm.Opcodes
   ```
-- Pointer wrapper types like `[::mem/pointer ::mem/int]` currently use one too many layers of indirection. This is fixed on develop.
 
 ## Future Plans
 These features are planned for future releases.
