@@ -1,4 +1,4 @@
-# Benchmarks
+# Benchmarks **OUTDATED**
 **BENCHMARKS FOR COFFI AND DTYPE-NEXT ARE BASED ON AN OLD VERSION. NEW BENCHMARKS WILL BE CREATED SOON.**
 
 An additional consideration when thinking about alternatives is the performance

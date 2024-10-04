@@ -109,6 +109,7 @@ being able to be loaded.
 
 ### Primitive Types
 Coffi defines a basic set of primitive types:
+
 - byte
 - short
 - int
