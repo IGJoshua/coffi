@@ -307,3 +307,37 @@ atomic semantics either.
 The memory that backs the static variable can be fetched with the function
 `static-variable-segment`, which can be used to pass a pointer to the static
 variable to native functions that require it.
+
+### Complex Wrappers
+Some functions require more complex code to map nicely to a Clojure function.
+The `defcfn` macro provides facilities to wrap the native function with some
+Clojure code to make this easier.
+
+```clojure
+(defcfn takes-array
+  "takes_array_with_count" [::mem/pointer ::mem/long] ::mem/void
+  native-fn
+  [ints]
+  (let [arr-len (count ints)
+        int-array (mem/serialize ints [::mem/array ::mem/int arr-len])]
+    (native-fn int-array arr-len)))
+```
+
+The symbol `native-fn` can be any unqualified symbol, and names the native
+function being wrapped. It must be called in the function body below if you want
+to call the native code.
+
+This `serialize` function has a paired `deserialize`, and allows marshaling
+Clojure data back and forth to native data structures.
+
+This can be used to implement out variables often seen in native code.
+
+```clojure
+(defcfn out-int
+  "out_int" [::mem/pointer] ::mem/void
+  native-fn
+  [i]
+  (let [int-ptr (mem/serialize i [::mem/pointer ::mem/int])]
+    (native-fn int-ptr)
+    (mem/deserialize int-ptr [::mem/pointer ::mem/int])))
+```
