@@ -29,6 +29,7 @@
                       :version "v1.0.486"
                       :description "A Foreign Function Interface in Clojure for JDK 22+."
                       :source-paths  ["src/clj"]
+                      :doc-paths ["docs/articles"]
                       :output-path "docs"
                       :source-uri "https://github.com/IGJoshua/coffi/blob/{git-commit}/{filepath}#L{line}"
                       :metadata {:doc/format :markdown}}}
