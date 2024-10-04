@@ -11,8 +11,8 @@ doesn't remove the ability to write systems which minimize the cost of
 marshaling data and optimize for performance, to make use of the low-level
 access the FF&M API gives us.
 
-- [Getting Started](igjoshua.github.io/coffi/01-Getting-Started.html)
-- [API Documentation](igjoshua.github.io/coffi/)
+- [Getting Started](https://igjoshua.github.io/coffi/01-Getting-Started.html)
+- [API Documentation](https://igjoshua.github.io/coffi/)
 - [Recent Changes](CHANGELOG.md)
 
 ## Installation
