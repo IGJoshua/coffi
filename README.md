@@ -11,6 +11,10 @@ doesn't remove the ability to write systems which minimize the cost of
 marshaling data and optimize for performance, to make use of the low-level
 access the FF&M API gives us.
 
+- [Getting Started](igjoshua.github.io/coffi/01-Getting-Started.html)
+- [API Documentation](igjoshua.github.io/coffi/)
+- [Recent Changes](CHANGELOG.md)
+
 ## Installation
 This library is available on Clojars, or as a git dependency. Add one of the
 following entries to the `:deps` key of your `deps.edn`:
@@ -37,7 +41,7 @@ the following JVM arguments to your application.
 ```
 
 You can specify JVM arguments in a particular invocation of the Clojure CLI with
-the -J flag like so:
+the `-J` flag like so:
 
 ``` sh
 clj -J--enable-native-access=ALL-UNNAMED
