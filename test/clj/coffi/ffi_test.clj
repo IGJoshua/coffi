@@ -70,3 +70,27 @@
            (catch Throwable _t
              :err))
       :ok)))
+
+(ffi/defvar freed? "freed" ::mem/int)
+
+(def get-variable-length-array* (ffi/make-downcall "get_variable_length_array" [::mem/pointer] ::mem/int))
+(def free-variable-length-array* (ffi/make-downcall "free_variable_length_array" [::mem/pointer] ::mem/void))
+
+(t/deftest get-variable-length-array
+  (let [floats
+        (with-open [stack (mem/confined-arena)]
+          (let [out-floats (mem/alloc mem/pointer-size stack)
+                num-floats (get-variable-length-array* out-floats)
+                floats-addr (mem/read-address out-floats)
+                floats-slice (mem/reinterpret floats-addr (unchecked-multiply-int mem/float-size num-floats))]
+            (try
+              (loop [floats (transient [])
+                     index 0]
+                (if (>= index num-floats)
+                  (persistent! floats)
+                  (recur (conj! floats (mem/read-float floats-slice (unchecked-multiply-int index mem/float-size)))
+                         (unchecked-inc-int index))))
+              (finally
+                (free-variable-length-array* floats-addr)))))]
+    (t/is (not (zero? @freed?)))
+    (t/is (= floats (mapv #(* (float 1.5) %) (range (count floats)))))))
