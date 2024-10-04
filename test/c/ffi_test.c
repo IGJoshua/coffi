@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 int add_numbers(int a, int b) {
     return a + b;
@@ -78,3 +79,20 @@ void test_call_with_trailing_string_arg(int a, int b, char* text) {
     return;
 }
 
+int freed = 0;
+
+int get_variable_length_array(float **arr) {
+    freed = 0;
+    *arr = malloc(sizeof(float) * 7);
+
+    for (int i = 0; i < 7; ++i) {
+        (*arr)[i] = 1.5f * i;
+    }
+
+    return 7;
+}
+
+void free_variable_length_array(float *arr) {
+    freed = 1;
+    free(arr);
+}
