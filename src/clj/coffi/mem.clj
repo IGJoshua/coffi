@@ -1149,7 +1149,12 @@
 
 (defmethod c-layout ::union
   [[_union types & {:as _opts} :as _type]]
-  (let [items (map c-layout types)]
+  (let [items (if (map? types)
+                (map
+                  (fn [[field-name field]]
+                    (.withName ^MemoryLayout (c-layout field) (name field-name)))
+                  types)
+                (map c-layout types))]
     (MemoryLayout/unionLayout
      (into-array MemoryLayout items))))
 
