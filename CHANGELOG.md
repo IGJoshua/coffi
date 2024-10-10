@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Added
-- Add support for named union members in c-layout
+- Support for named union members in c-layout (thanks to @jjttjj)
 
 ## [1.0.486] - 2024-10-04
 ### Fixed
