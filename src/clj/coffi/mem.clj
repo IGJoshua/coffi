@@ -1600,7 +1600,7 @@
     'floats  [::array ::byte]
     'doubles [::array ::byte]}
    _type
-   _type))
+   (keyword (str *ns*) (str _type))))
 
 (defn coffitype->array-fn [_type]
   (get
@@ -1659,6 +1659,7 @@
               (generate-deserialize field-type (+ global-offset offset))))
            (reduce concat)
            (cons (symbol (str (name typename) ".")))
+           (list)
            ))))
 
 (defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
@@ -1689,8 +1690,9 @@
       (->> typelist
            (map-indexed
             (fn [index [offset [_ field-type]]]
-              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) source-form) (+ global-offset offset))))
-           (cons `do)))))
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (+ global-offset offset))))
+           (concat [`let ['source-obj source-form]])
+           ))))
 
 (defmacro defstruct
   "Defines a struct type. all members need a type hint.
@@ -1721,9 +1723,9 @@
       (register-new-struct-serialization   coffi-typename struct-layout)
       `(do
          (defrecord ~typename ~typed-symbols)
-         (defmethod c-layout ~coffi-typename [~'_] ~struct-layout)
+         (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
          (defmethod deserialize-from ~coffi-typename ~['segment '_type]
-           ~(generate-deserialize coffi-typename 0))
+           ~(first (generate-deserialize coffi-typename 0)))
          (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
            ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
          )
