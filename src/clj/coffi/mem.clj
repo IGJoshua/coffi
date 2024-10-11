@@ -1573,6 +1573,16 @@
                 (pos? r) (conj [::padding [::padding (- strongest-alignment r)]])))))]
     (assoc struct-spec 1 aligned-fields)))
 
+(defmacro with-typehint [bindings form]
+  (let [bindmap (->>
+                  bindings
+                  (partition 2 2)
+                  (map (fn [[sym hint]] [sym (with-meta sym {:tag hint})]))
+                  (into (hash-map)))]
+    (clojure.walk/postwalk
+      (fn [x] (get bindmap x x))
+      form)))
+
 (defn- typename->coffi-typename [_type]
   (get
    {'byte    ::byte
@@ -1592,6 +1602,62 @@
    _type
    _type))
 
+(defn coffitype->array-fn [_type]
+  (get
+   {:coffi.mem/byte   `byte-array
+    :coffi.mem/short  `short-array
+    :coffi.mem/int    `int-array
+    :coffi.mem/long   `long-array
+    :coffi.mem/char   `char-array
+    :coffi.mem/float  `float-array
+    :coffi.mem/double `double-array}
+   _type
+   `object-array))
+
+(defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
+
+(defmethod generate-deserialize :coffi.mem/byte     [_type offset] [`(read-byte    ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/short    [_type offset] [`(read-short   ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/int      [_type offset] [`(read-int     ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/long     [_type offset] [`(read-long    ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/char     [_type offset] [`(read-char    ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/float    [_type offset] [`(read-float   ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/double   [_type offset] [`(read-double  ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/pointer  [_type offset] [`(read-address ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/c-string [_type offset] [`(list with-typehint ['addr java.lang.foreign.MemorySegment] (list `.getString (list `.reinterpret 'addr `Integer/MAX_VALUE) 0))])
+
+(defmethod generate-deserialize :coffi.mem/array    [_type offset]
+  (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
+        gen-arr (nth outer-code 2)]
+    [(concat (butlast outer-code)
+             [`aset gen-arr]
+             (reduce
+              concat
+              (map
+               (fn [index]
+                 (let [deserialize-instructions
+                       (generate-deserialize
+                        (second _type)
+                        (+ offset (* (size-of (second _type)) index)))]
+                   (if (vector? deserialize-instructions)
+                     (list index (first deserialize-instructions))
+                     (list index deserialize-instructions))))
+               (range (second (rest _type)))))
+             [gen-arr])]))
+
+(defn register-new-struct-deserialization [typename [_struct fields]]
+  (let [typelist (->>
+                  (partition 2 2 (interleave (reductions + 0 (map (comp size-of second) fields)) fields))
+                  (filter (fn [[_ [_ field-type]]] (not (and (vector? field-type) (= ::padding (first field-type)))))))]
+    (defmethod generate-deserialize typename [_type global-offset]
+      (->> typelist
+           (map-indexed
+            (fn [index [offset [_ field-type]]]
+              (generate-deserialize field-type (+ global-offset offset))))
+           (reduce concat)
+           (cons (symbol (str (name typename) ".")))
+           ))))
+
 (defmacro defstruct
   "Defines a struct type. all members need a type hint.
 
@@ -1602,7 +1668,8 @@
   (cond
     (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `type member-name` (not via metadata on the symbols)"))
     :else
-    (let [typed-symbols (->>
+    (let [coffi-typename (keyword (str *ns*) (str typename))
+          typed-symbols (->>
                          members
                          (partition 2 2)
                          (map (fn [[hint sym]] (with-meta sym {:tag hint})))
@@ -1616,9 +1683,12 @@
                             (map #(update % 1 keyword))
                             (map reverse)
                             (map vec))])]
+      (register-new-struct-deserialization coffi-typename struct-layout)
       `(do
          (defrecord ~typename ~typed-symbols)
-         (defmethod c-layout ~typename [~'_] ~struct-layout)
+         (defmethod c-layout ~coffi-typename [~'_] ~struct-layout)
+         (defmethod deserialize-from ~coffi-typename ~['segment '_type]
+           ~(generate-deserialize coffi-typename 0))
          )
       )
     )
