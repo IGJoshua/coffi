@@ -1593,14 +1593,34 @@
     'float   ::float
     'double  ::double
     'bytes   [::array ::byte]
-    'shorts  [::array ::byte]
-    'ints    [::array ::byte]
-    'longs   [::array ::byte]
+    'shorts  [::array ::short]
+    'ints    [::array ::int]
+    'longs   [::array ::long]
     'chars   ::c-string
-    'floats  [::array ::byte]
-    'doubles [::array ::byte]}
+    'floats  [::array ::float]
+    'doubles [::array ::double]}
    _type
    (keyword (str *ns*) (str _type))))
+
+(defn- coffitype->typename [_type]
+  (cond
+    (and (vector? _type) (= ::array (first _type))) (get {::byte   'bytes
+                                                          ::short  'shorts
+                                                          ::int    'ints
+                                                          ::long   'longs
+                                                          ::char   'chars
+                                                          ::float  'floats
+                                                          ::double 'doubles}
+                                                         (second _type) 'objects)
+    :default (get {::byte     'byte
+                   ::short    'short
+                   ::int      'int
+                   ::long     'long
+                   ::char     'char
+                   ::float    'float
+                   ::double   'double
+                   ::c-string 'String}
+                  _type (keyword (str *ns*) (str _type)))))
 
 (defn coffitype->array-fn [_type]
   (get
@@ -1630,19 +1650,20 @@
   (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
         gen-arr (nth outer-code 2)]
     [(concat (butlast outer-code)
-             [`aset gen-arr]
-             (reduce
-              concat
-              (map
-               (fn [index]
-                 (let [deserialize-instructions
-                       (generate-deserialize
-                        (second _type)
-                        (+ offset (* (size-of (second _type)) index)))]
-                   (if (vector? deserialize-instructions)
-                     (list index (first deserialize-instructions))
-                     (list index deserialize-instructions))))
-               (range (second (rest _type)))))
+             (list
+              (concat [`aset gen-arr]
+                      (reduce
+                       concat
+                       (map
+                        (fn [index]
+                          (let [deserialize-instructions
+                                (generate-deserialize
+                                 (second _type)
+                                 (+ offset (* (size-of (second _type)) index)))]
+                            (if (vector? deserialize-instructions)
+                              (list index (first deserialize-instructions))
+                              (list index deserialize-instructions))))
+                        (range (second (rest _type)))))))
              [gen-arr])]))
 
 (defn typelist [typename fields]
@@ -1695,27 +1716,25 @@
            ))))
 
 (defmacro defstruct
-  "Defines a struct type. all members need a type hint.
+  "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
 
-  This creates needed serialization and deserialization implementations for the
-  aliased type."
+  This creates needed serialization and deserialization implementations for the new type."
   {:style/indent [:defn]}
   [typename members]
   (cond
-    (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `type member-name` (not via metadata on the symbols)"))
+    (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `typename member-name`. the typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`"))
     :else
     (let [coffi-typename (keyword (str *ns*) (str typename))
           typed-symbols (->>
                          members
                          (partition 2 2)
-                         (map (fn [[hint sym]] (with-meta sym {:tag hint})))
+                         (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type)})))
                          (vec))
           struct-layout (with-c-layout [::struct
                            (->>
                             members
                             (partition 2 2)
                             (map vec)
-                            (map #(update % 0 typename->coffi-typename))
                             (map #(update % 1 keyword))
                             (map reverse)
                             (map vec))])]
