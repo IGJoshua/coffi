@@ -1645,10 +1645,13 @@
                (range (second (rest _type)))))
              [gen-arr])]))
 
+(defn typelist [typename fields]
+  (->>
+   (partition 2 2 (interleave (reductions + 0 (map (comp size-of second) fields)) fields))
+   (filter (fn [[_ [_ field-type]]] (not (and (vector? field-type) (= ::padding (first field-type))))))))
+
 (defn register-new-struct-deserialization [typename [_struct fields]]
-  (let [typelist (->>
-                  (partition 2 2 (interleave (reductions + 0 (map (comp size-of second) fields)) fields))
-                  (filter (fn [[_ [_ field-type]]] (not (and (vector? field-type) (= ::padding (first field-type)))))))]
+  (let [typelist (typelist typename fields)]
     (defmethod generate-deserialize typename [_type global-offset]
       (->> typelist
            (map-indexed
@@ -1657,7 +1660,6 @@
            (reduce concat)
            (cons (symbol (str (name typename) ".")))
            ))))
-
 
 (defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
@@ -1679,6 +1681,16 @@
                           (list `aget 'array-obj index)
                           (+ offset (* (size-of member-type) index))))
     (range length))))
+
+(defn register-new-struct-serialization [typename [_struct fields]]
+  (let [typelist (typelist typename fields)
+        fieldnames (filter #(not= ::padding %) (map first fields))]
+    (defmethod generate-serialize typename [_type source-form global-offset]
+      (->> typelist
+           (map-indexed
+            (fn [index [offset [_ field-type]]]
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) source-form) (+ global-offset offset))))
+           (cons `do)))))
 
 (defmacro defstruct
   "Defines a struct type. all members need a type hint.
@@ -1706,11 +1718,14 @@
                             (map reverse)
                             (map vec))])]
       (register-new-struct-deserialization coffi-typename struct-layout)
+      (register-new-struct-serialization   coffi-typename struct-layout)
       `(do
          (defrecord ~typename ~typed-symbols)
          (defmethod c-layout ~coffi-typename [~'_] ~struct-layout)
          (defmethod deserialize-from ~coffi-typename ~['segment '_type]
            ~(generate-deserialize coffi-typename 0))
+         (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
+           ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
          )
       )
     )
