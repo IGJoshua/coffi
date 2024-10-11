@@ -1607,9 +1607,18 @@
                          (partition 2 2)
                          (map (fn [[hint sym]] (with-meta sym {:tag hint})))
                          (vec))
-          ]
+          struct-layout (with-c-layout [::struct
+                           (->>
+                            members
+                            (partition 2 2)
+                            (map vec)
+                            (map #(update % 0 typename->coffi-typename))
+                            (map #(update % 1 keyword))
+                            (map reverse)
+                            (map vec))])]
       `(do
          (defrecord ~typename ~typed-symbols)
+         (defmethod c-layout ~typename [~'_] ~struct-layout)
          )
       )
     )
