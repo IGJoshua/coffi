@@ -1546,4 +1546,45 @@
   :args (s/cat :new-type qualified-keyword?
                :aliased-type any?))
 
+(defn- typename->coffi-typename [_type]
+  (get
+   {'byte    ::byte
+    'short   ::short
+    'int     ::int
+    'long    ::long
+    'char    ::char
+    'float   ::float
+    'double  ::double
+    'bytes   [::array ::byte]
+    'shorts  [::array ::byte]
+    'ints    [::array ::byte]
+    'longs   [::array ::byte]
+    'chars   ::c-string
+    'floats  [::array ::byte]
+    'doubles [::array ::byte]}
+   _type
+   _type))
+
+(defmacro defstruct
+  "Defines a struct type. all members need a type hint.
+
+  This creates needed serialization and deserialization implementations for the
+  aliased type."
+  {:style/indent [:defn]}
+  [typename members]
+  (cond
+    (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `type member-name` (not via metadata on the symbols)"))
+    :else
+    (let [typed-symbols (->>
+                         members
+                         (partition 2 2)
+                         (map (fn [[hint sym]] (with-meta sym {:tag hint})))
+                         (vec))
+          ]
+      `(do
+         (defrecord ~typename ~typed-symbols)
+         )
+      )
+    )
+  )
 
