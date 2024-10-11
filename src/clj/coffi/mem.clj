@@ -1658,6 +1658,28 @@
            (cons (symbol (str (name typename) ".")))
            ))))
 
+
+(defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
+
+(defmethod generate-serialize :coffi.mem/byte    [_type source-form offset] `(write-byte    ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/short   [_type source-form offset] `(write-short   ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/int     [_type source-form offset] `(write-int     ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/long    [_type source-form offset] `(write-long    ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/char    [_type source-form offset] `(write-char    ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/float   [_type source-form offset] `(write-float   ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/double  [_type source-form offset] `(write-double  ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/pointer [_type source-form offset] `(write-pointer ~'segment ~offset ~source-form))
+
+(defmethod generate-serialize :coffi.mem/array   [[_arr member-type length] source-form offset]
+  (concat
+   (list `let ['array-obj source-form])
+   (map
+    (fn [index]
+      (generate-serialize member-type
+                          (list `aget 'array-obj index)
+                          (+ offset (* (size-of member-type) index))))
+    (range length))))
+
 (defmacro defstruct
   "Defines a struct type. all members need a type hint.
 
