@@ -1558,19 +1558,19 @@
                fields (nth struct-spec 1)]
           (if (seq fields)
             (let [[[_ type :as field] & fields] fields
-                  size (mem/size-of type)
-                  align (mem/align-of type)
+                  size (size-of type)
+                  align (align-of type)
                   r (rem offset align)]
               (recur (cond-> (+ offset size)
                        (pos? r) (+ (- align r)))
                      (cond-> aligned-fields
-                       (pos? r) (conj [::padding [::mem/padding (- align r)]])
+                       (pos? r) (conj [::padding [::padding (- align r)]])
                        :always (conj field))
                      fields))
-            (let [strongest-alignment (reduce max (map (comp mem/align-of second) (nth struct-spec 1)))
+            (let [strongest-alignment (reduce max (map (comp align-of second) (nth struct-spec 1)))
                   r (rem offset strongest-alignment)]
               (cond-> aligned-fields
-                (pos? r) (conj [::padding [::mem/padding (- strongest-alignment r)]])))))]
+                (pos? r) (conj [::padding [::padding (- strongest-alignment r)]])))))]
     (assoc struct-spec 1 aligned-fields)))
 
 (defn- typename->coffi-typename [_type]
