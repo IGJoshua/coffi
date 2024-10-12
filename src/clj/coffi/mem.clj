@@ -1715,6 +1715,39 @@
            (concat [`let ['source-obj source-form]])
            ))))
 
+(defn- generate-struct-record [typename typed-member-symbols]
+  (let [members (map (comp keyword str) typed-member-symbols)
+        as-vec (vec (partition 2 (interleave (map (comp symbol (partial str ".") name) members) (repeat 'this) )))
+        as-map (into {} (map (fn [m] [m (list (->> m (name) (str ".") (symbol)) 'this)]) members))]
+    (list
+     `deftype (symbol (name typename))
+     (vec typed-member-symbols)
+     `clojure.lang.IPersistentVector
+     `clojure.lang.IPersistentMap
+     (list 'length      ['this]           (count members))
+     (list 'assocN      ['this 'i 'value] (list `assoc 'i as-vec 'value))
+     (list 'cons        ['this 'o]        (vec (cons 'o as-vec)))
+     (list 'peek        ['this]           (first as-vec))
+     (list 'pop         ['this]           (vec (rest as-vec)))
+     (list 'count       ['this]           (count members))
+     (list 'empty       ['this]           [])
+     (list 'equiv       ['this 'o]        (list `or (list `=  as-vec 'o) (list `= as-map 'o)))
+     (list 'seq         ['this]           (list `seq as-vec))
+     (list 'rseq        ['this]           (vec (reverse as-vec)))
+     (list 'nth         ['this 'i]        (concat [`case 'i] (interleave (range) as-vec)))
+     (list 'nth         ['this 'i 'o]     (concat [`case 'i] (interleave (range) as-vec) ['o]))
+
+     (list 'assoc       ['this 'i 'value] (list `if (list `number? 'i) (list `assoc as-vec 'i 'value) (assoc as-map 'i 'value)))
+     (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value)))
+     (list 'without     ['this 'k]        (list `dissoc as-map (list `if (list `number? 'k) (list (vec members) 'k) 'k)))
+     (list 'containsKey ['this 'k]        (list `if (list `number? 'k) (list `and (list `>= 'k 0) (list `< 'k (count members))) (list (set members) 'k)))
+     (list 'entryAt     ['this 'k]        (list `clojure.lang.MapEntry/create 'k (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec))))
+
+     (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec)))
+     (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o]))
+     (list 'iterator    ['this]           (list '.iterator as-map))
+     (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec))))))
+
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
 
@@ -1741,7 +1774,7 @@
       (register-new-struct-deserialization coffi-typename struct-layout)
       (register-new-struct-serialization   coffi-typename struct-layout)
       `(do
-         (defrecord ~typename ~typed-symbols)
+         ~(generate-struct-record typename typed-symbols)
          (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
          (defmethod deserialize-from ~coffi-typename ~['segment '_type]
            ~(first (generate-deserialize coffi-typename 0)))
