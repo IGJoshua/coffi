@@ -1780,6 +1780,7 @@
            ~(first (generate-deserialize coffi-typename 0)))
          (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
            ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
+         (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
          )
       )
     )
