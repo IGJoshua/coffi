@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+const int c = 42;
+
 int add_numbers(int a, int b) {
     return a + b;
 }

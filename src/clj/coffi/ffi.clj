@@ -606,7 +606,7 @@
 (defn const
   "Gets the value of a constant stored in `symbol-or-addr`."
   [symbol-or-addr type]
-  (mem/deserialize (.address (ensure-symbol symbol-or-addr)) [::mem/pointer type]))
+  (mem/deserialize (ensure-symbol symbol-or-addr) [::mem/pointer type]))
 
 (s/def ::defconst-args
   (s/cat :var-name simple-symbol?
