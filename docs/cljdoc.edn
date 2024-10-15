@@ -1,0 +1,10 @@
+{:cljdoc.doc/tree
+ [["Readme" {:file "README.md"}]
+  ["Changelog" {:file "CHANGELOG.md"}]
+  ["Getting Started" {:file "docs/articles/01-Getting-Started.md"}
+   ["Memory Management" {:file "docs/articles/02-Memory-Management.md"}]
+   ["Built-in Types WIP" {:file "docs/articles/03-Builtin-Types.md"}]
+   ["Custom Types" {:file "docs/articles/04-Custom-Types.md"}]
+   ["Low-Level Wrappers" {:file "docs/articles/05-Low-Level-Wrappers.md"}]]
+  ["Data Model" {:file "docs/articles/50-Data-Model.md"}]
+  ["Benchmarks" {:file "docs/articles/99-Benchmarks.md"}]]}
