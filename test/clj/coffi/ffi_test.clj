@@ -11,7 +11,7 @@
   (t/is (not (nil? (ffi/find-symbol "add_numbers")))))
 
 (t/deftest can-fetch-constant
-  (t/is (ffi/const "c" ::mem/int) 42))
+  (t/is (= 42 (ffi/const "c" ::mem/int))))
 
 (t/deftest can-call-primitive-fns
   (t/is (= 5 ((ffi/cfn "add_numbers" [::mem/int ::mem/int] ::mem/int) 2 3))))
