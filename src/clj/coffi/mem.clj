@@ -1717,8 +1717,8 @@
 
 (defn- generate-struct-record [typename typed-member-symbols]
   (let [members (map (comp keyword str) typed-member-symbols)
-        as-vec (vec (partition 2 (interleave (map (comp symbol (partial str ".") name) members) (repeat 'this) )))
-        as-map (into {} (map (fn [m] [m (list (->> m (name) (str ".") (symbol)) 'this)]) members))]
+        as-vec (vec (map (comp symbol name) members))
+        as-map (into {} (map (fn [m] [m (symbol (name m))]) members))]
     (list
      `deftype (symbol (name typename))
      (vec typed-member-symbols)
@@ -1732,8 +1732,6 @@
      (list 'count       ['this]           (count members))
      (list 'empty       ['this]           [])
      (list 'equiv       ['this 'o]        (list `or (list `=  as-vec 'o) (list `= as-map 'o)))
-     (list 'seq         ['this]           (list `seq as-vec))
-     (list 'rseq        ['this]           (vec (reverse as-vec)))
      (list 'nth         ['this 'i]        (concat [`case 'i] (interleave (range) as-vec)))
      (list 'nth         ['this 'i 'o]     (concat [`case 'i] (interleave (range) as-vec) ['o]))
 
@@ -1746,7 +1744,11 @@
      (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec)))
      (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o]))
      (list 'iterator    ['this]           (list '.iterator as-map))
-     (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec))))))
+     (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec)))
+     (list 'seq         ['this]           (list `seq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec))))))
+
+     (list 'rseq        ['this]           (list `rseq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec)))) (dec (count members))))
+     )))
 
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
