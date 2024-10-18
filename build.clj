@@ -53,8 +53,7 @@
         (b/process {:command-args ["javac"
                                    "src/java/coffi/ffi/Loader.java"
                                    "-d" class-dir
-                                   "-target" "22"
-                                   "-source" "22"]})]
+                                   "--release" "22"]})]
     (when-not (zero? (:exit compilation-result))
       (b/delete {:path class-dir})))
   opts)
