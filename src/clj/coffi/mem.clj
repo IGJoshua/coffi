@@ -1715,40 +1715,162 @@
            (concat [`let ['source-obj source-form]])
            ))))
 
-(defn- generate-struct-record [typename typed-member-symbols]
+(deftype struct-iterator [^clojure.lang.IPersistentVector struct-type ^int size ^{:unsynchronized-mutable true :tag int} i ]
+  java.util.Iterator
+  (forEachRemaining [action] )
+  )
+
+(gen-interface
+ :name coffi.mem.IStructImpl :methods
+ [[vec_length [] int]
+  [vec_assocN [int Object] clojure.lang.IPersistentVector]
+  [vec_peek [] Object]
+  [vec_pop [] clojure.lang.IPersistentVector]
+  [vec_nth [int] Object]
+  [vec_nth [int Object] Object]
+  [vec_cons [Object] clojure.lang.IPersistentCollection]
+  [vec_equiv [Object] boolean]
+  [vec_empty [] clojure.lang.IPersistentVector]
+  [vec_iterator [] java.util.Iterator]
+  [vec_forEach [java.util.function.Consumer] void]
+  [vec_seq [] clojure.lang.ISeq]
+  [vec_rseq [] clojure.lang.ISeq]
+
+  [struct_count [] int]
+  [struct_assoc [Object Object] clojure.lang.Associative]
+  [struct_containsKey [Object] boolean]
+  [struct_valAt [Object] Object]
+  [struct_valAt [Object Object] Object]
+  [struct_entryAt [Object] clojure.lang.IMapEntry]
+
+  [map_assocEx [Object Object] clojure.lang.IPersistentMap]
+  [map_without [Object] clojure.lang.IPersistentMap]
+  [map_cons [Object] clojure.lang.IPersistentCollection]
+  [map_equiv [Object] boolean]
+  [map_empty [] clojure.lang.IPersistentMap]
+  [map_iterator [] java.util.Iterator]
+  [map_forEach [java.util.function.Consumer] void]
+  [map_seq [] clojure.lang.ISeq]])
+
+(gen-interface :name coffi.mem.IStruct :methods [[asVec [] clojure.lang.IPersistentVector] [asMap [] clojure.lang.IPersistentMap]])
+
+(deftype VecSeq [^clojure.lang.IPersistentVector v ^int i]
+  clojure.lang.ISeq clojure.lang.Indexed
+  (first [this] (.nth v i))
+  (next  [this] (if (< i (dec (.count v))) (VecSeq. v (inc i)) nil))
+  (more  [this] (if (< i (dec (.count v))) (VecSeq. v (inc i)) []))
+  (cons  [this o] (clojure.lang.Cons. o this))
+  (count [this] (- (.count v) i))
+  (empty [this] nil)
+  (equiv [this o] (= (subvec v i) o))
+  (nth   [this j] (.nth v (+ i j)))
+  (nth   [this j o] (.nth v (+ i j) o))
+  (seq   [this] this)
+  )
+
+(deftype VecWrap [^coffi.mem.IStructImpl org]
+  coffi.mem.IStruct clojure.lang.IPersistentVector Iterable
+  (length      [this]     (.vec_length org))
+  (assocN      [this i v] (.vec_assocN org i v))
+  (peek        [this]     (.vec_peek org))
+  (pop         [this]     (.vec_pop org))
+  (nth         [this i]   (.vec_nth org i))
+  (nth         [this i o] (.vec_nth org i o))
+  (cons        [this o]   (.vec_cons org o))
+  (equiv       [this o]   (.vec_equiv org o))
+  (empty       [this]     (.vec_empty org))
+  (iterator    [this]     (.vec_iterator org))
+  (forEach     [this c]   (.vec_forEach org c))
+  (seq         [this]     (VecSeq. this 0))
+  (rseq        [this]     (.vec_rseq org))
+  (count       [this]     (.struct_count org))
+  (assoc       [this k v] (.struct_assoc org k v))
+  (containsKey [this k]   (.struct_containsKey org k))
+  (valAt       [this k]   (.struct_valAt org k))
+  (valAt       [this k o] (.struct_valAt org k o))
+  (entryAt     [this k]   (.struct_entryAt org k))
+  (asMap       [this]     org)
+  (asVec       [this]     this))
+
+(deftype MapWrap [^coffi.mem.IStructImpl org]
+  coffi.mem.IStruct clojure.lang.IPersistentMap
+  (cons        [this o]   (.map_cons org o))
+  (equiv       [this o]   (.map_equiv org o))
+  (empty       [this]     (.map_empty org))
+  (iterator    [this]     (.map_iterator org))
+  (forEach     [this c]   (.map_foreach org c))
+  (seq         [this]     (.map_seq org))
+  (count       [this]     (.struct_count org))
+  (assoc       [this k v] (.struct_assoc org k v))
+  (containsKey [this k]   (.struct_containsKey org k))
+  (valAt       [this k]   (.struct_valAt org k))
+  (valAt       [this k o] (.struct_valAt org k o))
+  (entryAt     [this k]   (.struct_entryAt org k))
+  (assocEx     [this k v] (.map_assocEx org k v))
+  (without     [this k]   (.map_without org k))
+  (asMap       [this]     this)
+  (asVec       [this]     org))
+
+(defn as-vec [^coffi.mem.IStruct struct] (.asVec struct))
+(defn as-map [^coffi.mem.IStruct struct] (.asMap struct))
+
+
+(defn- generate-struct-type [typename typed-member-symbols maplike?]
   (let [members (map (comp keyword str) typed-member-symbols)
         as-vec (vec (map (comp symbol name) members))
         as-map (into {} (map (fn [m] [m (symbol (name m))]) members))]
-    (list
-     `deftype (symbol (name typename))
-     (vec typed-member-symbols)
-     `clojure.lang.IPersistentVector
-     `clojure.lang.IPersistentMap
-     (list 'length      ['this]           (count members))
-     (list 'assocN      ['this 'i 'value] (list `assoc 'i as-vec 'value))
-     (list 'cons        ['this 'o]        (vec (cons 'o as-vec)))
-     (list 'peek        ['this]           (first as-vec))
-     (list 'pop         ['this]           (vec (rest as-vec)))
-     (list 'count       ['this]           (count members))
-     (list 'empty       ['this]           [])
-     (list 'equiv       ['this 'o]        (list `or (list `=  as-vec 'o) (list `= as-map 'o)))
-     (list 'nth         ['this 'i]        (concat [`case 'i] (interleave (range) as-vec)))
-     (list 'nth         ['this 'i 'o]     (concat [`case 'i] (interleave (range) as-vec) ['o]))
+    (letfn [(vec-length    [] (list 'length      ['this]           (count members)))
+            (vec-assocN    [] (list 'assocN      ['this 'i 'value] (list `assoc 'i as-vec 'value)))
+            (vec-peek      [] (list 'peek        ['this]           (first as-vec)))
+            (vec-pop       [] (list 'pop         ['this]           (vec (rest as-vec))))
+            (vec-nth       [] (list 'nth         ['this 'i]        (concat [`case 'i] (interleave (range) as-vec))))
+            (vec-nth-2     [] (list 'nth         ['this 'i 'o]     (concat [`case 'i] (interleave (range) as-vec) ['o])))
+            (vec-cons      [] (list 'cons        ['this 'o]        (vec (cons 'o as-vec))))
+            (vec-equiv     [] (list 'equiv       ['this 'o]        (list `= as-vec 'o)))
+            (vec-empty     [] (list 'empty       ['this]           []))
+            (vec-iterator  [] (list 'iterator    ['this]           (list '.iterator as-vec)))
+            (vec-foreach   [] (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec))))
+            (vec-seq       [] (list 'seq         ['this]           (list `VecSeq. 'this 0) #_(list `seq as-vec)))
+            (vec-rseq      [] (list 'rseq        ['this]           (list `seq (vec (reverse as-vec)))))
 
-     (list 'assoc       ['this 'i 'value] (list `if (list `number? 'i) (list `assoc as-vec 'i 'value) (assoc as-map 'i 'value)))
-     (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value)))
-     (list 'without     ['this 'k]        (list `dissoc as-map (list `if (list `number? 'k) (list (vec members) 'k) 'k)))
-     (list 'containsKey ['this 'k]        (list `if (list `number? 'k) (list `and (list `>= 'k 0) (list `< 'k (count members))) (list (set members) 'k)))
-     (list 'entryAt     ['this 'k]        (list `clojure.lang.MapEntry/create 'k (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec))))
+            (s-count       [] (list 'count       ['this]           (count members)))
+            (s-assoc       [] (list 'assoc       ['this 'i 'value] (list `if (list `number? 'i) (list `assoc as-vec 'i 'value) (assoc as-map 'i 'value))))
+            (s-containsKey [] (list 'containsKey ['this 'k]        (list `if (list `number? 'k) (list `and (list `>= 'k 0) (list `< 'k (count members))) (list (set members) 'k))))
+            (s-valAt       [] (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec))))
+            (s-valAt-2     [] (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o])))
+            (s-entryAt     [] (list 'entryAt     ['this 'k]        (list `clojure.lang.MapEntry/create 'k (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec)))))
 
-     (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec)))
-     (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o]))
-     (list 'iterator    ['this]           (list '.iterator as-map))
-     (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec)))
-     (list 'seq         ['this]           (list `seq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec))))))
+            (map-assocEx   [] (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value))))
+            (map-without   [] (list 'without     ['this 'k]        (list `dissoc as-map (list `if (list `number? 'k) (list (vec members) 'k) 'k))))
+            (map-cons      [] (list 'cons        ['this 'o]        (vec (cons 'o as-map))))
+            (map-equiv     [] (list 'equiv       ['this 'o]        (list `= as-map 'o)))
+            (map-empty     [] (list 'empty       ['this]           {}))
+            (map-iterator  [] (list 'iterator    ['this]           (list '.iterator as-map)))
+            (map-foreach   [] (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-map))))
+            (map-seq       [] (list 'seq         ['this]           (list `seq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec)))))))
 
-     (list 'rseq        ['this]           (list `rseq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec)))) (dec (count members))))
-     )))
+            (map-methods   [] [(map-without) (map-cons) (map-equiv) (map-empty) (map-iterator) (map-foreach) (map-seq) (map-assocEx)])
+            (vec-methods   [] [(vec-length) (vec-assocN) (vec-peek) (vec-pop) (vec-nth) (vec-nth-2) (vec-cons) (vec-equiv) (vec-empty) (vec-iterator) (vec-foreach) (vec-seq) (vec-rseq)])
+            (struct-methods [] [(s-count) (s-assoc) (s-containsKey) (s-valAt) (s-valAt-2) (s-entryAt)])
+            (prefix-methods [prefix ms] (map (fn [[method-name & tail]] (cons (symbol (str prefix method-name)) tail)) ms))
+            (impl-methods [] (concat (prefix-methods "map_" (map-methods)) (prefix-methods "vec_" (vec-methods)) (prefix-methods "struct_" (struct-methods))))
+            ]
+      (if maplike?
+        (concat
+         [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap]
+         (struct-methods)
+         (map-methods)
+         (impl-methods)
+         [(list 'asMap ['this] 'this)
+          (list 'asVec ['this] (list `VecWrap. 'this))])
+        (concat
+         [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `clojure.lang.IPersistentVector]
+         (struct-methods)
+         (vec-methods)
+         [(list 'asMap ['this]
+                (list `proxy [`coffi.mem.IStruct `clojure.lang.IPersistentVector] []
+                      (concat (struct-methods) (map-methods) [(list 'asMap ['newthis] 'this) (list 'asVec ['newthis] 'newthis)] )))
+          (list 'asVec ['this] 'this)])))))
 
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
@@ -1776,13 +1898,14 @@
       (register-new-struct-deserialization coffi-typename struct-layout)
       (register-new-struct-serialization   coffi-typename struct-layout)
       `(do
-         ~(generate-struct-record typename typed-symbols)
+         ~(generate-struct-type typename typed-symbols true)
          (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
          (defmethod deserialize-from ~coffi-typename ~['segment '_type]
            ~(first (generate-deserialize coffi-typename 0)))
          (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
            ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
          (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
+         (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer))
          )
       )
     )
