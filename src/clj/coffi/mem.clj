@@ -1798,7 +1798,7 @@
   (equiv       [this o]   (.map_equiv org o))
   (empty       [this]     (.map_empty org))
   (iterator    [this]     (.map_iterator org))
-  (forEach     [this c]   (.map_foreach org c))
+  (forEach     [this c]   (.map_forEach org c))
   (seq         [this]     (.map_seq org))
   (count       [this]     (.struct_count org))
   (assoc       [this k v] (.struct_assoc org k v))
