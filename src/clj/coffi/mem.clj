@@ -1883,7 +1883,7 @@
 
             (map-assocEx   [] (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value))))
             (map-without   [] (list 'without     ['this 'k]        (list `dissoc as-map (list `if (list `number? 'k) (list (vec members) 'k) 'k))))
-            (map-cons      [] (list 'cons        ['this 'o]        (vec (cons 'o as-map))))
+            (map-cons      [] (list 'cons        ['this 'o]        `(if (instance? clojure.lang.MapEntry ~'o) ~(conj as-map [`(.getKey ^clojure.lang.MapEntry ~'o) `(.getKey ^clojure.lang.MapEntry ~'o)]) (if (instance? clojure.lang.IPersistentVector ~'o) ~(conj as-map [`(.nth ^IPersistentVector ~'o 0) `(.nth ^IPersistentVector ~'o 1)]) (.cons ^IPersistentMap ~'o ~as-map)))))
             (map-equiv     [] (list 'equiv       ['this 'o]        (list `= as-map 'o)))
             (map-empty     [] (list 'empty       ['this]           {}))
             (map-iterator  [] (list 'iterator    ['this]           (list '.iterator as-map)))
@@ -1949,9 +1949,6 @@
            (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
              ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
            (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
-           (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer))
-           )
-        )
-      ))
-  )
+           (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer)))))))
+
 
