@@ -1715,11 +1715,6 @@
            (concat [`let ['source-obj source-form]])
            ))))
 
-(deftype struct-iterator [^clojure.lang.IPersistentVector struct-type ^int size ^{:unsynchronized-mutable true :tag int} i ]
-  java.util.Iterator
-  (forEachRemaining [action] )
-  )
-
 (gen-interface
  :name coffi.mem.IStructImpl :methods
  [[vec_length [] int]
@@ -1751,6 +1746,52 @@
   [map_iterator [] java.util.Iterator]
   [map_forEach [java.util.function.Consumer] void]
   [map_seq [] clojure.lang.ISeq]])
+
+
+(defmacro for-each-fixed-length [n]
+  `(defn ~(symbol (str "for-each-fixed-" n)) ~[(with-meta 'offset {:tag int}) (with-meta 'action {:tag 'java.util.function.Consumer}) (with-meta 's {:tag 'coffi.mem.IStructImpl})]
+     ~(cons `do (map (fn [i] (list '.accept (with-meta 'action {:tag 'java.util.function.Consumer}) (list '.vec_nth (with-meta 's {:tag 'coffi.mem.IStructImpl}) i))) (range n)))))
+
+(for-each-fixed-length 1)
+(for-each-fixed-length 2)
+(for-each-fixed-length 3)
+(for-each-fixed-length 4)
+(for-each-fixed-length 5)
+(for-each-fixed-length 6)
+(for-each-fixed-length 7)
+(for-each-fixed-length 8)
+(for-each-fixed-length 9)
+(for-each-fixed-length 10)
+(for-each-fixed-length 11)
+(for-each-fixed-length 12)
+(for-each-fixed-length 13)
+(for-each-fixed-length 14)
+(for-each-fixed-length 15)
+(for-each-fixed-length 16)
+
+(deftype struct-vec-iterator [^coffi.mem.IStructImpl struct-obj ^int size ^{:volatile-mutable true :tag int} i]
+  java.util.Iterator
+  (forEachRemaining [this action]
+    (case (- size i)
+      1  (for-each-fixed-1  i action struct-obj)
+      2  (for-each-fixed-2  i action struct-obj)
+      3  (for-each-fixed-3  i action struct-obj)
+      4  (for-each-fixed-4  i action struct-obj)
+      5  (for-each-fixed-5  i action struct-obj)
+      6  (for-each-fixed-6  i action struct-obj)
+      7  (for-each-fixed-7  i action struct-obj)
+      8  (for-each-fixed-8  i action struct-obj)
+      9  (for-each-fixed-9  i action struct-obj)
+      10 (for-each-fixed-10 i action struct-obj)
+      11 (for-each-fixed-11 i action struct-obj)
+      12 (for-each-fixed-12 i action struct-obj)
+      13 (for-each-fixed-13 i action struct-obj)
+      14 (for-each-fixed-14 i action struct-obj)
+      15 (for-each-fixed-15 i action struct-obj)
+      16 (for-each-fixed-16 i action struct-obj)
+      (loop [index i] (if (< index size) (do (.accept action (.vec_nth struct-obj index)) (recur (inc index))) nil))))
+  (hasNext [this] (< i size))
+  (next [this] (let [ret (.vec_nth struct-obj i) _ (set! i (unchecked-add-int 1 i))] ret)))
 
 (gen-interface :name coffi.mem.IStruct :methods [[asVec [] clojure.lang.IPersistentVector] [asMap [] clojure.lang.IPersistentMap]])
 
@@ -1828,9 +1869,9 @@
             (vec-cons      [] (list 'cons        ['this 'o]        (vec (cons 'o as-vec))))
             (vec-equiv     [] (list 'equiv       ['this 'o]        (list `= as-vec 'o)))
             (vec-empty     [] (list 'empty       ['this]           []))
-            (vec-iterator  [] (list 'iterator    ['this]           (list '.iterator as-vec)))
+            (vec-iterator  [] (list 'iterator    ['this]           (list `struct-vec-iterator. 'this (count members) 0)))
             (vec-foreach   [] (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec))))
-            (vec-seq       [] (list 'seq         ['this]           (list `VecSeq. 'this 0) #_(list `seq as-vec)))
+            (vec-seq       [] (list 'seq         ['this]           (list `VecSeq. 'this 0)))
             (vec-rseq      [] (list 'rseq        ['this]           (list `seq (vec (reverse as-vec)))))
 
             (s-count       [] (list 'count       ['this]           (count members)))
