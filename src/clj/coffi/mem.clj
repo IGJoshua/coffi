@@ -1718,6 +1718,7 @@
 (gen-interface
  :name coffi.mem.IStructImpl :methods
  [[vec_length [] int]
+  [vec_assoc [Object Object] clojure.lang.Associative]
   [vec_assocN [int Object] clojure.lang.IPersistentVector]
   [vec_peek [] Object]
   [vec_pop [] clojure.lang.IPersistentVector]
@@ -1732,12 +1733,12 @@
   [vec_rseq [] clojure.lang.ISeq]
 
   [struct_count [] int]
-  [struct_assoc [Object Object] clojure.lang.Associative]
   [struct_containsKey [Object] boolean]
   [struct_valAt [Object] Object]
   [struct_valAt [Object Object] Object]
   [struct_entryAt [Object] clojure.lang.IMapEntry]
 
+  [map_assoc [Object Object] clojure.lang.Associative]
   [map_assocEx [Object Object] clojure.lang.IPersistentMap]
   [map_without [Object] clojure.lang.IPersistentMap]
   [map_cons [Object] clojure.lang.IPersistentCollection]
@@ -1812,6 +1813,7 @@
 (deftype VecWrap [^coffi.mem.IStructImpl org]
   coffi.mem.IStruct clojure.lang.IPersistentVector Iterable
   (length      [this]     (.vec_length org))
+  (assoc       [this k v] (.vec_assoc org k v))
   (assocN      [this i v] (.vec_assocN org i v))
   (peek        [this]     (.vec_peek org))
   (pop         [this]     (.vec_pop org))
@@ -1825,7 +1827,6 @@
   (seq         [this]     (VecSeq. this 0))
   (rseq        [this]     (.vec_rseq org))
   (count       [this]     (.struct_count org))
-  (assoc       [this k v] (.struct_assoc org k v))
   (containsKey [this k]   (.struct_containsKey org k))
   (valAt       [this k]   (.struct_valAt org k))
   (valAt       [this k o] (.struct_valAt org k o))
@@ -1841,8 +1842,8 @@
   (iterator    [this]     (.map_iterator org))
   (forEach     [this c]   (.map_forEach org c))
   (seq         [this]     (.map_seq org))
+  (assoc       [this k v] (.map_assoc org k v))
   (count       [this]     (.struct_count org))
-  (assoc       [this k v] (.struct_assoc org k v))
   (containsKey [this k]   (.struct_containsKey org k))
   (valAt       [this k]   (.struct_valAt org k))
   (valAt       [this k o] (.struct_valAt org k o))
@@ -1861,6 +1862,7 @@
         as-vec (vec (map (comp symbol name) members))
         as-map (into {} (map (fn [m] [m (symbol (name m))]) members))]
     (letfn [(vec-length    [] (list 'length      ['this]           (count members)))
+            (vec-assoc     [] (list 'assoc       ['this 'i 'value] (list `assoc as-vec 'i 'value)))
             (vec-assocN    [] (list 'assocN      ['this 'i 'value] (list `assoc 'i as-vec 'value)))
             (vec-peek      [] (list 'peek        ['this]           (first as-vec)))
             (vec-pop       [] (list 'pop         ['this]           (vec (rest as-vec))))
@@ -1875,12 +1877,12 @@
             (vec-rseq      [] (list 'rseq        ['this]           (list `seq (vec (reverse as-vec)))))
 
             (s-count       [] (list 'count       ['this]           (count members)))
-            (s-assoc       [] (list 'assoc       ['this 'i 'value] (list `if (list `number? 'i) (list `assoc as-vec 'i 'value) (assoc as-map 'i 'value))))
             (s-containsKey [] (list 'containsKey ['this 'k]        (list `if (list `number? 'k) (list `and (list `>= 'k 0) (list `< 'k (count members)) true) (list `case 'k (seq members) true false))))
             (s-valAt       [] (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec))))
             (s-valAt-2     [] (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o])))
             (s-entryAt     [] (list 'entryAt     ['this 'k]        (list `clojure.lang.MapEntry/create 'k (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec)))))
 
+            (map-assoc       [] (list 'assoc       ['this 'i 'value] (list `assoc as-map 'i 'value)))
             (map-assocEx   [] (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value))))
             (map-without   [] (list 'without     ['this 'k]        (list `dissoc as-map (list `if (list `number? 'k) (list (vec members) 'k) 'k))))
             (map-cons      [] (list 'cons        ['this 'o]        `(if (instance? clojure.lang.MapEntry ~'o) ~(conj as-map [`(.getKey ^clojure.lang.MapEntry ~'o) `(.getKey ^clojure.lang.MapEntry ~'o)]) (if (instance? clojure.lang.IPersistentVector ~'o) ~(conj as-map [`(.nth ^IPersistentVector ~'o 0) `(.nth ^IPersistentVector ~'o 1)]) (.cons ^IPersistentMap ~'o ~as-map)))))
@@ -1890,9 +1892,9 @@
             (map-foreach   [] (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-map))))
             (map-seq       [] (list 'seq         ['this]           (list `seq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec)))))))
 
-            (map-methods   [] [(map-without) (map-cons) (map-equiv) (map-empty) (map-iterator) (map-foreach) (map-seq) (map-assocEx)])
-            (vec-methods   [] [(vec-length) (vec-assocN) (vec-peek) (vec-pop) (vec-nth) (vec-nth-2) (vec-cons) (vec-equiv) (vec-empty) (vec-iterator) (vec-foreach) (vec-seq) (vec-rseq)])
-            (struct-methods [] [(s-count) (s-assoc) (s-containsKey) (s-valAt) (s-valAt-2) (s-entryAt)])
+            (map-methods   [] [(map-without) (map-cons) (map-equiv) (map-empty) (map-iterator) (map-foreach) (map-seq) (map-assoc) (map-assocEx)])
+            (vec-methods   [] [(vec-length) (vec-assoc) (vec-assocN) (vec-peek) (vec-pop) (vec-nth) (vec-nth-2) (vec-cons) (vec-equiv) (vec-empty) (vec-iterator) (vec-foreach) (vec-seq) (vec-rseq)])
+            (struct-methods [] [(s-count) (s-containsKey) (s-valAt) (s-valAt-2) (s-entryAt)])
             (prefix-methods [prefix ms] (map (fn [[method-name & tail]] (cons (symbol (str prefix method-name)) tail)) ms))
             (impl-methods [] (concat (prefix-methods "map_" (map-methods)) (prefix-methods "vec_" (vec-methods)) (prefix-methods "struct_" (struct-methods))))
             ]
