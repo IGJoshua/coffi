@@ -1919,36 +1919,38 @@
   This creates needed serialization and deserialization implementations for the new type."
   {:style/indent [:defn]}
   [typename members]
-  (cond
-    (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `typename member-name`. the typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`"))
-    :else
-    (let [coffi-typename (keyword (str *ns*) (str typename))
-          typed-symbols (->>
-                         members
-                         (partition 2 2)
-                         (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type)})))
-                         (vec))
-          struct-layout (with-c-layout [::struct
-                           (->>
-                            members
-                            (partition 2 2)
-                            (map vec)
-                            (map #(update % 1 keyword))
-                            (map reverse)
-                            (map vec))])]
-      (register-new-struct-deserialization coffi-typename struct-layout)
-      (register-new-struct-serialization   coffi-typename struct-layout)
-      `(do
-         ~(generate-struct-type typename typed-symbols true)
-         (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
-         (defmethod deserialize-from ~coffi-typename ~['segment '_type]
-           ~(first (generate-deserialize coffi-typename 0)))
-         (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
-           ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
-         (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
-         (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer))
-         )
-      )
-    )
+  (let [invalid-typenames (filter #(try (c-layout (first %)) nil (catch Exception e (first %))) (partition 2 members))]
+    (cond
+      (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `typename member-name`. the typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`"))
+      (seq invalid-typenames) (throw (Exception. (str "invalid typename/s " (print-str invalid-typenames) ". typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`")))
+      :else
+      (let [coffi-typename (keyword (str *ns*) (str typename))
+            typed-symbols (->>
+                           members
+                           (partition 2 2)
+                           (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type)})))
+                           (vec))
+            struct-layout (with-c-layout [::struct
+                                          (->>
+                                           members
+                                           (partition 2 2)
+                                           (map vec)
+                                           (map #(update % 1 keyword))
+                                           (map reverse)
+                                           (map vec))])]
+        (register-new-struct-deserialization coffi-typename struct-layout)
+        (register-new-struct-serialization   coffi-typename struct-layout)
+        `(do
+           ~(generate-struct-type typename typed-symbols true)
+           (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
+           (defmethod deserialize-from ~coffi-typename ~['segment '_type]
+             ~(first (generate-deserialize coffi-typename 0)))
+           (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
+             ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
+           (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
+           (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer))
+           )
+        )
+      ))
   )
 
