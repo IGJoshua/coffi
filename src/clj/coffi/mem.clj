@@ -1880,7 +1880,7 @@
             (s-containsKey [] (list 'containsKey ['this 'k]        (list `if (list `number? 'k) (list `and (list `>= 'k 0) (list `< 'k (count members)) true) (list `case 'k (seq members) true false))))
             (s-valAt       [] (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec))))
             (s-valAt-2     [] (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o])))
-            (s-entryAt     [] (list 'entryAt     ['this 'k]        (list `clojure.lang.MapEntry/create 'k (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec)))))
+            (s-entryAt     [] (list 'entryAt     ['this 'k]        (list `let ['val-or-nil (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) [nil])] (list `if 'val-or-nil (list `clojure.lang.MapEntry/create 'val-or-nil nil)))))
 
             (map-assoc       [] (list 'assoc       ['this 'i 'value] (list `assoc as-map 'i 'value)))
             (map-assocEx   [] (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value))))
