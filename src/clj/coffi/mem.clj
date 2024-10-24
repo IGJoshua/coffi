@@ -1938,6 +1938,7 @@
                                            (map #(update % 1 keyword))
                                            (map reverse)
                                            (map vec))])]
+        (if (resolve typename) (ns-unmap *ns* typename))
         (register-new-struct-deserialization coffi-typename struct-layout)
         (register-new-struct-serialization   coffi-typename struct-layout)
         `(do
