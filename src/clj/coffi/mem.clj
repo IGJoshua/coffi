@@ -657,6 +657,201 @@
   ([^MemorySegment segment ^long offset ^MemorySegment value]
    (.set segment ^AddressLayout pointer-layout offset value)))
 
+(defn write-bytes
+  "Writes a [[byte]] array to the `segment`, at an optional `offset`."
+  {:inline
+   (fn write-byte-inline
+     ([segment value]
+      `(let [segment# ~segment
+             value# ~value]
+         (MemorySegment/copy value# 0  ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 ^int (alength value#))))
+     ([segment offset value]
+      `(let [segment# ~segment
+             offset# ~offset
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# ^int (alength value#)))))}
+  ([^MemorySegment segment ^bytes value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout 0 (alength value)))
+  ([^MemorySegment segment offset ^bytes value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout ^long offset ^int (alength value))))
+
+(defn write-shorts
+  "Writes a [[short]] array to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-shorts-inline
+     ([segment value]
+      `(let [segment# ~segment
+             value# ~value]
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout 0 ^int (alength value#))))
+     ([segment offset value]
+      `(let [segment# ~segment
+             offset# ~offset
+             value# ~value]
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout ^long offset ^int (alength value#))))
+     ([segment offset byte-order value]
+      `(let [segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             value# ~value]
+         (MemorySegment/copy value# 0 segment# (.withOrder ^ValueLayout$OfShort short-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+  ([^MemorySegment segment ^shorts value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout 0 (alength value)))
+  ([^MemorySegment segment ^long offset ^shorts value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout ^long offset (alength value)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^shorts value]
+   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfShort short-layout byte-order) ^long offset (alength value))))
+
+(defn write-ints
+  "Writes a [[int]] array to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-ints-inline
+     ([segment value]
+      `(let [segment# ~segment
+             value# ~value]
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout 0 ^int (alength value#))
+         ))
+     ([segment offset value]
+      `(let [segment# ~segment
+             offset# ~offset
+             value# ~value]
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout ^long offset ^int (alength value#))
+         ))
+     ([segment offset byte-order value]
+      `(let [segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             value# ~value]
+         (MemorySegment/copy value# 0 segment# (.withOrder ^ValueLayout$OfInt int-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+  ([^MemorySegment segment ^ints value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout 0 (alength value)))
+  ([^MemorySegment segment ^long offset ^ints value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout ^long offset (alength value)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^ints value]
+   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfInt int-layout byte-order) ^long offset (alength value))))
+
+(defn write-longs
+  "Writes a [[long]] array to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-longs-inline
+     ([segment value]
+      `(let [segment# ~segment
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 ^int (alength value#))
+         ))
+     ([segment offset value]
+      `(let [segment# ~segment
+             offset# ~offset
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout ^long offset ^int (alength value#))
+         ))
+     ([segment offset byte-order value]
+      `(let [segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfLong long-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+  ([^MemorySegment segment ^longs value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout 0 ^int (alength value)))
+  ([^MemorySegment segment ^long offset ^longs value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout ^long offset ^int (alength value)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^longs value]
+   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfLong long-layout byte-order) ^long offset ^int (alength value))))
+
+
+(defn write-chars
+  "Writes a [[char]] array to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-chars-inline
+     ([segment value]
+      `(let [segment# ~segment
+             value# ~value]
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout 0 ^int (alength value#))))
+     ([segment offset value]
+      `(let [segment# ~segment
+             offset# ~offset
+             value# ~value]
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout ^long offset ^int (alength value#))))
+     ([segment offset byte-order value]
+      `(let [segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             value# ~value]
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# (.withOrder ^ValueLayout$OfChar char-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+  ([^MemorySegment segment ^chars value]
+   (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout 0 (alength value)))
+  ([^MemorySegment segment ^long offset ^chars value]
+   (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout ^long offset (alength value)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^chars value]
+   (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment (.withOrder ^ValueLayout$OfChar char-layout byte-order) ^long offset (alength value))))
+
+(defn write-floats
+  "Writes a [[float]] array to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-floats-inline
+     ([segment value]
+      `(let [segment# ~segment
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 ^int (alength value#))
+         ))
+     ([segment offset value]
+      `(let [segment# ~segment
+             offset# ~offset
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout ^long offset ^int (alength value#))
+         ))
+     ([segment offset byte-order value]
+      `(let [segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfFloat float-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+  ([^MemorySegment segment ^floats value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout 0 ^int (alength value)))
+  ([^MemorySegment segment ^long offset ^floats value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout ^long offset ^int (alength value)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^floats value]
+   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfFloat float-layout byte-order) ^long offset ^int (alength value))))
+
+(defn write-doubles
+  "Writes a [[double]] array to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-doubles-inline
+     ([segment value]
+      `(let [segment# ~segment
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 ^int (alength value#))
+         ))
+     ([segment offset value]
+      `(let [segment# ~segment
+             offset# ~offset
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout ^long offset ^int (alength value#))
+         ))
+     ([segment offset byte-order value]
+      `(let [segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             value# ~value]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfDouble double-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+  ([^MemorySegment segment ^doubles value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout 0 ^int (alength value)))
+  ([^MemorySegment segment ^long offset ^doubles value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout ^long offset ^int (alength value)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^doubles value]
+   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfDouble double-layout byte-order) ^long offset ^int (alength value))))
+
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
   [type]
@@ -1350,3 +1545,441 @@
 (s/fdef defalias
   :args (s/cat :new-type qualified-keyword?
                :aliased-type any?))
+
+(defn- with-c-layout
+  "Forces a struct specification to C layout rules.
+
+  This will add padding fields between fields to match C alignment
+  requirements."
+  [struct-spec]
+  (let [aligned-fields
+        (loop [offset 0
+               aligned-fields []
+               fields (nth struct-spec 1)]
+          (if (seq fields)
+            (let [[[_ type :as field] & fields] fields
+                  size (size-of type)
+                  align (align-of type)
+                  r (rem offset align)]
+              (recur (cond-> (+ offset size)
+                       (pos? r) (+ (- align r)))
+                     (cond-> aligned-fields
+                       (pos? r) (conj [::padding [::padding (- align r)]])
+                       :always (conj field))
+                     fields))
+            (let [strongest-alignment (reduce max (map (comp align-of second) (nth struct-spec 1)))
+                  r (rem offset strongest-alignment)]
+              (cond-> aligned-fields
+                (pos? r) (conj [::padding [::padding (- strongest-alignment r)]])))))]
+    (assoc struct-spec 1 aligned-fields)))
+
+(defmacro with-typehint [bindings form]
+  (let [bindmap (->>
+                  bindings
+                  (partition 2 2)
+                  (map (fn [[sym hint]] [sym (with-meta sym {:tag hint})]))
+                  (into (hash-map)))]
+    (clojure.walk/postwalk
+      (fn [x] (get bindmap x x))
+      form)))
+
+(defn- typename->coffi-typename [_type]
+  (get
+   {'byte    ::byte
+    'short   ::short
+    'int     ::int
+    'long    ::long
+    'char    ::char
+    'float   ::float
+    'double  ::double
+    'bytes   [::array ::byte]
+    'shorts  [::array ::short]
+    'ints    [::array ::int]
+    'longs   [::array ::long]
+    'chars   ::c-string
+    'floats  [::array ::float]
+    'doubles [::array ::double]}
+   _type
+   (keyword (str *ns*) (str _type))))
+
+(defn- coffitype->typename [_type]
+  (cond
+    (and (vector? _type) (= ::array (first _type))) (get {::byte   'bytes
+                                                          ::short  'shorts
+                                                          ::int    'ints
+                                                          ::long   'longs
+                                                          ::char   'chars
+                                                          ::float  'floats
+                                                          ::double 'doubles}
+                                                         (second _type) 'objects)
+    :default (get {::byte     'byte
+                   ::short    'short
+                   ::int      'int
+                   ::long     'long
+                   ::char     'char
+                   ::float    'float
+                   ::double   'double
+                   ::c-string 'String}
+                  _type (keyword (str *ns*) (str _type)))))
+
+(defn coffitype->array-fn [_type]
+  (get
+   {:coffi.mem/byte   `byte-array
+    :coffi.mem/short  `short-array
+    :coffi.mem/int    `int-array
+    :coffi.mem/long   `long-array
+    :coffi.mem/char   `char-array
+    :coffi.mem/float  `float-array
+    :coffi.mem/double `double-array}
+   _type
+   `object-array))
+
+(defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
+
+(defmethod generate-deserialize :coffi.mem/byte     [_type offset] [`(read-byte    ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/short    [_type offset] [`(read-short   ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/int      [_type offset] [`(read-int     ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/long     [_type offset] [`(read-long    ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/char     [_type offset] [`(read-char    ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/float    [_type offset] [`(read-float   ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/double   [_type offset] [`(read-double  ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/pointer  [_type offset] [`(read-address ~'segment ~offset)])
+(defmethod generate-deserialize :coffi.mem/c-string [_type offset] [`(list with-typehint ['addr java.lang.foreign.MemorySegment] (list `.getString (list `.reinterpret 'addr `Integer/MAX_VALUE) 0))])
+
+(defmethod generate-deserialize :coffi.mem/array    [_type offset]
+  (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
+        gen-arr (nth outer-code 2)]
+    [(concat (butlast outer-code)
+             (map
+              (fn [index]
+                (let [deserialize-instructions
+                      (generate-deserialize
+                       (second _type)
+                       (+ offset (* (size-of (second _type)) index)))]
+                  (list `aset gen-arr index (first deserialize-instructions))
+                  #_(if true #_(vector? deserialize-instructions)
+                        (list index (first deserialize-instructions))
+                        (list index deserialize-instructions))
+
+                  ))
+              (range (second (rest _type))))
+             [gen-arr])]))
+
+(defn typelist [typename fields]
+  (->>
+   (partition 2 2 (interleave (reductions + 0 (map (comp size-of second) fields)) fields))
+   (filter (fn [[_ [_ field-type]]] (not (and (vector? field-type) (= ::padding (first field-type))))))))
+
+(defn register-new-struct-deserialization [typename [_struct fields]]
+  (let [typelist (typelist typename fields)]
+    (defmethod generate-deserialize typename [_type global-offset]
+      (->> typelist
+           (map-indexed
+            (fn [index [offset [_ field-type]]]
+              (generate-deserialize field-type (+ global-offset offset))))
+           (reduce concat)
+           (cons (symbol (str (name typename) ".")))
+           (list)
+           ))))
+
+(defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
+
+(defmethod generate-serialize :coffi.mem/byte    [_type source-form offset] `(write-byte    ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/short   [_type source-form offset] `(write-short   ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/int     [_type source-form offset] `(write-int     ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/long    [_type source-form offset] `(write-long    ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/char    [_type source-form offset] `(write-char    ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/float   [_type source-form offset] `(write-float   ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/double  [_type source-form offset] `(write-double  ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/pointer [_type source-form offset] `(write-pointer ~'segment ~offset ~source-form))
+
+(defmethod generate-serialize :coffi.mem/array   [[_arr member-type length] source-form offset]
+  (concat
+   (list `let ['array-obj source-form])
+   (map
+    (fn [index]
+      (generate-serialize member-type
+                          (list `aget 'array-obj index)
+                          (+ offset (* (size-of member-type) index))))
+    (range length))))
+
+(defn register-new-struct-serialization [typename [_struct fields]]
+  (let [typelist (typelist typename fields)
+        fieldnames (filter #(not= ::padding %) (map first fields))]
+    (defmethod generate-serialize typename [_type source-form global-offset]
+      (->> typelist
+           (map-indexed
+            (fn [index [offset [_ field-type]]]
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (+ global-offset offset))))
+           (concat [`let ['source-obj source-form]])
+           ))))
+
+(gen-interface
+ :name coffi.mem.IStructImpl :methods
+ [[vec_length [] int]
+  [vec_assoc [Object Object] clojure.lang.Associative]
+  [vec_assocN [int Object] clojure.lang.IPersistentVector]
+  [vec_peek [] Object]
+  [vec_pop [] clojure.lang.IPersistentVector]
+  [vec_nth [int] Object]
+  [vec_nth [int Object] Object]
+  [vec_cons [Object] clojure.lang.IPersistentCollection]
+  [vec_equiv [Object] boolean]
+  [vec_empty [] clojure.lang.IPersistentVector]
+  [vec_iterator [] java.util.Iterator]
+  [vec_forEach [java.util.function.Consumer] void]
+  [vec_seq [] clojure.lang.ISeq]
+  [vec_rseq [] clojure.lang.ISeq]
+
+  [struct_count [] int]
+  [struct_containsKey [Object] boolean]
+  [struct_valAt [Object] Object]
+  [struct_valAt [Object Object] Object]
+  [struct_entryAt [Object] clojure.lang.IMapEntry]
+
+  [map_assoc [Object Object] clojure.lang.Associative]
+  [map_assocEx [Object Object] clojure.lang.IPersistentMap]
+  [map_without [Object] clojure.lang.IPersistentMap]
+  [map_cons [Object] clojure.lang.IPersistentCollection]
+  [map_equiv [Object] boolean]
+  [map_empty [] clojure.lang.IPersistentMap]
+  [map_iterator [] java.util.Iterator]
+  [map_forEach [java.util.function.Consumer] void]
+  [map_seq [] clojure.lang.ISeq]
+  ;java.util.map fns
+  [map_containsValue [Object] boolean]
+  [map_entrySet [] java.util.Set]
+  [map_get [Object] Object]
+  [map_isEmpty [] boolean]
+  [map_keySet [] java.util.Set]
+  [map_size [] int]
+  [map_values [] java.util.Collection]
+  [map_forEach [java.util.function.BiConsumer] void]
+  ])
+
+
+(defmacro for-each-fixed-length [n]
+  `(defn ~(symbol (str "for-each-fixed-" n)) ~[(with-meta 'offset {:tag int}) (with-meta 'action {:tag 'java.util.function.Consumer}) (with-meta 's {:tag 'coffi.mem.IStructImpl})]
+     ~(cons `do (map (fn [i] (list '.accept (with-meta 'action {:tag 'java.util.function.Consumer}) (list '.vec_nth (with-meta 's {:tag 'coffi.mem.IStructImpl}) i))) (range n)))))
+
+(for-each-fixed-length 1)
+(for-each-fixed-length 2)
+(for-each-fixed-length 3)
+(for-each-fixed-length 4)
+(for-each-fixed-length 5)
+(for-each-fixed-length 6)
+(for-each-fixed-length 7)
+(for-each-fixed-length 8)
+(for-each-fixed-length 9)
+(for-each-fixed-length 10)
+(for-each-fixed-length 11)
+(for-each-fixed-length 12)
+(for-each-fixed-length 13)
+(for-each-fixed-length 14)
+(for-each-fixed-length 15)
+(for-each-fixed-length 16)
+
+(deftype struct-vec-iterator [^coffi.mem.IStructImpl struct-obj ^int size ^{:volatile-mutable true :tag int} i]
+  java.util.Iterator
+  (forEachRemaining [this action]
+    (case (- size i)
+      1  (for-each-fixed-1  i action struct-obj)
+      2  (for-each-fixed-2  i action struct-obj)
+      3  (for-each-fixed-3  i action struct-obj)
+      4  (for-each-fixed-4  i action struct-obj)
+      5  (for-each-fixed-5  i action struct-obj)
+      6  (for-each-fixed-6  i action struct-obj)
+      7  (for-each-fixed-7  i action struct-obj)
+      8  (for-each-fixed-8  i action struct-obj)
+      9  (for-each-fixed-9  i action struct-obj)
+      10 (for-each-fixed-10 i action struct-obj)
+      11 (for-each-fixed-11 i action struct-obj)
+      12 (for-each-fixed-12 i action struct-obj)
+      13 (for-each-fixed-13 i action struct-obj)
+      14 (for-each-fixed-14 i action struct-obj)
+      15 (for-each-fixed-15 i action struct-obj)
+      16 (for-each-fixed-16 i action struct-obj)
+      (loop [index i] (if (< index size) (do (.accept action (.vec_nth struct-obj index)) (recur (inc index))) nil))))
+  (hasNext [this] (< i size))
+  (next [this] (let [ret (.vec_nth struct-obj i) _ (set! i (unchecked-add-int 1 i))] ret)))
+
+(gen-interface :name coffi.mem.IStruct :methods [[asVec [] clojure.lang.IPersistentVector] [asMap [] clojure.lang.IPersistentMap]])
+
+(deftype VecSeq [^clojure.lang.IPersistentVector v ^int i]
+  clojure.lang.ISeq clojure.lang.Indexed
+  (first [this] (.nth v i))
+  (next  [this] (if (< i (dec (.count v))) (VecSeq. v (inc i)) nil))
+  (more  [this] (if (< i (dec (.count v))) (VecSeq. v (inc i)) []))
+  (cons  [this o] (clojure.lang.Cons. o this))
+  (count [this] (- (.count v) i))
+  (empty [this] nil)
+  (equiv [this o] (= (subvec v i) o))
+  (nth   [this j] (.nth v (+ i j)))
+  (nth   [this j o] (.nth v (+ i j) o))
+  (seq   [this] this)
+  )
+
+(deftype VecWrap [^coffi.mem.IStructImpl org]
+  coffi.mem.IStruct clojure.lang.IPersistentVector Iterable
+  (length      [this]     (.vec_length org))
+  (assoc       [this k v] (.vec_assoc org k v))
+  (assocN      [this i v] (.vec_assocN org i v))
+  (peek        [this]     (.vec_peek org))
+  (pop         [this]     (.vec_pop org))
+  (nth         [this i]   (.vec_nth org i))
+  (nth         [this i o] (.vec_nth org i o))
+  (cons        [this o]   (.vec_cons org o))
+  (equiv       [this o]   (.vec_equiv org o))
+  (empty       [this]     (.vec_empty org))
+  (iterator    [this]     (.vec_iterator org))
+  (forEach     [this c]   (.vec_forEach org c))
+  (seq         [this]     (VecSeq. this 0))
+  (rseq        [this]     (.vec_rseq org))
+  (count       [this]     (.struct_count org))
+  (containsKey [this k]   (.struct_containsKey org k))
+  (valAt       [this k]   (.struct_valAt org k))
+  (valAt       [this k o] (.struct_valAt org k o))
+  (entryAt     [this k]   (.struct_entryAt org k))
+  (asMap       [this]     org)
+  (asVec       [this]     this))
+
+(deftype MapWrap [^coffi.mem.IStructImpl org]
+  coffi.mem.IStruct clojure.lang.IPersistentMap clojure.lang.MapEquivalence java.util.Map
+  (cons        [this o]   (.map_cons org o))
+  (equiv       [this o]   (.map_equiv org o))
+  (empty       [this]     (.map_empty org))
+  (iterator    [this]     (.map_iterator org))
+  (^void forEach [this ^java.util.function.Consumer c] (.map_forEach org c))
+  (^void forEach [this ^java.util.function.BiConsumer c] (.map_forEach org c))
+  (seq         [this]     (.map_seq org))
+  (assoc       [this k v] (.map_assoc org k v))
+  (count       [this]     (.struct_count org))
+  (containsKey [this k]   (.struct_containsKey org k))
+  (valAt       [this k]   (.struct_valAt org k))
+  (valAt       [this k o] (.struct_valAt org k o))
+  (entryAt     [this k]   (.struct_entryAt org k))
+  (assocEx     [this k v] (.map_assocEx org k v))
+  (without     [this k]   (.map_without org k))
+  ;java.util.map implementations
+  (containsValue [this k] (.map_containsValue org k))
+  (entrySet      [this]   (.map_entrySet org))
+  (get           [this k] (.map_get org k))
+  (isEmpty       [this]   false)
+  (keySet        [this]   (.map_keySet org))
+  (size          [this]   (.map_size org))
+  (values        [this]   (.map_values org))
+  ;conversion methods
+  (asMap       [this]     this)
+  (asVec       [this]     org)
+  )
+
+(defn as-vec [^coffi.mem.IStruct struct] (.asVec struct))
+(defn as-map [^coffi.mem.IStruct struct] (.asMap struct))
+
+
+(defn- generate-struct-type [typename typed-member-symbols maplike?]
+  (let [members (map (comp keyword str) typed-member-symbols)
+        as-vec (vec (map (comp symbol name) members))
+        as-map (into {} (map (fn [m] [m (symbol (name m))]) members))]
+    (letfn [(vec-length    [] (list 'length      ['this]           (count members)))
+            (vec-assoc     [] (list 'assoc       ['this 'i 'value] (list `assoc as-vec 'i 'value)))
+            (vec-assocN    [] (list 'assocN      ['this 'i 'value] (list `assoc 'i as-vec 'value)))
+            (vec-peek      [] (list 'peek        ['this]           (first as-vec)))
+            (vec-pop       [] (list 'pop         ['this]           (vec (rest as-vec))))
+            (vec-nth       [] (list 'nth         ['this 'i]        (concat [`case 'i] (interleave (range) as-vec))))
+            (vec-nth-2     [] (list 'nth         ['this 'i 'o]     (concat [`case 'i] (interleave (range) as-vec) ['o])))
+            (vec-cons      [] (list 'cons        ['this 'o]        (vec (cons 'o as-vec))))
+            (vec-equiv     [] (list 'equiv       ['this 'o]        (list `= as-vec 'o)))
+            (vec-empty     [] (list 'empty       ['this]           []))
+            (vec-iterator  [] (list 'iterator    ['this]           (list `struct-vec-iterator. 'this (count members) 0)))
+            (vec-foreach   [] (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec))))
+            (vec-seq       [] (list 'seq         ['this]           (list `VecSeq. 'this 0)))
+            (vec-rseq      [] (list 'rseq        ['this]           (list `seq (vec (reverse as-vec)))))
+
+            (s-count       [] (list 'count       ['this]           (count members)))
+            (s-containsKey [] (list 'containsKey ['this 'k]        (list `if (list `number? 'k) (list `and (list `>= 'k 0) (list `< 'k (count members)) true) (list `case 'k (seq members) true false))))
+            (s-valAt       [] (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec))))
+            (s-valAt-2     [] (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o])))
+            (s-entryAt     [] (list 'entryAt     ['this 'k]        (list `let ['val-or-nil (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) [nil])] (list `if 'val-or-nil (list `clojure.lang.MapEntry/create 'val-or-nil nil)))))
+
+            (map-assoc       [] (list 'assoc       ['this 'i 'value] (list `assoc as-map 'i 'value)))
+            (map-assocEx   [] (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value))))
+            (map-without   [] (list 'without     ['this 'k]        (list `dissoc as-map (list `if (list `number? 'k) (list (vec members) 'k) 'k))))
+            (map-cons      [] (list 'cons        ['this 'o]        `(if (instance? clojure.lang.MapEntry ~'o) ~(conj as-map [`(.getKey ^clojure.lang.MapEntry ~'o) `(.getKey ^clojure.lang.MapEntry ~'o)]) (if (instance? clojure.lang.IPersistentVector ~'o) ~(conj as-map [`(.nth ^IPersistentVector ~'o 0) `(.nth ^IPersistentVector ~'o 1)]) (.cons ^IPersistentMap ~'o ~as-map)))))
+            (map-equiv     [] (list 'equiv       ['this 'o]        (list `= as-map 'o)))
+            (map-empty     [] (list 'empty       ['this]           {}))
+            (map-iterator  [] (list 'iterator    ['this]           (list '.iterator as-map)))
+            (map-foreachConsumer   [] (concat [(with-meta 'forEach {:tag 'void})  ['this (with-meta 'action {:tag 'java.util.function.Consumer}) ]]  (partition 2 (interleave (repeat 'action) as-map))))
+            (map-foreachBiConsumer   [] (concat [(with-meta 'forEach {:tag 'void})  ['this (with-meta 'action {:tag 'java.util.function.BiConsumer})]]  (partition 3 (flatten (interleave (repeat 'action) (seq as-map))))))
+            (map-seq       [] (list 'seq         ['this]           (list `seq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec)))))))
+            ;java.util.Map implementations
+            (map-contains-value [] (list 'containsValue ['this 'val] (list `some (set as-vec) 'val)))
+            (map-entrySet       [] (list 'entrySet ['this] (set (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec))))))
+            (map-get            [] (cons 'get (rest (s-valAt))))
+            (map-isEmpty        [] (list 'isEmpty ['this] false))
+            (map-keySet         [] (list 'keySet ['this] (set members)))
+            (map-size           [] (list 'size ['this] (count members)))
+            (map-values         [] (list 'values ['this] as-vec))
+
+            (map-methods   [] [(map-without) (map-cons) (map-equiv) (map-empty) (map-iterator) (map-foreachConsumer) #_(map-foreachBiConsumer) (map-seq) (map-assoc) (map-assocEx) (map-contains-value) (map-entrySet) (map-get) (map-isEmpty) (map-keySet) (map-size) (map-values)])
+            (vec-methods   [] [(vec-length) (vec-assoc) (vec-assocN) (vec-peek) (vec-pop) (vec-nth) (vec-nth-2) (vec-cons) (vec-equiv) (vec-empty) (vec-iterator) (vec-foreach) (vec-seq) (vec-rseq)])
+            (struct-methods [] [(s-count) (s-containsKey) (s-valAt) (s-valAt-2) (s-entryAt)])
+            (prefix-methods [prefix ms] (map (fn [[method-name & tail]] (cons (with-meta (symbol (str prefix method-name)) (meta method-name)) tail)) ms))
+            (impl-methods [] (concat (prefix-methods "map_" (map-methods)) (prefix-methods "vec_" (vec-methods)) (prefix-methods "struct_" (struct-methods))))
+            ]
+      (if maplike?
+        (concat
+         [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap `clojure.lang.MapEquivalence `java.util.Map]
+         (struct-methods)
+         (map-methods)
+         (impl-methods)
+         [(list 'asMap ['this] 'this)
+          (list 'asVec ['this] (list `VecWrap. 'this))])
+        (concat
+         [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `clojure.lang.IPersistentVector]
+         (struct-methods)
+         (vec-methods)
+         [(list 'asMap ['this]
+                (list `proxy [`coffi.mem.IStruct `clojure.lang.IPersistentVector] []
+                      (concat (struct-methods) (map-methods) [(list 'asMap ['newthis] 'this) (list 'asVec ['newthis] 'newthis)] )))
+          (list 'asVec ['this] 'this)])))))
+
+(defmacro defstruct
+  "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
+
+  This creates needed serialization and deserialization implementations for the new type."
+  {:style/indent [:defn]}
+  [typename members]
+  (let [invalid-typenames (filter #(try (c-layout (first %)) nil (catch Exception e (first %))) (partition 2 members))]
+    (cond
+      (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `typename member-name`. the typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`"))
+      (seq invalid-typenames) (throw (Exception. (str "invalid typename/s " (print-str invalid-typenames) ". typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`. The type/s you referenced also might not be defined. In case of a custom type, ensure that you use the correctly namespaced keyword to refer to it.")))
+      :else
+      (let [coffi-typename (keyword (str *ns*) (str typename))
+            typed-symbols (->>
+                           members
+                           (partition 2 2)
+                           (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type)})))
+                           (vec))
+            struct-layout (with-c-layout [::struct
+                                          (->>
+                                           members
+                                           (partition 2 2)
+                                           (map vec)
+                                           (map #(update % 1 keyword))
+                                           (map reverse)
+                                           (map vec))])]
+        (if (resolve typename) (ns-unmap *ns* typename))
+        (register-new-struct-deserialization coffi-typename struct-layout)
+        (register-new-struct-serialization   coffi-typename struct-layout)
+        `(do
+           ~(generate-struct-type typename typed-symbols true)
+           (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
+           (defmethod deserialize-from ~coffi-typename ~['segment '_type]
+             ~(first (generate-deserialize coffi-typename 0)))
+           (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
+             ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
+           (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
+           (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer)))))))
+
+
