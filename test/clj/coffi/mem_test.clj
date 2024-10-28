@@ -62,6 +62,9 @@
     {:a [5 6] :b [10 11] :c [15 16]} #(merge-with vector % {:a 6 :b 11 :c 16})
     {:a [5 6] :b [10 11] :c [15 16]} #(merge-with vector % (TestType. 6 11 16))
     [:a 5] #(find % :a)
-    nil #(find % :d)))
+    nil #(find % :d)
+    {:a 5 :b 10 :c 15} identity
+    (TestType. 5 10 15) identity
+    (TestType. 5 10 15) (fn [s] {:a 5 :b 10 :c 15})))
 
 
