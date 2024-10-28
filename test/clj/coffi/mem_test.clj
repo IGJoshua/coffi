@@ -67,4 +67,12 @@
     (TestType. 5 10 15) identity
     (TestType. 5 10 15) (fn [s] {:a 5 :b 10 :c 15})))
 
+(t/deftest can-serialize-struct-type
+  (t/is
+   (instance? MemorySegment (mem/serialize (TestType. 5 10 15) ::TestType))))
+
+(t/deftest can-deserialize-struct-type
+  (t/is
+   (= {:a 5 :b 10 :c 15}
+      (mem/deserialize (mem/serialize (TestType. 5 10 15) ::TestType) ::TestType))))
 
