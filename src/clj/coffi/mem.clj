@@ -1634,7 +1634,7 @@
 (defmethod generate-deserialize :coffi.mem/float    [_type offset] [`(read-float   ~'segment ~offset)])
 (defmethod generate-deserialize :coffi.mem/double   [_type offset] [`(read-double  ~'segment ~offset)])
 (defmethod generate-deserialize :coffi.mem/pointer  [_type offset] [`(read-address ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/c-string [_type offset] [(list `.getString (list `.reinterpret (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment}) `Integer/MAX_VALUE) 0)])
+(defmethod generate-deserialize :coffi.mem/c-string [_type offset] [(list `.getString (list `.reinterpret (list `.get (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0)])
 
 (defmethod generate-deserialize :coffi.mem/array    [_type offset]
   (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
