@@ -76,3 +76,25 @@
    (= {:a 5 :b 10 :c 15}
       (mem/deserialize (mem/serialize (TestType. 5 10 15) ::TestType) ::TestType))))
 
+
+(t/deftest can-define-nested-structs
+  (t/is
+   (eval
+    `(mem/defstruct ~'NestedTestType [::mem/int ~'x ::mem/byte ~'y ::TestType ~'z]))))
+
+(t/deftest can-instantiated-nested-structs
+  (t/is
+   (= {:x 5 :y 6 :z {:a 5 :b 10 :c 15}}
+      (NestedTestType. 5 6 (TestType. 5 10 15)))))
+
+(t/deftest can-define-structs-with-array-members
+  (t/is
+   (eval
+    `(mem/defstruct ~'ArrayTestType [::mem/int ~'x ::mem/byte ~'y [::mem/array ::mem/int 4] ~'z]))))
+
+(t/deftest can-instantiated-array-member-structs
+  (t/are [x y z] (z x (y (ArrayTestType. 5 6 (int-array [1 2 3 4]))))
+      {:x 5 :y 6} #(dissoc % :z) =
+      (int-array [1 2 3 4]) :z java.util.Arrays/equals))
+
+
