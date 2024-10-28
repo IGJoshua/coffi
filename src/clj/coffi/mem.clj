@@ -1650,20 +1650,19 @@
   (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
         gen-arr (nth outer-code 2)]
     [(concat (butlast outer-code)
-             (list
-              (concat [`aset gen-arr]
-                      (reduce
-                       concat
-                       (map
-                        (fn [index]
-                          (let [deserialize-instructions
-                                (generate-deserialize
-                                 (second _type)
-                                 (+ offset (* (size-of (second _type)) index)))]
-                            (if (vector? deserialize-instructions)
-                              (list index (first deserialize-instructions))
-                              (list index deserialize-instructions))))
-                        (range (second (rest _type)))))))
+             (map
+              (fn [index]
+                (let [deserialize-instructions
+                      (generate-deserialize
+                       (second _type)
+                       (+ offset (* (size-of (second _type)) index)))]
+                  (list `aset gen-arr index (first deserialize-instructions))
+                  #_(if true #_(vector? deserialize-instructions)
+                        (list index (first deserialize-instructions))
+                        (list index deserialize-instructions))
+
+                  ))
+              (range (second (rest _type))))
              [gen-arr])]))
 
 (defn typelist [typename fields]
