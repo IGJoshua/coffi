@@ -1746,7 +1746,17 @@
   [map_empty [] clojure.lang.IPersistentMap]
   [map_iterator [] java.util.Iterator]
   [map_forEach [java.util.function.Consumer] void]
-  [map_seq [] clojure.lang.ISeq]])
+  [map_seq [] clojure.lang.ISeq]
+  ;java.util.map fns
+  [map_containsValue [Object] boolean]
+  [map_entrySet [] java.util.Set]
+  [map_get [Object] Object]
+  [map_isEmpty [] boolean]
+  [map_keySet [] java.util.Set]
+  [map_size [] int]
+  [map_values [] java.util.Collection]
+  [map_forEach [java.util.function.BiConsumer] void]
+  ])
 
 
 (defmacro for-each-fixed-length [n]
@@ -1835,12 +1845,13 @@
   (asVec       [this]     this))
 
 (deftype MapWrap [^coffi.mem.IStructImpl org]
-  coffi.mem.IStruct clojure.lang.IPersistentMap
+  coffi.mem.IStruct clojure.lang.IPersistentMap clojure.lang.MapEquivalence java.util.Map
   (cons        [this o]   (.map_cons org o))
   (equiv       [this o]   (.map_equiv org o))
   (empty       [this]     (.map_empty org))
   (iterator    [this]     (.map_iterator org))
-  (forEach     [this c]   (.map_forEach org c))
+  (^void forEach [this ^java.util.function.Consumer c] (.map_forEach org c))
+  (^void forEach [this ^java.util.function.BiConsumer c] (.map_forEach org c))
   (seq         [this]     (.map_seq org))
   (assoc       [this k v] (.map_assoc org k v))
   (count       [this]     (.struct_count org))
@@ -1850,8 +1861,18 @@
   (entryAt     [this k]   (.struct_entryAt org k))
   (assocEx     [this k v] (.map_assocEx org k v))
   (without     [this k]   (.map_without org k))
+  ;java.util.map implementations
+  (containsValue [this k] (.map_containsValue org k))
+  (entrySet      [this]   (.map_entrySet org))
+  (get           [this k] (.map_get org k))
+  (isEmpty       [this]   false)
+  (keySet        [this]   (.map_keySet org))
+  (size          [this]   (.map_size org))
+  (values        [this]   (.map_values org))
+  ;conversion methods
   (asMap       [this]     this)
-  (asVec       [this]     org))
+  (asVec       [this]     org)
+  )
 
 (defn as-vec [^coffi.mem.IStruct struct] (.asVec struct))
 (defn as-map [^coffi.mem.IStruct struct] (.asMap struct))
@@ -1889,18 +1910,27 @@
             (map-equiv     [] (list 'equiv       ['this 'o]        (list `= as-map 'o)))
             (map-empty     [] (list 'empty       ['this]           {}))
             (map-iterator  [] (list 'iterator    ['this]           (list '.iterator as-map)))
-            (map-foreach   [] (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-map))))
+            (map-foreachConsumer   [] (concat [(with-meta 'forEach {:tag 'void})  ['this (with-meta 'action {:tag 'java.util.function.Consumer}) ]]  (partition 2 (interleave (repeat 'action) as-map))))
+            (map-foreachBiConsumer   [] (concat [(with-meta 'forEach {:tag 'void})  ['this (with-meta 'action {:tag 'java.util.function.BiConsumer})]]  (partition 3 (flatten (interleave (repeat 'action) (seq as-map))))))
             (map-seq       [] (list 'seq         ['this]           (list `seq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec)))))))
+            ;java.util.Map implementations
+            (map-contains-value [] (list 'containsValue ['this 'val] (list `some (set as-vec) 'val)))
+            (map-entrySet       [] (list 'entrySet ['this] (set (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec))))))
+            (map-get            [] (cons 'get (rest (s-valAt))))
+            (map-isEmpty        [] (list 'isEmpty ['this] false))
+            (map-keySet         [] (list 'keySet ['this] (set members)))
+            (map-size           [] (list 'size ['this] (count members)))
+            (map-values         [] (list 'values ['this] as-vec))
 
-            (map-methods   [] [(map-without) (map-cons) (map-equiv) (map-empty) (map-iterator) (map-foreach) (map-seq) (map-assoc) (map-assocEx)])
+            (map-methods   [] [(map-without) (map-cons) (map-equiv) (map-empty) (map-iterator) (map-foreachConsumer) #_(map-foreachBiConsumer) (map-seq) (map-assoc) (map-assocEx) (map-contains-value) (map-entrySet) (map-get) (map-isEmpty) (map-keySet) (map-size) (map-values)])
             (vec-methods   [] [(vec-length) (vec-assoc) (vec-assocN) (vec-peek) (vec-pop) (vec-nth) (vec-nth-2) (vec-cons) (vec-equiv) (vec-empty) (vec-iterator) (vec-foreach) (vec-seq) (vec-rseq)])
             (struct-methods [] [(s-count) (s-containsKey) (s-valAt) (s-valAt-2) (s-entryAt)])
-            (prefix-methods [prefix ms] (map (fn [[method-name & tail]] (cons (symbol (str prefix method-name)) tail)) ms))
+            (prefix-methods [prefix ms] (map (fn [[method-name & tail]] (cons (with-meta (symbol (str prefix method-name)) (meta method-name)) tail)) ms))
             (impl-methods [] (concat (prefix-methods "map_" (map-methods)) (prefix-methods "vec_" (vec-methods)) (prefix-methods "struct_" (struct-methods))))
             ]
       (if maplike?
         (concat
-         [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap]
+         [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap `clojure.lang.MapEquivalence `java.util.Map]
          (struct-methods)
          (map-methods)
          (impl-methods)
