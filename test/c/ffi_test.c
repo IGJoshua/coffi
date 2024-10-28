@@ -78,3 +78,25 @@ void test_call_with_trailing_string_arg(int a, int b, char* text) {
     return;
 }
 
+typedef struct complextype {
+    Point x;
+    char  y;
+    int   z[4];
+    char *w;
+} ComplexType;
+
+ComplexType complexTypeTest(ComplexType a) {
+  ComplexType ret = {};
+  ret.x = a.x;
+  ret.x.x++;
+  ret.x.y++;
+  ret.y = a.y-1;
+  ret.z[0] = a.z[0];
+  ret.z[1] = a.z[1];
+  ret.z[2] = a.z[2];
+  ret.z[3] = a.z[3];
+  ret.w = "hello from c";
+  return ret;
+}
+
+

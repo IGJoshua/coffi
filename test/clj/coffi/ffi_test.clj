@@ -70,3 +70,29 @@
            (catch Throwable _t
              :err))
       :ok)))
+
+
+(mem/defstruct Point [::mem/float x ::mem/float y])
+
+(t/deftest can-call-with-defstruct
+  (t/is (= {:x 2.0 :y 2.0}
+           ((ffi/cfn "add_points" [::Point ::Point] ::Point) (Point. 1 2) (Point. 1 0)))))
+
+(mem/defstruct AlignmentTest [::mem/char a ::mem/double x ::mem/float y])
+
+(t/deftest padding-matches-defstruct
+  (t/is (= ((ffi/cfn "get_struct" [] ::AlignmentTest))
+           {:a \x
+            :x 3.14
+            :y 42.0})))
+
+(mem/defstruct ComplexType [::Point x ::mem/byte y [::mem/array ::mem/int 4] z ::mem/c-string w])
+
+(t/deftest can-call-with-complex-defstruct
+  (t/are [x y] (= x (y ((ffi/cfn "complexTypeTest" [::ComplexType] ::ComplexType)
+                        (ComplexType. (Point. 2 3) 4 (int-array [5 6 7 8]) "hello from clojure"))))
+    {:x {:x 3.0 :y 4.0} :y 3 :w "hello from c"} #(dissoc % :z)
+    [5 6 7 8] (comp vec :z)))
+
+
+
