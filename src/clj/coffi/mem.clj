@@ -1573,16 +1573,6 @@
                 (pos? r) (conj [::padding [::padding (- strongest-alignment r)]])))))]
     (assoc struct-spec 1 aligned-fields)))
 
-(defmacro with-typehint [bindings form]
-  (let [bindmap (->>
-                  bindings
-                  (partition 2 2)
-                  (map (fn [[sym hint]] [sym (with-meta sym {:tag hint})]))
-                  (into (hash-map)))]
-    (clojure.walk/postwalk
-      (fn [x] (get bindmap x x))
-      form)))
-
 (defn- typename->coffi-typename [_type]
   (get
    {'byte    ::byte
@@ -1644,7 +1634,7 @@
 (defmethod generate-deserialize :coffi.mem/float    [_type offset] [`(read-float   ~'segment ~offset)])
 (defmethod generate-deserialize :coffi.mem/double   [_type offset] [`(read-double  ~'segment ~offset)])
 (defmethod generate-deserialize :coffi.mem/pointer  [_type offset] [`(read-address ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/c-string [_type offset] [`(list with-typehint ['addr java.lang.foreign.MemorySegment] (list `.getString (list `.reinterpret 'addr `Integer/MAX_VALUE) 0))])
+(defmethod generate-deserialize :coffi.mem/c-string [_type offset] [(list `.getString (list `.reinterpret (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment}) `Integer/MAX_VALUE) 0)])
 
 (defmethod generate-deserialize :coffi.mem/array    [_type offset]
   (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
@@ -1692,6 +1682,7 @@
 (defmethod generate-serialize :coffi.mem/float   [_type source-form offset] `(write-float   ~'segment ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/double  [_type source-form offset] `(write-double  ~'segment ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/pointer [_type source-form offset] `(write-pointer ~'segment ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/c-string [_type source-form offset] `(write-address ~'segment ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
 
 (defmethod generate-serialize :coffi.mem/array   [[_arr member-type length] source-form offset]
   (concat
