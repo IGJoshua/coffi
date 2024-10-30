@@ -1916,24 +1916,14 @@
             (vec-methods   [] [(vec-length) (vec-assoc) (vec-assocN) (vec-peek) (vec-pop) (vec-nth) (vec-nth-2) (vec-cons) (vec-equiv) (vec-empty) (vec-iterator) (vec-foreach) (vec-seq) (vec-rseq)])
             (struct-methods [] [(s-count) (s-containsKey) (s-valAt) (s-valAt-2) (s-entryAt)])
             (prefix-methods [prefix ms] (map (fn [[method-name & tail]] (cons (with-meta (symbol (str prefix method-name)) (meta method-name)) tail)) ms))
-            (impl-methods [] (concat (prefix-methods "map_" (map-methods)) (prefix-methods "vec_" (vec-methods)) (prefix-methods "struct_" (struct-methods))))
-            ]
-      (if maplike?
-        (concat
-         [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap `clojure.lang.MapEquivalence `java.util.Map]
-         (struct-methods)
-         (map-methods)
-         (impl-methods)
-         [(list 'asMap ['this] 'this)
-          (list 'asVec ['this] (list `VecWrap. 'this))])
-        (concat
-         [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `clojure.lang.IPersistentVector]
-         (struct-methods)
-         (vec-methods)
-         [(list 'asMap ['this]
-                (list `proxy [`coffi.mem.IStruct `clojure.lang.IPersistentVector] []
-                      (concat (struct-methods) (map-methods) [(list 'asMap ['newthis] 'this) (list 'asVec ['newthis] 'newthis)] )))
-          (list 'asVec ['this] 'this)])))))
+            (impl-methods [] (concat (prefix-methods "map_" (map-methods)) (prefix-methods "vec_" (vec-methods)) (prefix-methods "struct_" (struct-methods))))]
+      (concat
+       [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap `clojure.lang.MapEquivalence `java.util.Map]
+       (struct-methods)
+       (map-methods)
+       (impl-methods)
+       [(list 'asMap ['this] 'this)
+        (list 'asVec ['this] (list `VecWrap. 'this))]))))
 
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
