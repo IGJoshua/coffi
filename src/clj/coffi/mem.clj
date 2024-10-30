@@ -1727,6 +1727,7 @@
   [struct_valAt [Object] Object]
   [struct_valAt [Object Object] Object]
   [struct_entryAt [Object] clojure.lang.IMapEntry]
+  [nthKey [int] clojure.lang.Keyword]
 
   [map_assoc [Object Object] clojure.lang.Associative]
   [map_assocEx [Object Object] clojure.lang.IPersistentMap]
@@ -1796,19 +1797,31 @@
 
 (gen-interface :name coffi.mem.IStruct :methods [[asVec [] clojure.lang.IPersistentVector] [asMap [] clojure.lang.IPersistentMap]])
 
-(deftype VecSeq [^clojure.lang.IPersistentVector v ^int i]
+(deftype StructVecSeq [^clojure.lang.IPersistentVector v ^int i]
   clojure.lang.ISeq clojure.lang.Indexed
   (first [this] (.nth v i))
-  (next  [this] (if (< i (dec (.count v))) (VecSeq. v (inc i)) nil))
-  (more  [this] (if (< i (dec (.count v))) (VecSeq. v (inc i)) []))
+  (next  [this] (if (< i (dec (.count v))) (StructVecSeq. v (inc i)) nil))
+  (more  [this] (if (< i (dec (.count v))) (StructVecSeq. v (inc i)) '()))
   (cons  [this o] (clojure.lang.Cons. o this))
   (count [this] (- (.count v) i))
   (empty [this] nil)
   (equiv [this o] (= (subvec v i) o))
   (nth   [this j] (.nth v (+ i j)))
   (nth   [this j o] (.nth v (+ i j) o))
-  (seq   [this] this)
-  )
+  (seq   [this] this))
+
+(deftype StructMapSeq [^coffi.mem.IStructImpl s ^int i]
+  clojure.lang.ISeq clojure.lang.Indexed
+  (first [this] (clojure.lang.MapEntry/create (.nthKey s i) (.vec_nth s i)))
+  (next  [this] (if (< i (dec (.struct_count s))) (StructMapSeq. s (inc i)) nil))
+  (more  [this] (if (< i (dec (.struct_count s))) (StructMapSeq. s (inc i)) '()))
+  (cons  [this o] (clojure.lang.Cons. o this))
+  (count [this] (- (.struct_count s) i))
+  (empty [this] nil)
+  (equiv [this o] (if (not= (count o) (.struct_count s)) false (loop [os (seq o) index i] (if (< index (- (.struct_count s) i)) (if (= [(.nthKey s index) (.vec_nth s index)] (first os)) (recur (next os) (inc index)) false) true))))
+  (nth   [this j] (clojure.lang.MapEntry/create (.nthKey s (+ i j)) (.vec_nth s (+ i j))))
+  (nth   [this j o] (if (< (+ i j) (.struct_count s)) (clojure.lang.MapEntry/create (.nthKey s (+ i j)) (.vec_nth s (+ i j))) o))
+  (seq   [this] this))
 
 (deftype VecWrap [^coffi.mem.IStructImpl org]
   coffi.mem.IStruct clojure.lang.IPersistentVector Iterable
@@ -1824,7 +1837,7 @@
   (empty       [this]     (.vec_empty org))
   (iterator    [this]     (.vec_iterator org))
   (forEach     [this c]   (.vec_forEach org c))
-  (seq         [this]     (VecSeq. this 0))
+  (seq         [this]     (StructVecSeq. this 0))
   (rseq        [this]     (.vec_rseq org))
   (count       [this]     (.struct_count org))
   (containsKey [this k]   (.struct_containsKey org k))
@@ -1842,7 +1855,7 @@
   (iterator    [this]     (.map_iterator org))
   (^void forEach [this ^java.util.function.Consumer c] (.map_forEach org c))
   (^void forEach [this ^java.util.function.BiConsumer c] (.map_forEach org c))
-  (seq         [this]     (.map_seq org))
+  (seq         [this]     (StructMapSeq. org 0))
   (assoc       [this k v] (.map_assoc org k v))
   (count       [this]     (.struct_count org))
   (containsKey [this k]   (.struct_containsKey org k))
@@ -1884,7 +1897,7 @@
             (vec-empty     [] (list 'empty       ['this]           []))
             (vec-iterator  [] (list 'iterator    ['this]           (list `struct-vec-iterator. 'this (count members) 0)))
             (vec-foreach   [] (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec))))
-            (vec-seq       [] (list 'seq         ['this]           (list `VecSeq. 'this 0)))
+            (vec-seq       [] (list 'seq         ['this]           (list `StructVecSeq. 'this 0)))
             (vec-rseq      [] (list 'rseq        ['this]           (list `seq (vec (reverse as-vec)))))
 
             (s-count       [] (list 'count       ['this]           (count members)))
@@ -1902,7 +1915,9 @@
             (map-iterator  [] (list 'iterator    ['this]           (list '.iterator as-map)))
             (map-foreachConsumer   [] (concat [(with-meta 'forEach {:tag 'void})  ['this (with-meta 'action {:tag 'java.util.function.Consumer}) ]]  (partition 2 (interleave (repeat 'action) as-map))))
             (map-foreachBiConsumer   [] (concat [(with-meta 'forEach {:tag 'void})  ['this (with-meta 'action {:tag 'java.util.function.BiConsumer})]]  (partition 3 (flatten (interleave (repeat 'action) (seq as-map))))))
-            (map-seq       [] (list 'seq         ['this]           (list `seq (vec (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec)))))))
+            (map-seq       [] (list 'seq         ['this]           (list `StructMapSeq. 'this 0)))
+            ;structimpl utility function
+            (s-nth-key     [] (list 'nthKey     ['this 'i]        (concat [`case 'i] (interleave (range) members))))
             ;java.util.Map implementations
             (map-contains-value [] (list 'containsValue ['this 'val] (list `some (set as-vec) 'val)))
             (map-entrySet       [] (list 'entrySet ['this] (set (map (fn [[k v]] (list `clojure.lang.MapEntry/create k v)) (partition 2 (interleave members as-vec))))))
@@ -1922,7 +1937,8 @@
        (struct-methods)
        (map-methods)
        (impl-methods)
-       [(list 'asMap ['this] 'this)
+       [(s-nth-key)
+        (list 'asMap ['this] 'this)
         (list 'asVec ['this] (list `VecWrap. 'this))]))))
 
 (defmacro defstruct
