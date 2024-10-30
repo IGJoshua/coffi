@@ -1573,6 +1573,12 @@
                 (pos? r) (conj [::padding [::padding (- strongest-alignment r)]])))))]
     (assoc struct-spec 1 aligned-fields)))
 
+(defmethod c-layout ::vector-array
+  [[_vector-array type count]]
+  (MemoryLayout/sequenceLayout
+   count
+   (c-layout type)))
+
 (defn- typename->coffi-typename [_type]
   (get
    {'byte    ::byte
@@ -1592,16 +1598,21 @@
    _type
    (keyword (str *ns*) (str _type))))
 
-(defn- coffitype->typename [_type]
+(defn- coffitype->typename [_type raw-arrays?]
   (cond
-    (and (vector? _type) (= ::array (first _type))) (get {::byte   'bytes
-                                                          ::short  'shorts
-                                                          ::int    'ints
-                                                          ::long   'longs
-                                                          ::char   'chars
-                                                          ::float  'floats
-                                                          ::double 'doubles}
-                                                         (second _type) 'objects)
+    (and (vector? _type)
+         (= ::array (first _type))
+         raw-arrays?) (get {::byte   'bytes
+                            ::short  'shorts
+                            ::int    'ints
+                            ::long   'longs
+                            ::char   'chars
+                            ::float  'floats
+                            ::double 'doubles}
+                           (second _type) 'objects)
+    (and (vector? _type)
+         (= ::array (first _type))
+         (not raw-arrays?)) `clojure.lang.IPersistentVector
     :default (get {::byte     'byte
                    ::short    'short
                    ::int      'int
@@ -1646,14 +1657,23 @@
                       (generate-deserialize
                        (second _type)
                        (+ offset (* (size-of (second _type)) index)))]
-                  (list `aset gen-arr index (first deserialize-instructions))
-                  #_(if true #_(vector? deserialize-instructions)
-                        (list index (first deserialize-instructions))
-                        (list index deserialize-instructions))
-
-                  ))
+                  (list `aset gen-arr index (first deserialize-instructions))))
               (range (second (rest _type))))
              [gen-arr])]))
+
+(defmethod generate-deserialize :coffi.mem/vector-array    [_type offset]
+  (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
+        gen-arr (nth outer-code 2)]
+    [(concat (butlast outer-code)
+             (map
+              (fn [index]
+                (let [deserialize-instructions
+                      (generate-deserialize
+                       (second _type)
+                       (+ offset (* (size-of (second _type)) index)))]
+                  (list `aset gen-arr index (first deserialize-instructions))))
+              (range (second (rest _type))))
+             [(list `vec gen-arr)])]))
 
 (defn typelist [typename fields]
   (->>
@@ -1669,8 +1689,7 @@
               (generate-deserialize field-type (+ global-offset offset))))
            (reduce concat)
            (cons (symbol (str (name typename) ".")))
-           (list)
-           ))))
+           (list)))))
 
 (defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
@@ -1691,6 +1710,16 @@
     (fn [index]
       (generate-serialize member-type
                           (list `aget 'array-obj index)
+                          (+ offset (* (size-of member-type) index))))
+    (range length))))
+
+(defmethod generate-serialize :coffi.mem/vector-array   [[_arr member-type length] source-form offset]
+  (concat
+   (list `let ['array-obj source-form])
+   (map
+    (fn [index]
+      (generate-serialize member-type
+                          (list `nth 'array-obj index)
                           (+ offset (* (size-of member-type) index))))
     (range length))))
 
@@ -1951,7 +1980,7 @@
 
   This creates needed serialization and deserialization implementations for the new type."
   {:style/indent [:defn]}
-  [typename members]
+  [typename members & {:keys [raw-arrays?] :or {raw-arrays? true} :as opts}]
   (let [invalid-typenames (filter #(try (c-layout (first %)) nil (catch Exception e (first %))) (partition 2 members))]
     (cond
       (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `typename member-name`. the typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`"))
@@ -1961,13 +1990,14 @@
             typed-symbols (->>
                            members
                            (partition 2 2)
-                           (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type)})))
+                           (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type raw-arrays?)})))
                            (vec))
             struct-layout (with-c-layout [::struct
                                           (->>
                                            members
                                            (partition 2 2)
                                            (map vec)
+                                           (clojure.walk/postwalk (if raw-arrays? identity #(if (= % ::array) ::vector-array %)))
                                            (map #(update % 1 keyword))
                                            (map reverse)
                                            (map vec))])]
