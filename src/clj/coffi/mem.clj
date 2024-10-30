@@ -1798,7 +1798,7 @@
 (gen-interface :name coffi.mem.IStruct :methods [[asVec [] clojure.lang.IPersistentVector] [asMap [] clojure.lang.IPersistentMap]])
 
 (deftype StructVecSeq [^clojure.lang.IPersistentVector v ^int i]
-  clojure.lang.ISeq clojure.lang.Indexed
+  clojure.lang.ISeq clojure.lang.Indexed clojure.lang.Sequential
   (first [this] (.nth v i))
   (next  [this] (if (< i (dec (.count v))) (StructVecSeq. v (inc i)) nil))
   (more  [this] (if (< i (dec (.count v))) (StructVecSeq. v (inc i)) '()))
@@ -1811,7 +1811,7 @@
   (seq   [this] this))
 
 (deftype StructMapSeq [^coffi.mem.IStructImpl s ^int i]
-  clojure.lang.ISeq clojure.lang.Indexed
+  clojure.lang.ISeq clojure.lang.Indexed clojure.lang.Sequential
   (first [this] (clojure.lang.MapEntry/create (.nthKey s i) (.vec_nth s i)))
   (next  [this] (if (< i (dec (.struct_count s))) (StructMapSeq. s (inc i)) nil))
   (more  [this] (if (< i (dec (.struct_count s))) (StructMapSeq. s (inc i)) '()))
@@ -1902,9 +1902,9 @@
 
             (s-count       [] (list 'count       ['this]           (count members)))
             (s-containsKey [] (list 'containsKey ['this 'k]        (list `if (list `number? 'k) (list `and (list `>= 'k 0) (list `< 'k (count members)) true) (list `case 'k (seq members) true false))))
-            (s-valAt       [] (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec))))
+            (s-valAt       [] (list 'valAt       ['this 'k]        (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) [nil])))
             (s-valAt-2     [] (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o])))
-            (s-entryAt     [] (list 'entryAt     ['this 'k]        (list `let ['val-or-nil (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) [nil])] (list `if 'val-or-nil (list `clojure.lang.MapEntry/create 'val-or-nil nil)))))
+            (s-entryAt     [] (list 'entryAt     ['this 'k]        (list `let ['val-or-nil (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) [nil])] (list `if 'val-or-nil (list `clojure.lang.MapEntry/create 'k 'val-or-nil) nil))))
 
             (map-assoc       [] (list 'assoc       ['this 'i 'value] (list `assoc as-map 'i 'value)))
             (map-assocEx   [] (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value))))
@@ -1916,6 +1916,9 @@
             (map-foreachConsumer   [] (concat [(with-meta 'forEach {:tag 'void})  ['this (with-meta 'action {:tag 'java.util.function.Consumer}) ]]  (partition 2 (interleave (repeat 'action) as-map))))
             (map-foreachBiConsumer   [] (concat [(with-meta 'forEach {:tag 'void})  ['this (with-meta 'action {:tag 'java.util.function.BiConsumer})]]  (partition 3 (flatten (interleave (repeat 'action) (seq as-map))))))
             (map-seq       [] (list 'seq         ['this]           (list `StructMapSeq. 'this 0)))
+            (invoke1       [] (list 'invoke      ['this 'arg1]       (concat [`case 'arg1] (interleave (range) as-vec) (interleave members as-vec) [nil])))
+            (invoke2       [] (list 'invoke      ['this 'arg1 'arg2] (concat [`case 'arg1] (interleave (range) as-vec) (interleave members as-vec) ['arg2])))
+            (applyTo       [] (list 'applyTo      ['this 'arglist] (concat [`case (list `first 'arglist)] (interleave (range) as-vec) (interleave members as-vec) [(list `if (list `.next 'arglist) (list `.first (list `.next 'arglist)) nil)])))
             ;structimpl utility function
             (s-nth-key     [] (list 'nthKey     ['this 'i]        (concat [`case 'i] (interleave (range) members))))
             ;java.util.Map implementations
@@ -1933,11 +1936,13 @@
             (prefix-methods [prefix ms] (map (fn [[method-name & tail]] (cons (with-meta (symbol (str prefix method-name)) (meta method-name)) tail)) ms))
             (impl-methods [] (concat (prefix-methods "map_" (map-methods)) (prefix-methods "vec_" (vec-methods)) (prefix-methods "struct_" (struct-methods))))]
       (concat
-       [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap `clojure.lang.MapEquivalence `java.util.Map]
+       [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap `clojure.lang.MapEquivalence `java.util.Map `clojure.lang.IFn]
        (struct-methods)
        (map-methods)
        (impl-methods)
        [(s-nth-key)
+        (invoke1)
+        (invoke2)
         (list 'asMap ['this] 'this)
         (list 'asVec ['this] (list `VecWrap. 'this))]))))
 
