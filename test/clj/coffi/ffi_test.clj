@@ -3,7 +3,8 @@
    [clojure.test :as t]
    [coffi.ffi :as ffi]
    [coffi.layout :as layout]
-   [coffi.mem :as mem]))
+   [coffi.mem :as mem]
+   [clojure.pprint]))
 
 (ffi/load-library "target/ffi_test.so")
 
