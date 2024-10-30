@@ -121,3 +121,16 @@
       (mem/serialize ::ComplexTestType)
       (mem/deserialize ::ComplexTestType)))))
 
+(mem/defstruct ComplexTestTypeWrapped [[::mem/array ::ArrayTestType 4] x ::mem/byte y [::mem/array ::mem/int 4] z ::NestedTestType w] :raw-arrays? false)
+
+(t/deftest can-serialize-deserialize-complex-wrapped-struct-type
+  (t/is
+   (let [x (vec (map #(ArrayTestType. % % (int-array (range 4))) (range 4)))
+         y 12
+         z (vec (range 4))
+         w (NestedTestType. 5 6 (TestType. 5 10 15))]
+     (->
+      (ComplexTestTypeWrapped. x y z w)
+      (mem/serialize ::ComplexTestTypeWrapped)
+      (mem/deserialize ::ComplexTestTypeWrapped)))))
+
