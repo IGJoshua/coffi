@@ -40,32 +40,34 @@
   (t/is (TestType. 5 10 15)))
 
 (t/deftest can-use-common-map-functions
-  (t/are [x y] (= x (y (TestType. 5 10 15)))
-    5  :a
-    10 :b
-    15 :c
-    5  #(% :a)
-    10 #(% :b)
-    15 #(% :c)
-    5  #(get :a)
-    10 #(get :b)
-    15 #(get :c)
-    20 #(get :d 20)
-    nil #(get :d)
-    [:a :b :c] keys
-    [5 10 15]  vals
-    {:a 5 :c 15} #(dissoc % :b)
-    {:a 5 :b 10 :c 0} #(assoc % :c 0)
-    {:a 5 :b 10 :c 15 :d 20} #(assoc % :d 20)
-    [[:a 5] [:b 10] [:c 15]] seq
-    {:a 5 :b 10 :c 15 :d 20} #(merge % {:d 20})
-    {:a [5 6] :b [10 11] :c [15 16]} #(merge-with vector % {:a 6 :b 11 :c 16})
-    {:a [5 6] :b [10 11] :c [15 16]} #(merge-with vector % (TestType. 6 11 16))
-    [:a 5] #(find % :a)
-    nil #(find % :d)
-    {:a 5 :b 10 :c 15} identity
-    (TestType. 5 10 15) identity
-    (TestType. 5 10 15) (fn [s] {:a 5 :b 10 :c 15})))
+  (let [v1 (TestType. 5 10 15)
+        v2 (TestType. 6 11 16)]
+    (t/are [x y] (= x (y v1))
+     5  :a
+     10 :b
+     15 :c
+     5  (fn [v] (v :a))
+     10 (fn [v] (v :b))
+     15 (fn [v] (v :c))
+     5  #(get % :a)
+     10 #(get % :b)
+     15 #(get % :c)
+     20 #(get % :d 20)
+     nil #(get % :d)
+     [:a :b :c] keys
+     [5 10 15]  vals
+     {:a 5 :c 15} #(dissoc % :b)
+     {:a 5 :b 10 :c 0} #(assoc % :c 0)
+     {:a 5 :b 10 :c 15 :d 20} #(assoc % :d 20)
+     [[:a 5] [:b 10] [:c 15]] seq
+     {:a 5 :b 10 :c 15 :d 20} #(merge % {:d 20})
+     {:a [5 6] :b [10 11] :c [15 16]} #(merge-with vector % {:a 6 :b 11 :c 16})
+     {:a [5 6] :b [10 11] :c [15 16]} #(merge-with vector % v2)
+     [:a 5] #(find % :a)
+     nil #(find % :d)
+     {:a 5 :b 10 :c 15} identity
+     v1 identity
+     v1 (fn [s] {:a 5 :b 10 :c 15}))))
 
 (t/deftest can-serialize-struct-type
   (t/is
@@ -80,6 +82,8 @@
   (t/is
    (eval
     `(mem/defstruct ~'NestedTestType [::mem/int ~'x ::mem/byte ~'y ::TestType ~'z]))))
+
+(mem/defstruct NestedTestType [::mem/int x ::mem/byte y ::TestType z])
 
 (t/deftest can-instantiated-nested-structs
   (t/is
