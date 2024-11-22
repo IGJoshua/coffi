@@ -1,18 +1,18 @@
 # Built-in Types **WIP**
 
-### Primitives
+### TODO Primitives {#primitives}
 
-### Arrays
+### TODO Arrays {#arrays}
 
-### Pointers
+### TODO Pointers {#pointers}
 
-### Structs
+### TODO Structs {#structs}
 
-### Enums
+### TODO Enums {#enums}
 
-### Flagsets
+### TODO Flagsets {#flagsets}
 
-### Unions
+### Unions {#unions}
 Unions in coffi are rather limited. They can be serialized, but not deserialized
 without external information.
 
@@ -50,4 +50,4 @@ garbage collected, and copies the data from the source segment into it. It's up
 to the user to call `deserialize-from` on that segment with the appropriate
 type.
 
-### Raw Types
+### TODO Raw Types {#raw-types}

@@ -6,7 +6,7 @@ given type, only one set need be implemented.
 Two examples of custom types are given here, one is a 3d vector, and the other
 an example of a tagged union.
 
-### Vector3
+### Vector3 {#vector}
 For the vector type, it will serialize to a pointer to an array of three floats.
 
 The multimethod `primitive-type` returns the primitive type that a given type
@@ -56,7 +56,7 @@ that takes a pointer exists, we could use this:
 This function takes an arena and returns the deserialized vector, and it will
 free the pointer when the arena closes.
 
-### Tagged Union
+### Tagged Union {#tagged-union}
 For the tagged union type, we will represent the value as a vector of a keyword
 naming the tag and the value. The type itself will need to take arguments,
 similar to `struct`. For example, if we were to represent a result type like in

@@ -1,6 +1,6 @@
 # Low-Level Wrappers
 
-### Unwrapped Native Handles
+### Unwrapped Native Handles {#unwrapped-native-handles}
 Some native libraries work with handles to large amounts of data at once, making
 it undesirable to marshal data back and forth from Clojure, both because it's
 not necessary to work with the data in Clojure directly, or also because of the
@@ -45,7 +45,7 @@ return types, so for functions with only primitive argument and return types
 there is no performance reason to choose unwrapped native handles over the
 convenience macro.
 
-### Manual (De)Serialization
+### Manual (De)Serialization {#manual-serdes}
 Coffi uses multimethods to dispatch to (de)serialization functions to enable
 code that's generic over the types it operates on. However, in cases where you
 know the exact types that you will be (de)serializing and the multimethod
