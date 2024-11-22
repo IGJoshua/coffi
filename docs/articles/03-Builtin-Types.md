@@ -12,6 +12,8 @@
 
 ### Flagsets
 
+### Functions
+
 ### Unions
 Unions in coffi are rather limited. They can be serialized, but not deserialized
 without external information.
