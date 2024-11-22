@@ -152,6 +152,7 @@ These features are planned for future releases.
 - Improve error messages from defcfn macro
 - Mapped memory
 - Helper macros for custom serde implementations for composite data types (this is in progress [for structs](https://github.com/IGJoshua/coffi/issues/12)!)
+- Support for GraalVM Native Image (once their support for FFM becomes mature)
 
 ## License
 
