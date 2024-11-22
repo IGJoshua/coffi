@@ -13,7 +13,7 @@ marshaling data and optimize for performance, to make use of the low-level
 access the FF&M API gives us.
 
 - [Getting Started](https://cljdoc.org/d/org.suskalo/coffi/CURRENT/doc/getting-started)
-- [API Documentation](https://cljdoc.org/d/org.suskalo/coffi)
+- [API Documentation](https://cljdoc.org/d/org.suskalo/coffi/CURRENT/api/coffi)
 - [Recent Changes](CHANGELOG.md)
 
 ## Installation
