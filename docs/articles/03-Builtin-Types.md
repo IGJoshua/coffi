@@ -12,6 +12,8 @@
 
 ### TODO Flagsets {#flagsets}
 
+### TODO Functions {#functions}
+
 ### Unions {#unions}
 Unions in coffi are rather limited. They can be serialized, but not deserialized
 without external information.
