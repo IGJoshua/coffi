@@ -15,7 +15,7 @@
              (float? %) ::mem/float
              (double? %) ::mem/double)]
 </code></pre>
-<p>This is a minimal union in coffi. If the <code>:dispatch</code> keyword argument is not passed, then the union cannot be serialized, as coffi would not know which type to serialize the values as. In the example with a tagged union, a dispatch function was not provided because the type was only used for the native layout.</p>
+<p>This is a minimal union in coffi. If the <code>:dispatch</code> keyword argument is not passed, then the union cannot be serialized, as coffi would not know which type to serialize the values as. In <a href="04-Custom-Types.md#tagged-union">the example with a tagged union</a>, a dispatch function was not provided because the type was only used for the native layout.</p>
 <p>In addition to a dispatch function, when serializing a union an extract function may also be provided. In the case of the value in the tagged union from before, it could be represented for serialization purposes like so:</p>
 <pre><code class="language-clojure">[::mem/union
  #{::mem/int ::mem/c-string}
