@@ -1,6 +1,6 @@
 # Getting Started
 
-## Installation {#installation}
+## Installation
 This library is available on Clojars. Add one of the following entries to the
 `:deps` key of your `deps.edn`:
 
@@ -49,7 +49,7 @@ When creating an executable jar file, you can avoid the need to pass this
 argument by adding the manifest attribute `Enable-Native-Access: ALL-UNNAMED` to
 your jar.
 
-## Basic Usage {#usage}
+## Basic Usage
 There are two major components to coffi and interacting with native code:
 manipulating off-heap memory, and loading native code for use with Clojure.
 
@@ -107,7 +107,7 @@ loaded, an exception is thrown. This can be convenient as any namespace with a
 `load-library` call at the top level cannot be required without the library
 being able to be loaded.
 
-### Primitive Types {#primitive-types}
+### Primitive Types
 Coffi defines a basic set of primitive types:
 
 - byte
@@ -124,7 +124,7 @@ primitive types except for `pointer` will be cast with their corresponding
 Clojure function when they are passed as arguments to native functions.
 Additionally, the `c-string` type is defined, although it is not primitive.
 
-### Composite Types {#composite-types}
+### Composite Types
 In addition, some composite types are also defined in coffi, including struct
 and union types (unions will be discussed with serialization and
 deserialization). For an example C struct and function:
@@ -213,7 +213,7 @@ in C.
 [::mem/array ::mem/int 3]
 ```
 
-### Callbacks {#callbacks}
+### Callbacks
 In addition to these composite types, there is also support for Clojure
 functions.
 
@@ -244,7 +244,7 @@ again once the native function returns. If however it saves the callback for
 later use the JVM may collect it prematurely, causing a crash when the callback
 is later called by native code.
 
-### Variadic Functions {#variadic-functions}
+### Variadic Functions
 Some native functions can take any number of arguments, and in these cases coffi
 provides `vacfn-factory` (for "varargs C function factory").
 
@@ -268,7 +268,7 @@ Some native functions that are variadic use the type `va_list` to make it easier
 for other languages to call them in their FFI. At the time of writing, coffi
 does not support va-list, however it is a planned feature.
 
-### Global Variables {#globals}
+### Global Variables
 Some libraries include global variables or constants accessible through symbols.
 To start with, constant values stored in symbols can be fetched with `const`, or
 the parallel macro `defconst`
@@ -309,7 +309,7 @@ The memory that backs the static variable can be fetched with the function
 `static-variable-segment`, which can be used to pass a pointer to the static
 variable to native functions that require it.
 
-### Complex Wrappers {#complex-wrappers}
+### Complex Wrappers
 Some functions require more complex code to map nicely to a Clojure function.
 The `defcfn` macro provides facilities to wrap the native function with some
 Clojure code to make this easier.

@@ -5,7 +5,7 @@
 <p>An additional consideration when thinking about alternatives is the performance of each available option. It’s an established fact that JNA (used by all three alternative libraries on JDK &lt;16) introduces more overhead when calling native code than JNI does.</p>
 <p>In order to provide a benchmark to see how much of a difference the different native interfaces make, we can use <a href="https://github.com/hugoduncan/criterium">criterium</a> to benchmark each. <a href="https://www.glfw.org">GLFW</a>’s <a href="https://www.glfw.org/docs/latest/group__input.html#gaa6cf4e7a77158a3b8fd00328b1720a4a"><code>glfwGetTime</code></a> function will be used for the test as it performs a simple operation, and is conveniently already wrapped in JNI by the excellent <a href="https://www.lwjgl.org/">LWJGL</a> library.</p>
 <p>The following benchmarks were run on a Lenovo Thinkpad with an Intel i7-10610U running Manjaro Linux, using Clojure 1.10.3 on Java 17.</p>
-<h3><a href="#jni-jni" id="jni-jni"></a>JNI {#jni}</h3>
+<h3><a href="#jni" id="jni"></a>JNI</h3>
 <p>The baseline for performance is the JNI. Using LWJGL it’s relatively simple to benchmark. The following Clojure CLI command will start a repl with LWJGL and criterium loaded.</p>
 <pre><code class="language-sh">$ clj -Sdeps '{:deps {org.lwjgl/lwjgl {:mvn/version "3.2.3"}
                       org.lwjgl/lwjgl-glfw {:mvn/version "3.2.3"}
@@ -40,7 +40,7 @@ nil
 <pre><code class="language-clojure">user=&gt; bench/estimated-overhead-cache
 6.400703613065185E-9
 </code></pre>
-<h3><a href="#coffi-coffi" id="coffi-coffi"></a>Coffi {#coffi}</h3>
+<h3><a href="#coffi" id="coffi"></a>Coffi</h3>
 <p>The dependencies when using coffi are simpler, but it also requires some JVM options to support the foreign access api.</p>
 <pre><code class="language-sh">$ clj -Sdeps '{:deps {org.suskalo/coffi {:mvn/version "0.1.205"}
                       criterium/criterium {:mvn/version "0.4.6"}}}' \
@@ -76,7 +76,7 @@ Execution time sample std-deviation : 1.598571 ns
 nil
 </code></pre>
 <p>This result is about 1.3 ns faster, and while that is less than the standard deviation of 1.6, it’s quite close to it.</p>
-<h3><a href="#clojure-jna-clojure-jna" id="clojure-jna-clojure-jna"></a>Clojure-JNA {#clojure-jna}</h3>
+<h3><a href="#clojure-jna" id="clojure-jna"></a>Clojure-JNA</h3>
 <p>Clojure-JNA uses the JNA library, which was designed to provide Java with an easy way to access native libraries, but which is known for not having the greatest performance. Since this is an older project, I’m also including the clojure dependency to ensure the correct version is used.</p>
 <pre><code class="language-sh">$ clj -Sdeps '{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
                       net.n01se/clojure-jna {:mvn/version "1.0.0"}
@@ -129,7 +129,7 @@ nil
 </code></pre>
 <p>This is much better, but is still about 3x slower than JNI, meaning the overhead from using JNA is still bigger than the function runtime.</p>
 <p>This performance penalty is still small in the scope of longer-running functions, and so may not be a concern for your application, but it is something to be aware of.</p>
-<h3><a href="#techjna-tech-jna" id="techjna-tech-jna"></a>tech.jna {#tech-jna}</h3>
+<h3><a href="#techjna" id="techjna"></a>tech.jna</h3>
 <p>The tech.jna library is similar in scope to Clojure-JNA, however was written to fit into an ecosystem of libraries meant for array-based programming for machine learning and data science.</p>
 <pre><code class="language-sh">$ clj -Sdeps '{:deps {techascent/tech.jna {:mvn/version "4.05"}
                       criterium/criterium {:mvn/version "0.4.6"}}}'
@@ -165,7 +165,7 @@ Execution time sample std-deviation : 14.557312 ns
 nil
 </code></pre>
 <p>This version is even slower than Clojure-JNA. I’m unsure where this overhead is coming from, but I’ll admit that I haven’t looked at their implementations very closely.</p>
-<h3><a href="#dtype-next-dtype-next" id="dtype-next-dtype-next"></a>dtype-next {#dtype-next}</h3>
+<h3><a href="#dtype-next" id="dtype-next"></a>dtype-next</h3>
 <p>The library dtype-next replaced tech.jna in the toolkit of the group working on machine learning and array-based programming, and it includes support for composite data types including structs, as well as primitive functions and callbacks.</p>
 <p>In addition, dtype-next has two different ffi backends. First is JNA, which is usable on any JDK version, and is what we’ll use for the first benchmark. Second is the Java 16 version of Project Panama, which will be shown next.</p>
 <p>In order to use the dtype-next ffi with the JNA backend, the JNA library has to be included in the dependencies.</p>

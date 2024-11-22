@@ -1,20 +1,18 @@
 # Built-in Types **WIP**
 
-### TODO Primitives {#primitives}
+### Primitives
 
-### TODO Arrays {#arrays}
+### Arrays
 
-### TODO Pointers {#pointers}
+### Pointers
 
-### TODO Structs {#structs}
+### Structs
 
-### TODO Enums {#enums}
+### Enums
 
-### TODO Flagsets {#flagsets}
+### Flagsets
 
-### TODO Functions {#functions}
-
-### Unions {#unions}
+### Unions
 Unions in coffi are rather limited. They can be serialized, but not deserialized
 without external information.
 
@@ -28,9 +26,8 @@ without external information.
 
 This is a minimal union in coffi. If the `:dispatch` keyword argument is not
 passed, then the union cannot be serialized, as coffi would not know which type
-to serialize the values as. In [the example with a tagged
-union](04-Custom-Types.md#tagged-union), a dispatch function was not provided
-because the type was only used for the native layout.
+to serialize the values as. In the example with a tagged union, a dispatch
+function was not provided because the type was only used for the native layout.
 
 In addition to a dispatch function, when serializing a union an extract function
 may also be provided. In the case of the value in the tagged union from before,
@@ -53,4 +50,4 @@ garbage collected, and copies the data from the source segment into it. It's up
 to the user to call `deserialize-from` on that segment with the appropriate
 type.
 
-### TODO Raw Types {#raw-types}
+### Raw Types

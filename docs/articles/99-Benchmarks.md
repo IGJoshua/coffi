@@ -18,7 +18,7 @@ conveniently already wrapped in JNI by the excellent
 The following benchmarks were run on a Lenovo Thinkpad with an Intel i7-10610U
 running Manjaro Linux, using Clojure 1.10.3 on Java 17.
 
-### JNI {#jni}
+### JNI
 The baseline for performance is the JNI. Using LWJGL it's relatively simple to
 benchmark. The following Clojure CLI command will start a repl with LWJGL and
 criterium loaded.
@@ -70,7 +70,7 @@ user=> bench/estimated-overhead-cache
 6.400703613065185E-9
 ```
 
-### Coffi {#coffi}
+### Coffi
 The dependencies when using coffi are simpler, but it also requires some JVM
 options to support the foreign access api.
 
@@ -117,7 +117,7 @@ nil
 This result is about 1.3 ns faster, and while that is less than the standard
 deviation of 1.6, it's quite close to it.
 
-### Clojure-JNA {#clojure-jna}
+### Clojure-JNA
 Clojure-JNA uses the JNA library, which was designed to provide Java with an
 easy way to access native libraries, but which is known for not having the
 greatest performance. Since this is an older project, I'm also including the
@@ -192,7 +192,7 @@ This performance penalty is still small in the scope of longer-running
 functions, and so may not be a concern for your application, but it is something
 to be aware of.
 
-### tech.jna {#tech-jna}
+### tech.jna
 The tech.jna library is similar in scope to Clojure-JNA, however was written to
 fit into an ecosystem of libraries meant for array-based programming for machine
 learning and data science.
@@ -242,7 +242,7 @@ This version is even slower than Clojure-JNA. I'm unsure where this overhead is
 coming from, but I'll admit that I haven't looked at their implementations very
 closely.
 
-### dtype-next {#dtype-next}
+### dtype-next
 The library dtype-next replaced tech.jna in the toolkit of the group working on
 machine learning and array-based programming, and it includes support for
 composite data types including structs, as well as primitive functions and
