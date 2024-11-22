@@ -1,5 +1,6 @@
 # coffi
 [![Clojars Project](https://img.shields.io/clojars/v/org.suskalo/coffi.svg)](https://clojars.org/org.suskalo/coffi)
+[![cljdoc badge](https://cljdoc.org/badge/org.suskalo/coffi)](https://cljdoc.org/d/org.suskalo/coffi)
 
 Coffi is a foreign function interface library for Clojure, using the [Foreign
 Function & Memory API](https://openjdk.org/jeps/454) in JDK 22 and later. This
@@ -11,8 +12,8 @@ doesn't remove the ability to write systems which minimize the cost of
 marshaling data and optimize for performance, to make use of the low-level
 access the FF&M API gives us.
 
-- [Getting Started](https://igjoshua.github.io/coffi/01-Getting-Started.html)
-- [API Documentation](https://igjoshua.github.io/coffi/)
+- [Getting Started](https://cljdoc.org/d/org.suskalo/coffi/CURRENT/doc/getting-started)
+- [API Documentation](https://cljdoc.org/d/org.suskalo/coffi)
 - [Recent Changes](CHANGELOG.md)
 
 ## Installation
