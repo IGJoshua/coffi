@@ -1637,17 +1637,17 @@
 
 (defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
-(defmethod generate-deserialize :coffi.mem/byte     [_type offset] [`(read-byte    ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/short    [_type offset] [`(read-short   ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/int      [_type offset] [`(read-int     ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/long     [_type offset] [`(read-long    ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/char     [_type offset] [`(read-char    ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/float    [_type offset] [`(read-float   ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/double   [_type offset] [`(read-double  ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/pointer  [_type offset] [`(read-address ~'segment ~offset)])
-(defmethod generate-deserialize :coffi.mem/c-string [_type offset] [(list `.getString (list `.reinterpret (list `.get (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0)])
+(defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] [`(read-byte    ~segment-source-form ~offset)])
+(defmethod generate-deserialize :coffi.mem/short    [_type offset segment-source-form] [`(read-short   ~segment-source-form ~offset)])
+(defmethod generate-deserialize :coffi.mem/int      [_type offset segment-source-form] [`(read-int     ~segment-source-form ~offset)])
+(defmethod generate-deserialize :coffi.mem/long     [_type offset segment-source-form] [`(read-long    ~segment-source-form ~offset)])
+(defmethod generate-deserialize :coffi.mem/char     [_type offset segment-source-form] [`(read-char    ~segment-source-form ~offset)])
+(defmethod generate-deserialize :coffi.mem/float    [_type offset segment-source-form] [`(read-float   ~segment-source-form ~offset)])
+(defmethod generate-deserialize :coffi.mem/double   [_type offset segment-source-form] [`(read-double  ~segment-source-form ~offset)])
+(defmethod generate-deserialize :coffi.mem/pointer  [_type offset segment-source-form] [`(read-address ~segment-source-form ~offset)])
+(defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form] [(list `.getString (list `.reinterpret (list `.get (with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0)])
 
-(defmethod generate-deserialize :coffi.mem/array    [_type offset]
+(defmethod generate-deserialize :coffi.mem/array    [_type offset segment-source-form]
   (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
         gen-arr (nth outer-code 2)]
     [(concat (butlast outer-code)
@@ -1656,12 +1656,13 @@
                 (let [deserialize-instructions
                       (generate-deserialize
                        (second _type)
-                       (+ offset (* (size-of (second _type)) index)))]
+                       (+ offset (* (size-of (second _type)) index))
+                       segment-source-form)]
                   (list `aset gen-arr index (first deserialize-instructions))))
               (range (second (rest _type))))
              [gen-arr])]))
 
-(defmethod generate-deserialize :coffi.mem/vector-array    [_type offset]
+(defmethod generate-deserialize :coffi.mem/vector-array    [_type offset segment-source-form]
   (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
         gen-arr (nth outer-code 2)]
     [(concat (butlast outer-code)
@@ -1670,7 +1671,8 @@
                 (let [deserialize-instructions
                       (generate-deserialize
                        (second _type)
-                       (+ offset (* (size-of (second _type)) index)))]
+                       (+ offset (* (size-of (second _type)) index))
+                       segment-source-form)]
                   (list `aset gen-arr index (first deserialize-instructions))))
               (range (second (rest _type))))
              [(list `vec gen-arr)])]))
@@ -1682,57 +1684,58 @@
 
 (defn register-new-struct-deserialization [typename [_struct fields]]
   (let [typelist (typelist typename fields)]
-    (defmethod generate-deserialize typename [_type global-offset]
+    (defmethod generate-deserialize typename [_type global-offset segment-source-form]
       (->> typelist
            (map-indexed
             (fn [index [offset [_ field-type]]]
-              (generate-deserialize field-type (+ global-offset offset))))
+              (generate-deserialize field-type (+ global-offset offset) segment-source-form)))
            (reduce concat)
            (cons (symbol (str (name typename) ".")))
            (list)))))
 
 (defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
-(defmethod generate-serialize :coffi.mem/byte    [_type source-form offset] `(write-byte    ~'segment ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/short   [_type source-form offset] `(write-short   ~'segment ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/int     [_type source-form offset] `(write-int     ~'segment ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/long    [_type source-form offset] `(write-long    ~'segment ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/char    [_type source-form offset] `(write-char    ~'segment ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/float   [_type source-form offset] `(write-float   ~'segment ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/double  [_type source-form offset] `(write-double  ~'segment ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/pointer [_type source-form offset] `(write-pointer ~'segment ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/c-string [_type source-form offset] `(write-address ~'segment ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
+(defmethod generate-serialize :coffi.mem/byte     [_type source-form offset segment-source-form] `(write-byte    ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/short    [_type source-form offset segment-source-form] `(write-short   ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/int      [_type source-form offset segment-source-form] `(write-int     ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/long     [_type source-form offset segment-source-form] `(write-long    ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/char     [_type source-form offset segment-source-form] `(write-char    ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/float    [_type source-form offset segment-source-form] `(write-float   ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/double   [_type source-form offset segment-source-form] `(write-double  ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/pointer  [_type source-form offset segment-source-form] `(write-pointer ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/c-string [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
 
-(defmethod generate-serialize :coffi.mem/array   [[_arr member-type length] source-form offset]
+(defmethod generate-serialize :coffi.mem/array   [[_arr member-type length] source-form offset segment-source-form]
   (concat
    (list `let ['array-obj source-form])
    (map
     (fn [index]
       (generate-serialize member-type
                           (list `aget 'array-obj index)
-                          (+ offset (* (size-of member-type) index))))
+                          (+ offset (* (size-of member-type) index))
+                          segment-source-form))
     (range length))))
 
-(defmethod generate-serialize :coffi.mem/vector-array   [[_arr member-type length] source-form offset]
+(defmethod generate-serialize :coffi.mem/vector-array   [[_arr member-type length] source-form offset segment-source-form]
   (concat
    (list `let ['array-obj source-form])
    (map
     (fn [index]
       (generate-serialize member-type
                           (list `nth 'array-obj index)
-                          (+ offset (* (size-of member-type) index))))
+                          (+ offset (* (size-of member-type) index))
+                          segment-source-form))
     (range length))))
 
 (defn register-new-struct-serialization [typename [_struct fields]]
   (let [typelist (typelist typename fields)
         fieldnames (filter #(not= ::padding %) (map first fields))]
-    (defmethod generate-serialize typename [_type source-form global-offset]
+    (defmethod generate-serialize typename [_type source-form global-offset segment-source-form]
       (->> typelist
            (map-indexed
             (fn [index [offset [_ field-type]]]
-              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (+ global-offset offset))))
-           (concat [`let ['source-obj source-form]])
-           ))))
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (+ global-offset offset) segment-source-form)))
+           (concat [`let ['source-obj source-form]])))))
 
 (gen-interface
  :name coffi.mem.IStructImpl :methods
@@ -2000,17 +2003,18 @@
                                            (clojure.walk/postwalk (if raw-arrays? identity #(if (= % ::array) ::vector-array %)))
                                            (map #(update % 1 keyword))
                                            (map reverse)
-                                           (map vec))])]
+                                           (map vec))])
+            segment-form (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment})]
         (if (resolve typename) (ns-unmap *ns* typename))
         (register-new-struct-deserialization coffi-typename struct-layout)
         (register-new-struct-serialization   coffi-typename struct-layout)
         `(do
            ~(generate-struct-type typename typed-symbols true)
            (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
-           (defmethod deserialize-from ~coffi-typename ~['segment '_type]
-             ~(first (generate-deserialize coffi-typename 0)))
-           (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type 'segment '_]
-             ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0))
+           (defmethod deserialize-from ~coffi-typename ~[segment-form '_type]
+             ~(first (generate-deserialize coffi-typename 0 segment-form)))
+           (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type segment-form '_]
+             ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0 segment-form))
            (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
            (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer)))))))
 
