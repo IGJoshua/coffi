@@ -1573,57 +1573,29 @@
                 (pos? r) (conj [::padding [::padding (- strongest-alignment r)]])))))]
     (assoc struct-spec 1 aligned-fields)))
 
-(defmethod c-layout ::vector-array
-  [[_vector-array type count]]
-  (MemoryLayout/sequenceLayout
-   count
-   (c-layout type)))
+(defn- coffitype->typename [in]
+  (let [[arr _type n & {:keys [raw?] :as opts}] (#(if (vector? %) % [:- %]) in)
+        arr? (= arr ::array)
+        array-types  {::byte   'bytes
+                      ::short  'shorts
+                      ::int    'ints
+                      ::long   'longs
+                      ::char   'chars
+                      ::float  'floats
+                      ::double 'doubles}
+        single-types {::byte     'byte
+                      ::short    'short
+                      ::int      'int
+                      ::long     'long
+                      ::char     'char
+                      ::float    'float
+                      ::double   'double
+                      ::c-string 'String}]
+    (cond (and arr? raw?) (get array-types _type 'objects)
+          (and arr?)      `clojure.lang.IPersistentVector
+          :default        (get single-types _type (keyword (str *ns*) (str _type))))))
 
-(defn- typename->coffi-typename [_type]
-  (get
-   {'byte    ::byte
-    'short   ::short
-    'int     ::int
-    'long    ::long
-    'char    ::char
-    'float   ::float
-    'double  ::double
-    'bytes   [::array ::byte]
-    'shorts  [::array ::short]
-    'ints    [::array ::int]
-    'longs   [::array ::long]
-    'chars   ::c-string
-    'floats  [::array ::float]
-    'doubles [::array ::double]}
-   _type
-   (keyword (str *ns*) (str _type))))
-
-(defn- coffitype->typename [_type raw-arrays?]
-  (cond
-    (and (vector? _type)
-         (= ::array (first _type))
-         raw-arrays?) (get {::byte   'bytes
-                            ::short  'shorts
-                            ::int    'ints
-                            ::long   'longs
-                            ::char   'chars
-                            ::float  'floats
-                            ::double 'doubles}
-                           (second _type) 'objects)
-    (and (vector? _type)
-         (= ::array (first _type))
-         (not raw-arrays?)) `clojure.lang.IPersistentVector
-    :default (get {::byte     'byte
-                   ::short    'short
-                   ::int      'int
-                   ::long     'long
-                   ::char     'char
-                   ::float    'float
-                   ::double   'double
-                   ::c-string 'String}
-                  _type (keyword (str *ns*) (str _type)))))
-
-(defn coffitype->array-fn [_type]
+(defn- coffitype->array-fn [_type]
   (get
    {:coffi.mem/byte   `byte-array
     :coffi.mem/short  `short-array
@@ -1647,35 +1619,20 @@
 (defmethod generate-deserialize :coffi.mem/pointer  [_type offset segment-source-form] [`(read-address ~segment-source-form ~offset)])
 (defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form] [(list `.getString (list `.reinterpret (list `.get (with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0)])
 
-(defmethod generate-deserialize :coffi.mem/array    [_type offset segment-source-form]
-  (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
+(defmethod generate-deserialize :coffi.mem/array    [[_ array-type n & {:keys [raw?] :or {raw? false} :as params}] offset segment-source-form]
+  (let [outer-code `(let [arr# (~(coffitype->array-fn array-type) ~n)] arr# )
         gen-arr (nth outer-code 2)]
     [(concat (butlast outer-code)
              (map
               (fn [index]
                 (let [deserialize-instructions
                       (generate-deserialize
-                       (second _type)
-                       (+ offset (* (size-of (second _type)) index))
+                       array-type
+                       (+ offset (* (size-of array-type) index))
                        segment-source-form)]
                   (list `aset gen-arr index (first deserialize-instructions))))
-              (range (second (rest _type))))
-             [gen-arr])]))
-
-(defmethod generate-deserialize :coffi.mem/vector-array    [_type offset segment-source-form]
-  (let [outer-code `(let [arr# (~(coffitype->array-fn (second _type)) ~(second (rest _type)))] arr# )
-        gen-arr (nth outer-code 2)]
-    [(concat (butlast outer-code)
-             (map
-              (fn [index]
-                (let [deserialize-instructions
-                      (generate-deserialize
-                       (second _type)
-                       (+ offset (* (size-of (second _type)) index))
-                       segment-source-form)]
-                  (list `aset gen-arr index (first deserialize-instructions))))
-              (range (second (rest _type))))
-             [(list `vec gen-arr)])]))
+              (range n))
+             [(if raw? gen-arr (list `vec gen-arr))])]))
 
 (defn typelist [typename fields]
   (->>
@@ -1705,24 +1662,13 @@
 (defmethod generate-serialize :coffi.mem/pointer  [_type source-form offset segment-source-form] `(write-pointer ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/c-string [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
 
-(defmethod generate-serialize :coffi.mem/array   [[_arr member-type length] source-form offset segment-source-form]
+(defmethod generate-serialize :coffi.mem/array   [[_arr member-type length & {:keys [raw?] :or {raw? false} :as params}] source-form offset segment-source-form]
   (concat
    (list `let ['array-obj source-form])
    (map
     (fn [index]
       (generate-serialize member-type
-                          (list `aget 'array-obj index)
-                          (+ offset (* (size-of member-type) index))
-                          segment-source-form))
-    (range length))))
-
-(defmethod generate-serialize :coffi.mem/vector-array   [[_arr member-type length] source-form offset segment-source-form]
-  (concat
-   (list `let ['array-obj source-form])
-   (map
-    (fn [index]
-      (generate-serialize member-type
-                          (list `nth 'array-obj index)
+                          (if raw? (list `aget 'array-obj index) (list `nth 'array-obj index))
                           (+ offset (* (size-of member-type) index))
                           segment-source-form))
     (range length))))
@@ -1983,7 +1929,7 @@
 
   This creates needed serialization and deserialization implementations for the new type."
   {:style/indent [:defn]}
-  [typename members & {:keys [raw-arrays?] :or {raw-arrays? true} :as opts}]
+  [typename members]
   (let [invalid-typenames (filter #(try (c-layout (first %)) nil (catch Exception e (first %))) (partition 2 members))]
     (cond
       (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `typename member-name`. the typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`"))
@@ -1993,14 +1939,13 @@
             typed-symbols (->>
                            members
                            (partition 2 2)
-                           (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type raw-arrays?)})))
+                           (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type)})))
                            (vec))
             struct-layout (with-c-layout [::struct
                                           (->>
                                            members
                                            (partition 2 2)
                                            (map vec)
-                                           (clojure.walk/postwalk (if raw-arrays? identity #(if (= % ::array) ::vector-array %)))
                                            (map #(update % 1 keyword))
                                            (map reverse)
                                            (map vec))])
