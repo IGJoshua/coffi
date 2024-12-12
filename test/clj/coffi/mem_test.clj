@@ -88,9 +88,9 @@
 (t/deftest can-define-structs-with-array-members
   (t/is
    (eval
-    `(mem/defstruct ~'ArrayTestType [::mem/int ~'x ::mem/byte ~'y [::mem/array ::mem/int 4] ~'z]))))
+    `(mem/defstruct ~'ArrayTestType [::mem/int ~'x ::mem/byte ~'y [::mem/array ::mem/int 4 :raw? true] ~'z]))))
 
-(mem/defstruct ArrayTestType [::mem/int x ::mem/byte y [::mem/array ::mem/int 4] z])
+(mem/defstruct ArrayTestType [::mem/int x ::mem/byte y [::mem/array ::mem/int 4 :raw? true] z])
 
 (t/deftest can-instantiated-array-member-structs
   (t/are [x y z] (z x (y (ArrayTestType. 5 6 (int-array [1 2 3 4]))))
@@ -108,7 +108,7 @@
     (int-array [1 2 3 4])
     (.z (mem/deserialize (mem/serialize (ArrayTestType. 5 6 (int-array [1 2 3 4])) ::ArrayTestType) ::ArrayTestType)))))
 
-(mem/defstruct ComplexTestType [[::mem/array ::ArrayTestType 4] x ::mem/byte y [::mem/array ::mem/int 4] z ::NestedTestType w])
+(mem/defstruct ComplexTestType [[::mem/array ::ArrayTestType 4 :raw? true] x ::mem/byte y [::mem/array ::mem/int 4 :raw? true] z ::NestedTestType w])
 
 (t/deftest can-serialize-deserialize-complex-struct-type
   (t/is
@@ -121,7 +121,7 @@
       (mem/serialize ::ComplexTestType)
       (mem/deserialize ::ComplexTestType)))))
 
-(mem/defstruct ComplexTestTypeWrapped [[::mem/array ::ArrayTestType 4] x ::mem/byte y [::mem/array ::mem/int 4] z ::NestedTestType w] :raw-arrays? false)
+(mem/defstruct ComplexTestTypeWrapped [[::mem/array ::ArrayTestType 4] x ::mem/byte y [::mem/array ::mem/int 4] z ::NestedTestType w])
 
 (t/deftest can-serialize-deserialize-complex-wrapped-struct-type
   (t/is

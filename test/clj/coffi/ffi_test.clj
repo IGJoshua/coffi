@@ -87,7 +87,7 @@
             :x 3.14
             :y 42.0})))
 
-(mem/defstruct ComplexType [::Point x ::mem/byte y [::mem/array ::mem/int 4] z ::mem/c-string w])
+(mem/defstruct ComplexType [::Point x ::mem/byte y [::mem/array ::mem/int 4 :raw? true] z ::mem/c-string w])
 
 (t/deftest can-call-with-complex-defstruct
   (t/are [x y] (= x (y ((ffi/cfn "complexTypeTest" [::ComplexType] ::ComplexType)
@@ -95,7 +95,7 @@
     {:x {:x 3.0 :y 4.0} :y 3 :w "hello from c"} #(dissoc % :z)
     [5 6 7 8] (comp vec :z)))
 
-(mem/defstruct ComplexTypeWrapped [::Point x ::mem/byte y [::mem/array ::mem/int 4] z ::mem/c-string w] :raw-arrays? false)
+(mem/defstruct ComplexTypeWrapped [::Point x ::mem/byte y [::mem/array ::mem/int 4] z ::mem/c-string w])
 
 (t/deftest can-call-with-wrapped-complex-defstruct
   (t/are [x y] (= x (y ((ffi/cfn "complexTypeTest" [::ComplexTypeWrapped] ::ComplexTypeWrapped)
