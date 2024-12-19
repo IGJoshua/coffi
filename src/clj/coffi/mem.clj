@@ -689,13 +689,13 @@
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout ^long offset ^int (alength value#))))
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout ^long offset# ^int (alength value#))))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (MemorySegment/copy value# 0 segment# (.withOrder ^ValueLayout$OfShort short-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+         (MemorySegment/copy value# 0 segment# (.withOrder ^ValueLayout$OfShort short-layout ^ByteOrder byte-order#) ^long offset# ^int (alength value#)))))}
   ([^MemorySegment segment ^shorts value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout 0 (alength value)))
   ([^MemorySegment segment ^long offset ^shorts value]
@@ -712,20 +712,20 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout 0 ^int (alength value#))
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout 0 ^{:tag 'int} (alength value#))
          ))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout ^long offset ^int (alength value#))
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout ^long offset# ^{:tag 'int} (alength value#))
          ))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (MemorySegment/copy value# 0 segment# (.withOrder ^ValueLayout$OfInt int-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+         (MemorySegment/copy value# 0 segment# (.withOrder ^ValueLayout$OfInt int-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
   ([^MemorySegment segment ^ints value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout 0 (alength value)))
   ([^MemorySegment segment ^long offset ^ints value]
@@ -742,20 +742,20 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 ^int (alength value#))
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 ^{:tag 'int} (alength value#))
          ))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout ^long offset ^int (alength value#))
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout ^long offset# ^{:tag 'int} (alength value#))
          ))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfLong long-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfLong long-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
   ([^MemorySegment segment ^longs value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout 0 ^int (alength value)))
   ([^MemorySegment segment ^long offset ^longs value]
@@ -773,18 +773,18 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout 0 ^int (alength value#))))
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout 0 ^{:tag 'int} (alength value#))))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout ^long offset ^int (alength value#))))
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout ^long offset# ^{:tag 'int} (alength value#))))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# (.withOrder ^ValueLayout$OfChar char-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# (.withOrder ^ValueLayout$OfChar char-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
   ([^MemorySegment segment ^chars value]
    (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout 0 (alength value)))
   ([^MemorySegment segment ^long offset ^chars value]
@@ -801,20 +801,20 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 ^int (alength value#))
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 ^{:tag 'int} (alength value#))
          ))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout ^long offset ^int (alength value#))
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout ^long offset# ^{:tag 'int} (alength value#))
          ))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfFloat float-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfFloat float-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
   ([^MemorySegment segment ^floats value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout 0 ^int (alength value)))
   ([^MemorySegment segment ^long offset ^floats value]
@@ -831,20 +831,20 @@
      ([segment value]
       `(let [segment# ~segment
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 ^int (alength value#))
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 ^{:tag 'int} (alength value#))
          ))
      ([segment offset value]
       `(let [segment# ~segment
              offset# ~offset
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout ^long offset ^int (alength value#))
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout ^long offset# ^{:tag 'int} (alength value#))
          ))
      ([segment offset byte-order value]
       `(let [segment# ~segment
              offset# ~offset
              byte-order# ~byte-order
              value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfDouble double-layout ^ByteOrder byte-order#) ^long offset ^int (alength value#)))))}
+         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfDouble double-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
   ([^MemorySegment segment ^doubles value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout 0 ^int (alength value)))
   ([^MemorySegment segment ^long offset ^doubles value]
@@ -1607,6 +1607,15 @@
    _type
    `object-array))
 
+(defn- coffitype->array-write-fn [_type]
+  ({:coffi.mem/byte   `write-bytes
+    :coffi.mem/short  `write-shorts
+    :coffi.mem/int    `write-ints
+    :coffi.mem/long   `write-longs
+    :coffi.mem/char   `write-chars
+    :coffi.mem/float  `write-floats
+    :coffi.mem/double `write-doubles} _type))
+
 (defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
 (defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] `(read-byte    ~segment-source-form ~offset))
@@ -1655,12 +1664,13 @@
 (defmethod generate-serialize :coffi.mem/c-string [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
 
 (defmethod generate-serialize :coffi.mem/array   [[_arr member-type length & {:keys [raw?]}] source-form offset segment-source-form]
-  (let [obj (gensym 'src-array)]
-    (concat
-     (list `let [obj source-form])
-     (map
-      #(generate-serialize member-type (list (if raw? `aget `nth) obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
-     (range length)))))
+  (if (and raw? (coffitype->array-write-fn member-type))
+    (list (coffitype->array-write-fn member-type) segment-source-form offset source-form)
+    (let [obj (gensym 'src-array)]
+      (concat
+       (list `let [obj source-form])
+       (map #(generate-serialize member-type (list (if raw? `aget `nth) obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
+       (range length))))))
 
 (defn register-new-struct-serialization [typename [_struct fields]]
   (let [typelist (typelist typename fields)
