@@ -1574,7 +1574,7 @@
     (assoc struct-spec 1 aligned-fields)))
 
 (defn- coffitype->typename [in]
-  (let [[arr _type n & {:keys [raw?] :as opts}] (#(if (vector? %) % [:- %]) in)
+  (let [[arr _type n & {:keys [raw?] :as opts}] (if (vector? in) in [:- in])
         arr? (= arr ::array)
         array-types  {::byte   'bytes
                       ::short  'shorts
@@ -1609,30 +1609,24 @@
 
 (defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
-(defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] [`(read-byte    ~segment-source-form ~offset)])
-(defmethod generate-deserialize :coffi.mem/short    [_type offset segment-source-form] [`(read-short   ~segment-source-form ~offset)])
-(defmethod generate-deserialize :coffi.mem/int      [_type offset segment-source-form] [`(read-int     ~segment-source-form ~offset)])
-(defmethod generate-deserialize :coffi.mem/long     [_type offset segment-source-form] [`(read-long    ~segment-source-form ~offset)])
-(defmethod generate-deserialize :coffi.mem/char     [_type offset segment-source-form] [`(read-char    ~segment-source-form ~offset)])
-(defmethod generate-deserialize :coffi.mem/float    [_type offset segment-source-form] [`(read-float   ~segment-source-form ~offset)])
-(defmethod generate-deserialize :coffi.mem/double   [_type offset segment-source-form] [`(read-double  ~segment-source-form ~offset)])
-(defmethod generate-deserialize :coffi.mem/pointer  [_type offset segment-source-form] [`(read-address ~segment-source-form ~offset)])
-(defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form] [(list `.getString (list `.reinterpret (list `.get (with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0)])
+(defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] `(read-byte    ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/short    [_type offset segment-source-form] `(read-short   ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/int      [_type offset segment-source-form] `(read-int     ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/long     [_type offset segment-source-form] `(read-long    ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/char     [_type offset segment-source-form] `(read-char    ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/float    [_type offset segment-source-form] `(read-float   ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/double   [_type offset segment-source-form] `(read-double  ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/pointer  [_type offset segment-source-form] `(read-address ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form] (list `.getString (list `.reinterpret (list `.get (with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0))
 
-(defmethod generate-deserialize :coffi.mem/array    [[_ array-type n & {:keys [raw?] :or {raw? false} :as params}] offset segment-source-form]
-  (let [outer-code `(let [arr# (~(coffitype->array-fn array-type) ~n)] arr# )
-        gen-arr (nth outer-code 2)]
-    [(concat (butlast outer-code)
-             (map
-              (fn [index]
-                (let [deserialize-instructions
-                      (generate-deserialize
-                       array-type
-                       (+ offset (* (size-of array-type) index))
-                       segment-source-form)]
-                  (list `aset gen-arr index (first deserialize-instructions))))
-              (range n))
-             [(if raw? gen-arr (list `vec gen-arr))])]))
+(defmethod generate-deserialize :coffi.mem/array    [[_ array-type n & {:keys [raw?]}] offset segment-source-form]
+  (let [a (gensym 'array)]
+    (concat
+     `(let [~a (~(coffitype->array-fn array-type) ~n)])
+     (map
+      #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
+      (range n))
+     [(if raw? a `(vec ~a))])))
 
 (defn- typelist [typename fields]
   (->>
@@ -1646,9 +1640,7 @@
            (map-indexed
             (fn [index [offset [_ field-type]]]
               (generate-deserialize field-type (+ global-offset offset) segment-source-form)))
-           (reduce concat)
-           (cons (symbol (str (name typename) ".")))
-           (list)))))
+           (cons (symbol (str (name typename) ".")))))))
 
 (defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
@@ -1662,16 +1654,13 @@
 (defmethod generate-serialize :coffi.mem/pointer  [_type source-form offset segment-source-form] `(write-pointer ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/c-string [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
 
-(defmethod generate-serialize :coffi.mem/array   [[_arr member-type length & {:keys [raw?] :or {raw? false} :as params}] source-form offset segment-source-form]
-  (concat
-   (list `let ['array-obj source-form])
-   (map
-    (fn [index]
-      (generate-serialize member-type
-                          (if raw? (list `aget 'array-obj index) (list `nth 'array-obj index))
-                          (+ offset (* (size-of member-type) index))
-                          segment-source-form))
-    (range length))))
+(defmethod generate-serialize :coffi.mem/array   [[_arr member-type length & {:keys [raw?]}] source-form offset segment-source-form]
+  (let [obj (gensym 'src-array)]
+    (concat
+     (list `let [obj source-form])
+     (map
+      #(generate-serialize member-type (list (if raw? `aget `nth) obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
+     (range length)))))
 
 (defn register-new-struct-serialization [typename [_struct fields]]
   (let [typelist (typelist typename fields)
@@ -1724,8 +1713,7 @@
   [map_keySet [] java.util.Set]
   [map_size [] int]
   [map_values [] java.util.Collection]
-  [map_forEach [java.util.function.BiConsumer] void]
-  ])
+  [map_forEach [java.util.function.BiConsumer] void]])
 
 
 (defmacro for-each-fixed-length [n]
@@ -1884,7 +1872,7 @@
             (s-valAt-2     [] (list 'valAt       ['this 'k 'o]     (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) ['o])))
             (s-entryAt     [] (list 'entryAt     ['this 'k]        (list `let ['val-or-nil (concat [`case 'k] (interleave (range) as-vec) (interleave members as-vec) [nil])] (list `if 'val-or-nil (list `clojure.lang.MapEntry/create 'k 'val-or-nil) nil))))
 
-            (map-assoc       [] (list 'assoc       ['this 'i 'value] (list `assoc as-map 'i 'value)))
+            (map-assoc     [] (list 'assoc       ['this 'i 'value] (list `assoc as-map 'i 'value)))
             (map-assocEx   [] (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value))))
             (map-without   [] (list 'without     ['this 'k]        (list `dissoc as-map (list `if (list `number? 'k) (list (vec members) 'k) 'k))))
             (map-cons      [] (list 'cons        ['this 'o]        `(if (instance? clojure.lang.MapEntry ~'o) ~(conj as-map [`(.getKey ^clojure.lang.MapEntry ~'o) `(.getKey ^clojure.lang.MapEntry ~'o)]) (if (instance? clojure.lang.IPersistentVector ~'o) ~(conj as-map [`(.nth ^IPersistentVector ~'o 0) `(.nth ^IPersistentVector ~'o 1)]) (.cons ^IPersistentMap ~'o ~as-map)))))
@@ -1963,7 +1951,7 @@
            ~(generate-struct-type typename typed-symbols true)
            (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
            (defmethod deserialize-from ~coffi-typename ~[segment-form '_type]
-             ~(first (generate-deserialize coffi-typename 0 segment-form)))
+             ~(generate-deserialize coffi-typename 0 segment-form))
            (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type segment-form '_]
              ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0 segment-form))
            (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
