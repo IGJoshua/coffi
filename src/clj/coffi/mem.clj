@@ -1634,7 +1634,7 @@
               (range n))
              [(if raw? gen-arr (list `vec gen-arr))])]))
 
-(defn typelist [typename fields]
+(defn- typelist [typename fields]
   (->>
    (partition 2 2 (interleave (reductions + 0 (map (comp size-of second) fields)) fields))
    (filter (fn [[_ [_ field-type]]] (not (and (vector? field-type) (= ::padding (first field-type))))))))
@@ -1927,7 +1927,11 @@
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
 
-  This creates needed serialization and deserialization implementations for the new type."
+  This creates needed serialization and deserialization implementations for the new type.
+
+  The typenames have to be coffi typenames, such as `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`.
+  Arrays are wrapped with vectors by default. If you want to use raw java arrays the array type has to be supplied with the option `:raw? true`, for example like this `[:coffi.mem/array :coffi.mem/byte 3 :raw? true]`
+  "
   {:style/indent [:defn]}
   [typename members]
   (let [invalid-typenames (filter #(try (c-layout (first %)) nil (catch Exception e (first %))) (partition 2 members))]
