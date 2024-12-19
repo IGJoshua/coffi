@@ -1564,13 +1564,13 @@
               (recur (cond-> (+ offset size)
                        (pos? r) (+ (- align r)))
                      (cond-> aligned-fields
-                       (pos? r) (conj [::padding [::padding (- align r)]])
+                       (pos? r) (conj [:coffi.layout/padding [:coffi.mem/padding (- align r)]])
                        :always (conj field))
                      fields))
             (let [strongest-alignment (reduce max (map (comp align-of second) (nth struct-spec 1)))
                   r (rem offset strongest-alignment)]
               (cond-> aligned-fields
-                (pos? r) (conj [::padding [::padding (- strongest-alignment r)]])))))]
+                (pos? r) (conj [:coffi.layout/padding [:coffi.mem/padding (- strongest-alignment r)]])))))]
     (assoc struct-spec 1 aligned-fields)))
 
 (defn- coffitype->typename [in]
@@ -1637,7 +1637,7 @@
 (defn- typelist [typename fields]
   (->>
    (partition 2 2 (interleave (reductions + 0 (map (comp size-of second) fields)) fields))
-   (filter (fn [[_ [_ field-type]]] (not (and (vector? field-type) (= ::padding (first field-type))))))))
+   (filter (fn [[_ [_ field-type]]] (not (and (vector? field-type) (= "padding" (name (first field-type)))))))))
 
 (defn register-new-struct-deserialization [typename [_struct fields]]
   (let [typelist (typelist typename fields)]
@@ -1675,7 +1675,7 @@
 
 (defn register-new-struct-serialization [typename [_struct fields]]
   (let [typelist (typelist typename fields)
-        fieldnames (filter #(not= ::padding %) (map first fields))]
+        fieldnames (filter #(not= "padding" (name %)) (map first fields))]
     (defmethod generate-serialize typename [_type source-form global-offset segment-source-form]
       (->> typelist
            (map-indexed
@@ -1945,14 +1945,16 @@
                            (partition 2 2)
                            (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type)})))
                            (vec))
-            struct-layout (with-c-layout [::struct
-                                          (->>
-                                           members
-                                           (partition 2 2)
-                                           (map vec)
-                                           (map #(update % 1 keyword))
-                                           (map reverse)
-                                           (map vec))])
+            struct-layout-raw [::struct
+                               (->>
+                                members
+                                (partition 2 2)
+                                (map vec)
+                                (map #(update % 1 keyword))
+                                (map reverse)
+                                (map vec)
+                                (vec))]
+            struct-layout (with-c-layout struct-layout-raw)
             segment-form (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment})]
         (if (resolve typename) (ns-unmap *ns* typename))
         (register-new-struct-deserialization coffi-typename struct-layout)
