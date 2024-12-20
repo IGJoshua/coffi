@@ -1885,7 +1885,7 @@
             (map-assoc     [] (list 'assoc       ['this 'i 'value] (list `assoc as-map 'i 'value)))
             (map-assocEx   [] (list 'assocEx     ['this 'i 'value] (list `if (list (set members) 'i) (list `throw (list `Exception. "key already exists")) (assoc as-map 'i 'value))))
             (map-without   [] (list 'without     ['this 'k]        (list `dissoc as-map (list `if (list `number? 'k) (list (vec members) 'k) 'k))))
-            (map-cons      [] (list 'cons        ['this 'o]        `(if (instance? clojure.lang.MapEntry ~'o) ~(conj as-map [`(.getKey ^clojure.lang.MapEntry ~'o) `(.getKey ^clojure.lang.MapEntry ~'o)]) (if (instance? clojure.lang.IPersistentVector ~'o) ~(conj as-map [`(.nth ^IPersistentVector ~'o 0) `(.nth ^IPersistentVector ~'o 1)]) (.cons ^IPersistentMap ~'o ~as-map)))))
+            (map-cons      [] (list 'cons        ['this 'o]        `(if (instance? clojure.lang.MapEntry ~'o) ~(conj as-map [`(.key ~(with-meta 'o {:tag 'clojure.lang.MapEntry})) `(.val ~(with-meta 'o {:tag 'clojure.lang.MapEntry}))]) (if (instance? clojure.lang.IPersistentVector ~'o) ~(conj as-map [`(.nth ~(with-meta 'o {:tag 'clojure.lang.IPersistentVector}) 0) `(.nth ~(with-meta 'o {:tag 'clojure.lang.IPersistentVector}) 1)]) (.cons ~(with-meta 'o {:tag 'clojure.lang.IPersistentMap}) ~as-map)))))
             (map-equiv     [] (list 'equiv       ['this 'o]        (list `= as-map 'o)))
             (map-empty     [] (list 'empty       ['this]           {}))
             (map-iterator  [] (list 'iterator    ['this]           (list '.iterator as-map)))
