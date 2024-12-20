@@ -817,6 +817,278 @@
   ([^MemorySegment segment n ^long offset ^doubles value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout ^long offset ^int n)))
 
+
+
+
+
+
+
+(defn read-bytes
+  "reads `n` elements from a `segment` to a [[byte]] array, at an optional `offset`."
+  {:inline
+   (fn read-bytes-inline
+     ([segment n]
+      `(let [n# ~n
+             segment# ~segment
+             arr# (byte-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 arr# 0 n#)
+         arr#))
+     ([segment n offset]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             arr# (byte-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# arr# 0 n#)
+         arr#))
+     ([segment n offset byte-order]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             arr# (byte-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# (.withOrder ^ValueLayout$OfByte byte-layout ^ByteOrder byte-order#) offset# arr# 0 n#)
+         arr#)))}
+  ([^MemorySegment segment n]
+   (let [arr (byte-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfByte byte-layout 0 arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset]
+   (let [arr (byte-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfByte byte-layout offset arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset ^ByteOrder byte-order]
+   (let [arr (byte-array n)]
+     (MemorySegment/copy segment (.withOrder ^ValueLayout$OfByte byte-layout byte-order) offset arr 0 ^int n)
+     arr)))
+
+(defn read-shorts
+  "reads `n` elements from a `segment` to a [[short]] array, at an optional `offset`."
+  {:inline
+   (fn read-shorts-inline
+     ([segment n]
+      `(let [n# ~n
+             segment# ~segment
+             arr# (short-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfShort short-layout 0 arr# 0 n#)
+         arr#))
+     ([segment n offset]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             arr# (short-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfShort short-layout offset# arr# 0 n#)
+         arr#))
+     ([segment n offset byte-order]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             arr# (short-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# (.withOrder ^ValueLayout$OfShort short-layout ^ByteOrder byte-order#) offset# arr# 0 n#)
+         arr#)))}
+  ([^MemorySegment segment n]
+   (let [arr (short-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfShort short-layout 0 arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset]
+   (let [arr (short-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfShort short-layout offset arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset ^ByteOrder byte-order]
+   (let [arr (short-array n)]
+     (MemorySegment/copy segment (.withOrder ^ValueLayout$OfShort short-layout byte-order) offset arr 0 ^int n)
+     arr)))
+
+(defn read-longs
+  "reads `n` elements from a `segment` to a [[long]] array, at an optional `offset`."
+  {:inline
+   (fn read-longs-inline
+     ([segment n]
+      `(let [n# ~n
+             segment# ~segment
+             arr# (long-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 arr# 0 n#)
+         arr#))
+     ([segment n offset]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             arr# (long-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfLong long-layout offset# arr# 0 n#)
+         arr#))
+     ([segment n offset byte-order]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             arr# (long-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# (.withOrder ^ValueLayout$OfLong long-layout ^ByteOrder byte-order#) offset# arr# 0 n#)
+         arr#)))}
+  ([^MemorySegment segment n]
+   (let [arr (long-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfLong long-layout 0 arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset]
+   (let [arr (long-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfLong long-layout offset arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset ^ByteOrder byte-order]
+   (let [arr (long-array n)]
+     (MemorySegment/copy segment (.withOrder ^ValueLayout$OfLong long-layout byte-order) offset arr 0 ^int n)
+     arr)))
+
+(defn read-ints
+  "reads `n` elements from a `segment` to a [[int]] array, at an optional `offset`."
+  {:inline
+   (fn read-ints-inline
+     ([segment n]
+      `(let [n# ~n
+             segment# ~segment
+             arr# (int-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfInt int-layout 0 arr# 0 n#)
+         arr#))
+     ([segment n offset]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             arr# (int-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfInt int-layout offset# arr# 0 n#)
+         arr#))
+     ([segment n offset byte-order]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             arr# (int-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# (.withOrder ^ValueLayout$OfInt int-layout ^ByteOrder byte-order#) offset# arr# 0 n#)
+         arr#)))}
+  ([^MemorySegment segment n]
+   (let [arr (int-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfInt int-layout 0 arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset]
+   (let [arr (int-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfInt int-layout offset arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset ^ByteOrder byte-order]
+   (let [arr (int-array n)]
+     (MemorySegment/copy segment (.withOrder ^ValueLayout$OfInt int-layout byte-order) offset arr 0 ^int n)
+     arr)))
+
+(defn read-chars
+  "reads `n` elements from a `segment` to a [[char]] array, at an optional `offset`."
+  {:inline
+   (fn read-chars-inline
+     ([segment n]
+      `(let [n# ~n
+             segment# ~segment
+             arr# (char-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfChar char-layout 0 arr# 0 n#)
+         arr#))
+     ([segment n offset]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             arr# (char-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfChar char-layout offset# arr# 0 n#)
+         arr#))
+     ([segment n offset byte-order]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             arr# (char-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# (.withOrder ^ValueLayout$OfChar char-layout ^ByteOrder byte-order#) offset# arr# 0 n#)
+         arr#)))}
+  ([^MemorySegment segment n]
+   (let [arr (char-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfChar char-layout 0 arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset]
+   (let [arr (char-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfChar char-layout offset arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset ^ByteOrder byte-order]
+   (let [arr (char-array n)]
+     (MemorySegment/copy segment (.withOrder ^ValueLayout$OfChar char-layout byte-order) offset arr 0 ^int n)
+     arr)))
+
+(defn read-floats
+  "reads `n` elements from a `segment` to a [[float]] array, at an optional `offset`."
+  {:inline
+   (fn read-floats-inline
+     ([segment n]
+      `(let [n# ~n
+             segment# ~segment
+             arr# (float-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 arr# 0 n#)
+         arr#))
+     ([segment n offset]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             arr# (float-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfFloat float-layout offset# arr# 0 n#)
+         arr#))
+     ([segment n offset byte-order]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             arr# (float-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# (.withOrder ^ValueLayout$OfFloat float-layout ^ByteOrder byte-order#) offset# arr# 0 n#)
+         arr#)))}
+  ([^MemorySegment segment n]
+   (let [arr (float-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfFloat float-layout 0 arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset]
+   (let [arr (float-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfFloat float-layout offset arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset ^ByteOrder byte-order]
+   (let [arr (float-array n)]
+     (MemorySegment/copy segment (.withOrder ^ValueLayout$OfFloat float-layout byte-order) offset arr 0 ^int n)
+     arr)))
+
+(defn read-doubles
+  "reads `n` elements from a `segment` to a [[double]] array, at an optional `offset`."
+  {:inline
+   (fn read-doubles-inline
+     ([segment n]
+      `(let [n# ~n
+             segment# ~segment
+             arr# (double-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 arr# 0 n#)
+         arr#))
+     ([segment n offset]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             arr# (double-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# ^ValueLayout$OfDouble double-layout offset# arr# 0 n#)
+         arr#))
+     ([segment n offset byte-order]
+      `(let [n# ~n
+             segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order
+             arr# (double-array ~n)]
+         (MemorySegment/copy ^MemorySegment segment# (.withOrder ^ValueLayout$OfDouble double-layout ^ByteOrder byte-order#) offset# arr# 0 n#)
+         arr#)))}
+  ([^MemorySegment segment n]
+   (let [arr (double-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfDouble double-layout 0 arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset]
+   (let [arr (double-array n)]
+     (MemorySegment/copy segment ^ValueLayout$OfDouble double-layout offset arr 0 ^int n)
+     arr))
+  ([^MemorySegment segment n ^long offset ^ByteOrder byte-order]
+   (let [arr (double-array n)]
+     (MemorySegment/copy segment (.withOrder ^ValueLayout$OfDouble double-layout byte-order) offset arr 0 ^int n)
+     arr)))
+
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
   [type]
@@ -1581,6 +1853,15 @@
     :coffi.mem/float  `write-floats
     :coffi.mem/double `write-doubles} _type))
 
+(defn- coffitype->array-read-fn [_type]
+  ({:coffi.mem/byte   `read-bytes
+    :coffi.mem/short  `read-shorts
+    :coffi.mem/int    `read-ints
+    :coffi.mem/long   `read-longs
+    :coffi.mem/char   `read-chars
+    :coffi.mem/float  `read-floats
+    :coffi.mem/double `read-doubles} _type))
+
 (defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
 (defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] `(read-byte    ~segment-source-form ~offset))
@@ -1594,13 +1875,18 @@
 (defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form] (list `.getString (list `.reinterpret (list `.get (with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0))
 
 (defmethod generate-deserialize :coffi.mem/array    [[_ array-type n & {:keys [raw?]}] offset segment-source-form]
-  (let [a (gensym 'array)]
-    (concat
-     `(let [~a (~(coffitype->array-fn array-type) ~n)])
-     (map
-      #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
-      (range n))
-     [(if raw? a `(vec ~a))])))
+  (if (coffitype->array-read-fn array-type)
+    (if raw?
+      (list (coffitype->array-read-fn array-type) segment-source-form n offset)
+      (list `vec (list (coffitype->array-read-fn array-type) segment-source-form n offset)))
+
+      (let [a (gensym 'array)]
+        (concat
+         `(let [~a (~(coffitype->array-fn array-type) ~n)])
+         (map
+          #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
+          (range n))
+         [(if raw? a `(vec ~a))]))))
 
 (defn- typelist [typename fields]
   (->>
