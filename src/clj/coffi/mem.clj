@@ -658,199 +658,164 @@
    (.set segment ^AddressLayout pointer-layout offset value)))
 
 (defn write-bytes
-  "Writes a [[byte]] array to the `segment`, at an optional `offset`."
+  "Writes n elements from a [[byte]] array to the `segment`, at an optional `offset`."
   {:inline
    (fn write-byte-inline
-     ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (MemorySegment/copy value# 0  ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 ^int (alength value#))))
-     ([segment offset value]
-      `(let [segment# ~segment
+     ([segment n value]
+      `(let [n# ~n
+             segment# ~segment
+             value# ~(with-meta value {:tag 'bytes})]
+         (MemorySegment/copy value# 0  ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 n#)))
+     ([segment n offset value]
+      `(let [n# ~n
+             segment# ~segment
              offset# ~offset
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# ^int (alength value#)))))}
-  ([^MemorySegment segment ^bytes value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout 0 (alength value)))
-  ([^MemorySegment segment offset ^bytes value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout ^long offset ^int (alength value))))
+             value# ~(with-meta value {:tag 'bytes})]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# n#))))}
+  ([^MemorySegment segment n ^bytes value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout 0 ^int n))
+  ([^MemorySegment segment n offset ^bytes value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout ^long offset ^int n)))
 
 (defn write-shorts
-  "Writes a [[short]] array to the `segment`, at an optional `offset`.
+  "Writes n elements from a [[short]] array to the `segment`, at an optional `offset`.
 
   If `byte-order` is not provided, it defaults to [[native-endian]]."
   {:inline
    (fn write-shorts-inline
-     ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout 0 ^int (alength value#))))
-     ([segment offset value]
-      `(let [segment# ~segment
+     ([segment n value]
+      `(let [n# ~n
+             segment# ~segment
+             value# ~(with-meta value {:tag 'shorts})]
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout 0 n#)))
+     ([segment n offset value]
+      `(let [n# ~n
+             segment# ~segment
              offset# ~offset
-             value# ~value]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout ^long offset# ^int (alength value#))))
-     ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (MemorySegment/copy value# 0 segment# (.withOrder ^ValueLayout$OfShort short-layout ^ByteOrder byte-order#) ^long offset# ^int (alength value#)))))}
-  ([^MemorySegment segment ^shorts value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout 0 (alength value)))
-  ([^MemorySegment segment ^long offset ^shorts value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout ^long offset (alength value)))
-  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^shorts value]
-   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfShort short-layout byte-order) ^long offset (alength value))))
+             value# ~(with-meta value {:tag 'shorts})]
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout ^long offset# n#))))}
+  ([^MemorySegment segment n ^shorts value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout 0 ^int n))
+  ([^MemorySegment segment n ^long offset ^shorts value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout ^long offset ^int n)))
 
 (defn write-ints
-  "Writes a [[int]] array to the `segment`, at an optional `offset`.
+  "Writes n elements from an [[int]] array to the `segment`, at an optional `offset`.
 
   If `byte-order` is not provided, it defaults to [[native-endian]]."
   {:inline
    (fn write-ints-inline
-     ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout 0 ^{:tag 'int} (alength value#))
-         ))
-     ([segment offset value]
-      `(let [segment# ~segment
+     ([segment n value]
+      `(let [n# ~n
+             segment# ~segment
+             value# ~(with-meta value {:tag 'shorts})]
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout 0 n#)))
+     ([segment n offset value]
+      `(let [n# ~n
+             segment# ~segment
              offset# ~offset
-             value# ~value]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout ^long offset# ^{:tag 'int} (alength value#))
-         ))
-     ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (MemorySegment/copy value# 0 segment# (.withOrder ^ValueLayout$OfInt int-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
-  ([^MemorySegment segment ^ints value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout 0 (alength value)))
-  ([^MemorySegment segment ^long offset ^ints value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout ^long offset (alength value)))
-  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^ints value]
-   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfInt int-layout byte-order) ^long offset (alength value))))
+             value# ~(with-meta value {:tag 'shorts})]
+         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout ^long offset# n#)))
+     )}
+  ([^MemorySegment segment n ^ints value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout 0 ^int n))
+  ([^MemorySegment segment n ^long offset ^ints value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout ^long offset ^int n))
+  )
 
 (defn write-longs
-  "Writes a [[long]] array to the `segment`, at an optional `offset`.
+  "Writes n elements from a [[long]] array to the `segment`, at an optional `offset`.
 
   If `byte-order` is not provided, it defaults to [[native-endian]]."
   {:inline
    (fn write-longs-inline
-     ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 ^{:tag 'int} (alength value#))
+     ([segment n value]
+      `(let [n# ~n
+             segment# ~segment
+             value# ~(with-meta value {:tag 'longs})]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 n#)
          ))
-     ([segment offset value]
-      `(let [segment# ~segment
+     ([segment n offset value]
+      `(let [n# ~n
+             segment# ~segment
              offset# ~offset
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout ^long offset# ^{:tag 'int} (alength value#))
+             value# ~(with-meta value {:tag 'longs})]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout ^long offset# n#)
          ))
-     ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfLong long-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
-  ([^MemorySegment segment ^longs value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout 0 ^int (alength value)))
-  ([^MemorySegment segment ^long offset ^longs value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout ^long offset ^int (alength value)))
-  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^longs value]
-   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfLong long-layout byte-order) ^long offset ^int (alength value))))
+     )}
+  ([^MemorySegment segment n ^longs value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout 0 ^int n))
+  ([^MemorySegment segment n ^long offset ^longs value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout ^long offset ^int n))
+  )
 
 
 (defn write-chars
-  "Writes a [[char]] array to the `segment`, at an optional `offset`.
+  "Writes n elements from a [[char]] array to the `segment`, at an optional `offset`.
 
   If `byte-order` is not provided, it defaults to [[native-endian]]."
   {:inline
    (fn write-chars-inline
-     ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout 0 ^{:tag 'int} (alength value#))))
-     ([segment offset value]
-      `(let [segment# ~segment
+     ([segment n value]
+      `(let [n# ~n
+             segment# ~segment
+             value# ~(with-meta value {:tag 'chars})]
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout 0 n#)))
+     ([segment n offset value]
+      `(let [n# ~n
+             segment# ~segment
              offset# ~offset
-             value# ~value]
-         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout ^long offset# ^{:tag 'int} (alength value#))))
-     ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# (.withOrder ^ValueLayout$OfChar char-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
-  ([^MemorySegment segment ^chars value]
-   (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout 0 (alength value)))
-  ([^MemorySegment segment ^long offset ^chars value]
-   (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout ^long offset (alength value)))
-  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^chars value]
-   (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment (.withOrder ^ValueLayout$OfChar char-layout byte-order) ^long offset (alength value))))
+             value# ~(with-meta value {:tag 'chars})]
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout ^long offset# n#)))
+     )}
+  ([^MemorySegment segment n ^chars value]
+   (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout 0 ^int n))
+  ([^MemorySegment segment n ^long offset ^chars value]
+   (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout ^long offset ^int n )))
 
 (defn write-floats
-  "Writes a [[float]] array to the `segment`, at an optional `offset`.
+  "Writes n elements from a [[float]] array to the `segment`, at an optional `offset`.
 
   If `byte-order` is not provided, it defaults to [[native-endian]]."
   {:inline
    (fn write-floats-inline
-     ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 ^{:tag 'int} (alength value#))
-         ))
-     ([segment offset value]
-      `(let [segment# ~segment
+     ([segment n value]
+      `(let [n# ~n
+             segment# ~segment
+             value# ~(with-meta value {:tag 'floats})]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 n#)))
+     ([segment n offset value]
+      `(let [n# ~n
+             segment# ~segment
              offset# ~offset
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout ^long offset# ^{:tag 'int} (alength value#))
-         ))
-     ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfFloat float-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
-  ([^MemorySegment segment ^floats value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout 0 ^int (alength value)))
-  ([^MemorySegment segment ^long offset ^floats value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout ^long offset ^int (alength value)))
-  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^floats value]
-   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfFloat float-layout byte-order) ^long offset ^int (alength value))))
+             value# ~(with-meta value {:tag 'floats})]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout ^long offset# n#))))}
+  ([^MemorySegment segment n ^floats value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout 0 ^int n))
+  ([^MemorySegment segment n ^long offset ^floats value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout ^long offset ^int n)))
 
 (defn write-doubles
-  "Writes a [[double]] array to the `segment`, at an optional `offset`.
+  "Writes n elements from a [[double]] array to the `segment`, at an optional `offset`.
 
   If `byte-order` is not provided, it defaults to [[native-endian]]."
   {:inline
    (fn write-doubles-inline
-     ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 ^{:tag 'int} (alength value#))
-         ))
-     ([segment offset value]
-      `(let [segment# ~segment
+     ([segment n value]
+      `(let [n# ~n
+             segment# ~segment
+             value# ~(with-meta value {:tag 'doubles})]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 n#)))
+     ([segment n offset value]
+      `(let [n# ~n
+             segment# ~segment
              offset# ~offset
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout ^long offset# ^{:tag 'int} (alength value#))
-         ))
-     ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# (.withOrder ^ValueLayout$OfDouble double-layout ^ByteOrder byte-order#) ^long offset# ^{:tag 'int} (alength value#)))))}
-  ([^MemorySegment segment ^doubles value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout 0 ^int (alength value)))
-  ([^MemorySegment segment ^long offset ^doubles value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout ^long offset ^int (alength value)))
-  ([^MemorySegment segment ^long offset ^ByteOrder byte-order ^doubles value]
-   (MemorySegment/copy value 0 segment (.withOrder ^ValueLayout$OfDouble double-layout byte-order) ^long offset ^int (alength value))))
+             value# ~(with-meta value {:tag 'doubles})]
+         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout ^long offset# n#))))}
+  ([^MemorySegment segment n ^doubles value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout 0 ^int n))
+  ([^MemorySegment segment n ^long offset ^doubles value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout ^long offset ^int n)))
 
 (defn- type-dispatch
   "Gets a type dispatch value from a (potentially composite) type."
@@ -1665,12 +1630,14 @@
 
 (defmethod generate-serialize :coffi.mem/array   [[_arr member-type length & {:keys [raw?]}] source-form offset segment-source-form]
   (if (and raw? (coffitype->array-write-fn member-type))
-    (list (coffitype->array-write-fn member-type) segment-source-form offset source-form)
-    (let [obj (gensym 'src-array)]
-      (concat
-       (list `let [obj source-form])
-       (map #(generate-serialize member-type (list (if raw? `aget `nth) obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
-       (range length))))))
+    (list (coffitype->array-write-fn member-type) segment-source-form length offset source-form)
+    (if (coffitype->array-write-fn member-type)
+      (list (coffitype->array-write-fn member-type) segment-source-form length offset (list (coffitype->array-fn member-type) length source-form))
+      (let [obj (gensym 'src-array)]
+       (concat
+        (list `let [obj source-form])
+        (map #(generate-serialize member-type (list (if raw? `aget `nth) obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
+             (range length)))))))
 
 (defn register-new-struct-serialization [typename [_struct fields]]
   (let [typelist (typelist typename fields)
