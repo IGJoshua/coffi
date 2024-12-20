@@ -1857,7 +1857,7 @@
 (defn as-map [^coffi.mem.IStruct struct] (.asMap struct))
 
 
-(defn- generate-struct-type [typename typed-member-symbols maplike?]
+(defn- generate-struct-type [typename typed-member-symbols]
   (let [members (map (comp keyword str) typed-member-symbols)
         as-vec (vec (map (comp symbol name) members))
         as-map (into {} (map (fn [m] [m (symbol (name m))]) members))]
@@ -1958,7 +1958,7 @@
         (register-new-struct-deserialization coffi-typename struct-layout)
         (register-new-struct-serialization   coffi-typename struct-layout)
         `(do
-           ~(generate-struct-type typename typed-symbols true)
+           ~(generate-struct-type typename typed-symbols)
            (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
            (defmethod deserialize-from ~coffi-typename ~[segment-form '_type]
              ~(generate-deserialize coffi-typename 0 segment-form))
