@@ -1862,6 +1862,8 @@
     :coffi.mem/float  `read-floats
     :coffi.mem/double `read-doubles} _type))
 
+(def array-copy-method :bulk)
+
 (defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
 (defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] `(read-byte    ~segment-source-form ~offset))
@@ -1875,18 +1877,25 @@
 (defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form] (list `.getString (list `.reinterpret (list `.get (with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0))
 
 (defmethod generate-deserialize :coffi.mem/array    [[_ array-type n & {:keys [raw?]}] offset segment-source-form]
-  (if (coffitype->array-read-fn array-type)
+  (if (and (= array-copy-method :bulk) (coffitype->array-read-fn array-type))
     (if raw?
       (list (coffitype->array-read-fn array-type) segment-source-form n offset)
       (list `vec (list (coffitype->array-read-fn array-type) segment-source-form n offset)))
 
+    (if (= array-copy-method :loop)
       (let [a (gensym 'array)]
         (concat
          `(let [~a (~(coffitype->array-fn array-type) ~n)])
-         (map
-          #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
-          (range n))
-         [(if raw? a `(vec ~a))]))))
+         [(list `dotimes ['m n]
+                (list `aset a 'm (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'m)) segment-source-form)))]
+         [(if raw? a `(vec ~a))]))
+      (let [a (gensym 'array)]
+       (concat
+        `(let [~a (~(coffitype->array-fn array-type) ~n)])
+        (map
+         #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
+         (range n))
+        [(if raw? a `(vec ~a))])))))
 
 (defn- typelist [typename fields]
   (->>
@@ -1915,11 +1924,20 @@
 (defmethod generate-serialize :coffi.mem/c-string [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
 
 (defmethod generate-serialize :coffi.mem/array   [[_arr member-type length & {:keys [raw?]}] source-form offset segment-source-form]
-  (if (and raw? (coffitype->array-write-fn member-type))
-    (list (coffitype->array-write-fn member-type) segment-source-form length offset source-form)
-    (if (coffitype->array-write-fn member-type)
-      (list (coffitype->array-write-fn member-type) segment-source-form length offset (list (coffitype->array-fn member-type) length source-form))
-      (let [obj (gensym 'src-array)]
+  (if (and (= array-copy-method :bulk) (coffitype->array-write-fn member-type))
+    (if raw?
+      (list (coffitype->array-write-fn member-type) segment-source-form length offset source-form)
+      (list (coffitype->array-write-fn member-type) segment-source-form length offset (list (coffitype->array-fn member-type) length source-form)))
+
+    (if (= array-copy-method :loop)
+      (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? raw?])})]
+        (concat
+         (list `let [obj source-form])
+         [(list `dotimes ['n length]
+            (generate-serialize member-type (list (if raw? `aget `nth) obj 'n) `(+ ~offset (* ~(size-of member-type) ~'n)) segment-source-form)
+            )]))
+
+      (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? raw?])})]
        (concat
         (list `let [obj source-form])
         (map #(generate-serialize member-type (list (if raw? `aget `nth) obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
