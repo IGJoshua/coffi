@@ -109,7 +109,7 @@ Dtype-next has support for Java versions 8-15, 17+, and GraalVM, but is focused
 strongly on array-based programming, as well as being focused on keeping memory
 in the native side rather than marshaling data to and from Clojure-native
 structures. In Java 17+, this uses the Foreign Function & Memory API (a part of
-Project Panama until stabilization in JDK 22), while in other Java versions it
+Project Panama until stabilization in JDK 22), while in the Java versions before 17, it
 uses JNA.
 
 Tech.jna and clojure-jna both use the JNA library in all cases, and neither
