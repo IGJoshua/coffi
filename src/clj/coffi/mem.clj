@@ -284,6 +284,17 @@
   "The alignment in bytes of a c-sized pointer."
   (.byteAlignment pointer-layout))
 
+(defmacro with-typehints [bindings form]
+  (let [bindmap (->> bindings
+                     (partition 3)
+                     (map (fn [[sym src hint]] [sym (with-meta (gensym (str (name sym))) {:src-expr src :tag (symbol (str (name hint)))})]))
+                     (into (hash-map)))
+        letbinds (->> bindmap
+                      (map (fn [[_ newsym]] [(with-meta newsym {}) (:src-expr (meta newsym))]))
+                      (reduce concat)
+                      (vec))]
+    `(let ~letbinds ~(clojure.walk/postwalk (fn [x] (get bindmap x x)) form))))
+
 (defn read-byte
   "Reads a [[byte]] from the `segment`, at an optional `offset`."
   {:inline
@@ -462,14 +473,14 @@
   {:inline
    (fn write-byte-inline
      ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value byte]
+         (.set segment ^ValueLayout$OfByte byte-layout 0 value)))
      ([segment offset value]
-      `(let [segment# ~segment
-             offset# ~offset
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# value#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value int]
+         (.set segment ^ValueLayout$OfByte byte-layout offset value))))}
   ([^MemorySegment segment value]
    (.set segment ^ValueLayout$OfByte byte-layout 0 ^byte value))
   ([^MemorySegment segment ^long offset value]
@@ -482,20 +493,20 @@
   {:inline
    (fn write-short-inline
      ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfShort short-layout 0 value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value short]
+         (.set segment ^ValueLayout$OfShort short-layout 0 value)))
      ([segment offset value]
-      `(let [segment# ~segment
-             offset# ~offset
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfShort short-layout offset# value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value short]
+         (.set segment ^ValueLayout$OfShort short-layout offset value)))
      ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfShort short-layout ^ByteOrder byte-order#) offset# value#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        byte-order ~byte-order java.nio.ByteOrder
+                        value ~value short]
+         (.set segment (.withOrder ^ValueLayout$OfShort short-layout byte-order) offset value))))}
   ([^MemorySegment segment value]
    (.set segment ^ValueLayout$OfShort short-layout 0 ^short value))
   ([^MemorySegment segment ^long offset value]
@@ -510,20 +521,20 @@
   {:inline
    (fn write-int-inline
      ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfInt int-layout 0 value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value int]
+         (.set segment ^ValueLayout$OfInt int-layout 0 value)))
      ([segment offset value]
-      `(let [segment# ~segment
-             offset# ~offset
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfInt int-layout offset# value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value int]
+         (.set segment ^ValueLayout$OfInt int-layout offset value)))
      ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfInt int-layout ^ByteOrder byte-order#) offset# value#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        byte-order ~byte-order java.nio.ByteOrder
+                        value ~value int]
+         (.set segment (.withOrder ^ValueLayout$OfInt int-layout byte-order) offset value))))}
   ([^MemorySegment segment value]
    (.set segment ^ValueLayout$OfInt int-layout 0 ^int value))
   ([^MemorySegment segment ^long offset value]
@@ -538,20 +549,20 @@
   {:inline
    (fn write-long-inline
      ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value long]
+         (.set segment ^ValueLayout$OfLong long-layout 0 value)))
      ([segment offset value]
-      `(let [segment# ~segment
-             offset# ~offset
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfLong long-layout offset# value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value long]
+         (.set segment ^ValueLayout$OfLong long-layout offset value)))
      ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfLong long-layout ^ByteOrder byte-order#) offset# value#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        byte-order ~byte-order java.nio.ByteOrder
+                        value ~value long]
+         (.set segment (.withOrder ^ValueLayout$OfLong long-layout byte-order) offset value))))}
   (^long [^MemorySegment segment ^long value]
    (.set segment ^ValueLayout$OfLong long-layout 0 value))
   (^long [^MemorySegment segment ^long offset ^long value]
@@ -564,14 +575,14 @@
   {:inline
    (fn write-char-inline
      ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 (unchecked-byte (unchecked-int value#)))))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value char]
+         (.set segment ^ValueLayout$OfByte byte-layout 0 (unchecked-byte (unchecked-int value)))))
      ([segment offset value]
-      `(let [segment# ~segment
-             offset# ~offset
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# (unchecked-byte (unchecked-int value#))))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value char]
+         (.set segment ^ValueLayout$OfByte byte-layout offset (unchecked-byte (unchecked-int value))))))}
   ([^MemorySegment segment value]
    (.set
     segment
@@ -590,20 +601,20 @@
   {:inline
    (fn write-float-inline
      ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value float]
+         (.set segment ^ValueLayout$OfFloat float-layout 0 value)))
      ([segment offset value]
-      `(let [segment# ~segment
-             offset# ~offset
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfFloat float-layout offset# value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value float]
+         (.set segment ^ValueLayout$OfFloat float-layout offset value)))
      ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfFloat float-layout ^ByteOrder byte-order#) offset# value#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        byte-order ~byte-order java.nio.ByteOrder
+                        value ~value float]
+         (.set segment (.withOrder ^ValueLayout$OfFloat float-layout byte-order) offset value))))}
   ([^MemorySegment segment value]
    (.set segment ^ValueLayout$OfFloat float-layout 0 ^float value))
   ([^MemorySegment segment ^long offset value]
@@ -618,20 +629,20 @@
   {:inline
    (fn write-double-inline
      ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value double]
+         (.set segment ^ValueLayout$OfDouble double-layout 0 value)))
      ([segment offset value]
-      `(let [segment# ~segment
-             offset# ~offset
-             value# ~value]
-         (.set ^MemorySegment segment# ^ValueLayout$OfDouble double-layout offset# value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value double]
+         (.set segment ^ValueLayout$OfDouble double-layout offset value)))
      ([segment offset byte-order value]
-      `(let [segment# ~segment
-             offset# ~offset
-             byte-order# ~byte-order
-             value# ~value]
-         (.set ^MemorySegment segment# (.withOrder ^ValueLayout$OfDouble double-layout ^ByteOrder byte-order#) offset# value#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        byte-order ~byte-order java.nio.ByteOrder
+                        value ~value double]
+         (.set segment (.withOrder ^ValueLayout$OfDouble double-layout byte-order) offset value))))}
   (^double [^MemorySegment segment ^double value]
    (.set segment ^ValueLayout$OfDouble double-layout 0 value))
   (^double [^MemorySegment segment ^long offset ^double value]
@@ -644,14 +655,14 @@
   {:inline
    (fn write-address-inline
      ([segment value]
-      `(let [segment# ~segment
-             value# ~value]
-         (.set ^MemorySegment segment# ^AddressLayout pointer-layout 0 ^MemorySegment value#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value java.lang.foreign.MemorySegment]
+         (.set segment ^AddressLayout pointer-layout 0 value)))
      ([segment offset value]
-      `(let [segment# ~segment
-             offset# ~offset
-             value# ~value]
-         (.set ^MemorySegment segment# ^AddressLayout pointer-layout offset# ^MemorySegment value#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value java.lang.foreign.MemorySegment]
+         (.set segment ^AddressLayout pointer-layout offset value))))}
   ([^MemorySegment segment ^MemorySegment value]
    (.set segment ^AddressLayout pointer-layout 0 value))
   ([^MemorySegment segment ^long offset ^MemorySegment value]
@@ -660,18 +671,16 @@
 (defn write-bytes
   "Writes n elements from a [[byte]] array to the `segment`, at an optional `offset`."
   {:inline
-   (fn write-byte-inline
+   (fn write-bytes-inline
      ([segment n value]
-      `(let [n# ~n
-             segment# ~segment
-             value# ~(with-meta value {:tag 'bytes})]
-         (MemorySegment/copy value# 0  ^MemorySegment segment# ^ValueLayout$OfByte byte-layout 0 n#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value bytes]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout 0 ~n)))
      ([segment n offset value]
-      `(let [n# ~n
-             segment# ~segment
-             offset# ~offset
-             value# ~(with-meta value {:tag 'bytes})]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfByte byte-layout offset# n#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value bytes]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout offset ~n))))}
   ([^MemorySegment segment n ^bytes value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout 0 ^int n))
   ([^MemorySegment segment n offset ^bytes value]
@@ -684,16 +693,14 @@
   {:inline
    (fn write-shorts-inline
      ([segment n value]
-      `(let [n# ~n
-             segment# ~segment
-             value# ~(with-meta value {:tag 'shorts})]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout 0 n#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value shorts]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout 0 ~n)))
      ([segment n offset value]
-      `(let [n# ~n
-             segment# ~segment
-             offset# ~offset
-             value# ~(with-meta value {:tag 'shorts})]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfShort short-layout ^long offset# n#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value shorts]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout offset ~n))))}
   ([^MemorySegment segment n ^shorts value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfShort short-layout 0 ^int n))
   ([^MemorySegment segment n ^long offset ^shorts value]
@@ -706,22 +713,18 @@
   {:inline
    (fn write-ints-inline
      ([segment n value]
-      `(let [n# ~n
-             segment# ~segment
-             value# ~(with-meta value {:tag 'shorts})]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout 0 n#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value ints]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout 0 ~n)))
      ([segment n offset value]
-      `(let [n# ~n
-             segment# ~segment
-             offset# ~offset
-             value# ~(with-meta value {:tag 'shorts})]
-         (MemorySegment/copy value# 0 segment# ^ValueLayout$OfInt int-layout ^long offset# n#)))
-     )}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value ints]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout offset ~n))))}
   ([^MemorySegment segment n ^ints value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout 0 ^int n))
   ([^MemorySegment segment n ^long offset ^ints value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout ^long offset ^int n))
-  )
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfInt int-layout ^long offset ^int n)))
 
 (defn write-longs
   "Writes n elements from a [[long]] array to the `segment`, at an optional `offset`.
@@ -730,25 +733,18 @@
   {:inline
    (fn write-longs-inline
      ([segment n value]
-      `(let [n# ~n
-             segment# ~segment
-             value# ~(with-meta value {:tag 'longs})]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout 0 n#)
-         ))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value longs]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout 0 ~n)))
      ([segment n offset value]
-      `(let [n# ~n
-             segment# ~segment
-             offset# ~offset
-             value# ~(with-meta value {:tag 'longs})]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfLong long-layout ^long offset# n#)
-         ))
-     )}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value longs]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout offset ~n))))}
   ([^MemorySegment segment n ^longs value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout 0 ^int n))
   ([^MemorySegment segment n ^long offset ^longs value]
-   (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout ^long offset ^int n))
-  )
-
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfLong long-layout ^long offset ^int n)))
 
 (defn write-chars
   "Writes n elements from a [[char]] array to the `segment`, at an optional `offset`.
@@ -757,17 +753,14 @@
   {:inline
    (fn write-chars-inline
      ([segment n value]
-      `(let [n# ~n
-             segment# ~segment
-             value# ~(with-meta value {:tag 'chars})]
-         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout 0 n#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value chars]
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout 0 ~n)))
      ([segment n offset value]
-      `(let [n# ~n
-             segment# ~segment
-             offset# ~offset
-             value# ~(with-meta value {:tag 'chars})]
-         (MemorySegment/copy (bytes (byte-array (map unchecked-int value#))) 0 segment# ^ValueLayout$OfChar char-layout ^long offset# n#)))
-     )}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value chars]
+         (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout offset ~n))))}
   ([^MemorySegment segment n ^chars value]
    (MemorySegment/copy (bytes (byte-array (map unchecked-int value))) 0 segment ^ValueLayout$OfChar char-layout 0 ^int n))
   ([^MemorySegment segment n ^long offset ^chars value]
@@ -780,16 +773,14 @@
   {:inline
    (fn write-floats-inline
      ([segment n value]
-      `(let [n# ~n
-             segment# ~segment
-             value# ~(with-meta value {:tag 'floats})]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout 0 n#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value floats]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout 0 ~n)))
      ([segment n offset value]
-      `(let [n# ~n
-             segment# ~segment
-             offset# ~offset
-             value# ~(with-meta value {:tag 'floats})]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfFloat float-layout ^long offset# n#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value floats]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout offset ~n))))}
   ([^MemorySegment segment n ^floats value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfFloat float-layout 0 ^int n))
   ([^MemorySegment segment n ^long offset ^floats value]
@@ -802,25 +793,18 @@
   {:inline
    (fn write-doubles-inline
      ([segment n value]
-      `(let [n# ~n
-             segment# ~segment
-             value# ~(with-meta value {:tag 'doubles})]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout 0 n#)))
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        value ~value doubles]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout 0 ~n)))
      ([segment n offset value]
-      `(let [n# ~n
-             segment# ~segment
-             offset# ~offset
-             value# ~(with-meta value {:tag 'doubles})]
-         (MemorySegment/copy value# 0 ^MemorySegment segment# ^ValueLayout$OfDouble double-layout ^long offset# n#))))}
+      `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
+                        offset ~offset long
+                        value ~value doubles]
+         (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout offset ~n))))}
   ([^MemorySegment segment n ^doubles value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout 0 ^int n))
   ([^MemorySegment segment n ^long offset ^doubles value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfDouble double-layout ^long offset ^int n)))
-
-
-
-
-
 
 
 (defn read-bytes
