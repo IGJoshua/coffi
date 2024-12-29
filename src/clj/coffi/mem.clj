@@ -1846,8 +1846,6 @@
     :coffi.mem/float  `read-floats
     :coffi.mem/double `read-doubles} _type))
 
-(def array-copy-method :bulk)
-
 (defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
 (defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] `(read-byte    ~segment-source-form ~offset))
@@ -2001,7 +1999,7 @@
       (->> typelist
            (map-indexed
             (fn [index [offset [_ field-type]]]
-              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (if (number? global-offset) (+ global-offset offset) `(unchecked-add-int ~global-offset ~offset)) segment-source-form)))
            (concat [`let ['source-obj source-form]])))))
 
 (gen-interface
