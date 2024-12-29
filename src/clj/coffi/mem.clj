@@ -1965,13 +1965,13 @@
   (list (coffitype->array-write-fn member-type) segment-source-form length offset (list (coffitype->array-fn member-type) length source-form)))
 
 (defn- generate-serialize-vector-as-array-loop [member-type length source-form offset segment-source-form]
-  (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? true])})]
+  (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? false])})]
     (list `let [obj source-form]
      (list `dotimes ['n length]
       (generate-serialize member-type `(nth ~obj ~'n) `(+ ~offset (* ~(size-of member-type) ~'n)) segment-source-form)))))
 
 (defn- generate-serialize-vector-as-array-inline [member-type length source-form offset segment-source-form]
-  (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? true])})]
+  (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? false])})]
     (concat
      (list `let [obj source-form])
      (map
@@ -1979,13 +1979,11 @@
       (range length)))))
 
 (defn generate-serialize-vector-as-array [member-type length source-form offset segment-source-form]
-  (if (coffitype->array-write-fn member-type)
-    (generate-serialize-vector-as-array-bulk member-type length source-form offset segment-source-form)
-    (let [inline-cutoff 32 ;this magic value has been benchmarked, but it may need adjusting for specific architectures
-          obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? true])})]
-      (if (< length inline-cutoff)
-        (generate-serialize-vector-as-array-inline member-type length source-form offset segment-source-form)
-        (generate-serialize-vector-as-array-loop member-type length source-form offset segment-source-form)))))
+  (let [cutoff 1024 ;this magic value has been benchmarked, but it may need adjusting for specific architectures
+        obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? false])})]
+    (if (or (<= length cutoff) (not (coffitype->array-write-fn member-type)))
+      (generate-serialize-vector-as-array-loop member-type length source-form offset segment-source-form)
+      (generate-serialize-vector-as-array-bulk member-type length source-form offset segment-source-form))))
 
 (defmethod generate-serialize :coffi.mem/array   [[_arr member-type length & {:keys [raw?]}] source-form offset segment-source-form]
   (if raw?
@@ -1999,7 +1997,7 @@
       (->> typelist
            (map-indexed
             (fn [index [offset [_ field-type]]]
-              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (if (number? global-offset) (+ global-offset offset) `(unchecked-add-int ~global-offset ~offset)) segment-source-form)))
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
            (concat [`let ['source-obj source-form]])))))
 
 (gen-interface
