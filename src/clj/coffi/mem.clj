@@ -479,7 +479,7 @@
      ([segment offset value]
       `(with-typehints [segment ~segment java.lang.foreign.MemorySegment
                         offset ~offset long
-                        value ~value int]
+                        value ~value byte]
          (.set segment ^ValueLayout$OfByte byte-layout offset value))))}
   ([^MemorySegment segment value]
    (.set segment ^ValueLayout$OfByte byte-layout 0 ^byte value))
