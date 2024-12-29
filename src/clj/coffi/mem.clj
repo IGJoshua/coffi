@@ -1868,18 +1868,30 @@
 
     (if (= array-copy-method :loop)
       (let [a (gensym 'array)]
-        (concat
-         `(let [~a (~(coffitype->array-fn array-type) ~n)])
-         [(list `dotimes ['m n]
-                (list `aset a 'm (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'m)) segment-source-form)))]
-         [(if raw? a `(vec ~a))]))
-      (let [a (gensym 'array)]
-       (concat
-        `(let [~a (~(coffitype->array-fn array-type) ~n)])
-        (map
-         #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
-         (range n))
-        [(if raw? a `(vec ~a))])))))
+        (if raw?
+          (concat
+          `(let [~a (~(coffitype->array-fn array-type) ~n)])
+          [(list `dotimes ['m n]
+                 (list `aset a 'm (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'m)) segment-source-form)))]
+          [(if raw? a `(vec ~a))])
+          (list `loop ['i 0 'v (list `transient [])]
+            (list `if (list `< 'i n)
+              (list `recur (list `unchecked-inc 'i) (list `conj! 'v (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'i)) segment-source-form)))
+              (list `persistent! 'v)))
+          ))
+      (if raw?
+        (let [a (gensym 'array)]
+         (concat
+          `(let [~a (~(coffitype->array-fn array-type) ~n)])
+          (map
+           #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
+           (range n))
+          [(if raw? a `(vec ~a))]))
+        (vec
+         (map
+          #(generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form)
+          (range n)))
+        ))))
 
 (defn- typelist [typename fields]
   (->>
