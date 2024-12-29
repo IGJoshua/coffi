@@ -1860,38 +1860,57 @@
 (defmethod generate-deserialize :coffi.mem/pointer  [_type offset segment-source-form] `(read-address ~segment-source-form ~offset))
 (defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form] (list `.getString (list `.reinterpret (list `.get (with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0))
 
-(defmethod generate-deserialize :coffi.mem/array    [[_ array-type n & {:keys [raw?]}] offset segment-source-form]
-  (if (and (= array-copy-method :bulk) (coffitype->array-read-fn array-type))
-    (if raw?
-      (list (coffitype->array-read-fn array-type) segment-source-form n offset)
-      (list `vec (list (coffitype->array-read-fn array-type) segment-source-form n offset)))
+(defn- generate-deserialize-array-as-array-bulk [array-type n offset segment-source-form]
+  (list (coffitype->array-read-fn array-type) segment-source-form n offset))
 
-    (if (= array-copy-method :loop)
-      (let [a (gensym 'array)]
-        (if raw?
-          (concat
-          `(let [~a (~(coffitype->array-fn array-type) ~n)])
-          [(list `dotimes ['m n]
-                 (list `aset a 'm (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'m)) segment-source-form)))]
-          [(if raw? a `(vec ~a))])
-          (list `loop ['i 0 'v (list `transient [])]
-            (list `if (list `< 'i n)
-              (list `recur (list `unchecked-inc 'i) (list `conj! 'v (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'i)) segment-source-form)))
-              (list `persistent! 'v)))
-          ))
-      (if raw?
-        (let [a (gensym 'array)]
-         (concat
-          `(let [~a (~(coffitype->array-fn array-type) ~n)])
-          (map
-           #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
-           (range n))
-          [(if raw? a `(vec ~a))]))
-        (vec
-         (map
-          #(generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form)
-          (range n)))
-        ))))
+(defn- generate-deserialize-array-as-array-inline [array-type n offset segment-source-form]
+  (let [a (gensym 'array)]
+    (concat
+     `(let [~a (~(coffitype->array-fn array-type) ~n)])
+     (map
+      #(list `aset a % (generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form))
+      (range n))
+     [a])))
+
+(defn- generate-deserialize-array-as-array-loop [array-type n offset segment-source-form]
+  (let [a (gensym 'array)]
+    (concat
+     `(let [~a (~(coffitype->array-fn array-type) ~n)])
+     [(list `dotimes ['m n]
+       (list `aset a 'm (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'m)) segment-source-form)))]
+     [a])))
+
+(defn- generate-deserialize-array-as-array [array-type n offset segment-source-form]
+  (if (coffitype->array-read-fn array-type)
+    (generate-deserialize-array-as-array-bulk array-type n offset segment-source-form) ;bulk-copy available
+    (let [inline-cutoff 32] ;this magic value has been benchmarked, but it may need adjusting for specific architectures
+      (if (< n inline-cutoff)
+        (generate-deserialize-array-as-array-inline array-type n offset segment-source-form)
+        (generate-deserialize-array-as-array-loop array-type n offset segment-source-form)))))
+
+(defn- generate-deserialize-array-as-vector-bulk [array-type n offset segment-source-form]
+  (list `vec (list (coffitype->array-read-fn array-type) segment-source-form n offset)))
+
+(defn- generate-deserialize-array-as-vector-loop [array-type n offset segment-source-form]
+  (let [loop-deserialize (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'i)) segment-source-form)]
+    `(loop [~'i 0 ~'v (transient [])]
+       (if (< ~'i ~n)
+         (recur (unchecked-inc ~'i) (conj! ~'v ~loop-deserialize))
+         (persistent! ~'v)))))
+
+(defn- generate-deserialize-array-as-vector-inline [array-type n offset segment-source-form]
+  (vec (map #(generate-deserialize array-type (+ offset (* (size-of array-type) %)) segment-source-form) (range n))))
+
+(defn- generate-deserialize-array-as-vector [array-type n offset segment-source-form]
+  (let [inline-cutoff 64] ;this magic value has been benchmarked, but it may need adjusting for specific architectures
+    (if (< n inline-cutoff)
+      (generate-deserialize-array-as-vector-inline array-type n offset segment-source-form)
+      (generate-deserialize-array-as-vector-loop array-type n offset segment-source-form))))
+
+(defmethod generate-deserialize :coffi.mem/array    [[_ array-type n & {:keys [raw?]}] offset segment-source-form]
+  (if raw?
+    (generate-deserialize-array-as-array array-type n offset segment-source-form)
+    (generate-deserialize-array-as-vector array-type n offset segment-source-form)))
 
 (defn- typelist [typename fields]
   (->>
@@ -1919,25 +1938,61 @@
 (defmethod generate-serialize :coffi.mem/pointer  [_type source-form offset segment-source-form] `(write-pointer ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/c-string [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
 
+(defn- generate-serialize-array-as-array-bulk [member-type length source-form offset segment-source-form]
+  (list (coffitype->array-write-fn member-type) segment-source-form length offset source-form))
+
+(defn- generate-serialize-array-as-array-loop [member-type length source-form offset segment-source-form]
+  (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? true])})]
+    (list `let [obj source-form]
+     (list `dotimes ['n length]
+      (generate-serialize member-type `(aget ~obj ~'n) `(+ ~offset (* ~(size-of member-type) ~'n)) segment-source-form)))))
+
+(defn- generate-serialize-array-as-array-inline [member-type length source-form offset segment-source-form]
+  (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? true])})]
+    (concat
+     (list `let [obj source-form])
+     (map
+      #(generate-serialize member-type (list `aget obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
+      (range length)))))
+
+(defn- generate-serialize-array-as-array [member-type length source-form offset segment-source-form]
+  (if (coffitype->array-write-fn member-type)
+    (generate-serialize-array-as-array-bulk member-type length source-form offset segment-source-form)
+    (let [inline-cutoff 32] ;this magic value has been benchmarked, but it may need adjusting for specific architectures
+      (if (< length inline-cutoff)
+        (generate-serialize-array-as-array-inline member-type length source-form offset segment-source-form)
+        (generate-serialize-array-as-array-loop member-type length source-form offset segment-source-form)))))
+
+(defn- generate-serialize-vector-as-array-bulk [member-type length source-form offset segment-source-form]
+  (list (coffitype->array-write-fn member-type) segment-source-form length offset (list (coffitype->array-fn member-type) length source-form)))
+
+(defn- generate-serialize-vector-as-array-loop [member-type length source-form offset segment-source-form]
+  (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? true])})]
+    (list `let [obj source-form]
+     (list `dotimes ['n length]
+      (generate-serialize member-type `(nth ~obj ~'n) `(+ ~offset (* ~(size-of member-type) ~'n)) segment-source-form)))))
+
+(defn- generate-serialize-vector-as-array-inline [member-type length source-form offset segment-source-form]
+  (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? true])})]
+    (concat
+     (list `let [obj source-form])
+     (map
+      #(generate-serialize member-type (list `aget obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
+      (range length)))))
+
+(defn generate-serialize-vector-as-array [member-type length source-form offset segment-source-form]
+  (if (coffitype->array-write-fn member-type)
+    (generate-serialize-vector-as-array-bulk member-type length source-form offset segment-source-form)
+    (let [inline-cutoff 32 ;this magic value has been benchmarked, but it may need adjusting for specific architectures
+          obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? true])})]
+      (if (< length inline-cutoff)
+        (generate-serialize-vector-as-array-inline member-type length source-form offset segment-source-form)
+        (generate-serialize-vector-as-array-loop member-type length source-form offset segment-source-form)))))
+
 (defmethod generate-serialize :coffi.mem/array   [[_arr member-type length & {:keys [raw?]}] source-form offset segment-source-form]
-  (if (and (= array-copy-method :bulk) (coffitype->array-write-fn member-type))
-    (if raw?
-      (list (coffitype->array-write-fn member-type) segment-source-form length offset source-form)
-      (list (coffitype->array-write-fn member-type) segment-source-form length offset (list (coffitype->array-fn member-type) length source-form)))
-
-    (if (= array-copy-method :loop)
-      (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? raw?])})]
-        (concat
-         (list `let [obj source-form])
-         [(list `dotimes ['n length]
-            (generate-serialize member-type (list (if raw? `aget `nth) obj 'n) `(+ ~offset (* ~(size-of member-type) ~'n)) segment-source-form)
-            )]))
-
-      (let [obj (with-meta (gensym 'src-array) {:tag (coffitype->typename [::array member-type length :raw? raw?])})]
-       (concat
-        (list `let [obj source-form])
-        (map #(generate-serialize member-type (list (if raw? `aget `nth) obj %) (+ offset (* (size-of member-type) %)) segment-source-form)
-             (range length)))))))
+  (if raw?
+    (generate-serialize-array-as-array member-type length source-form offset segment-source-form)
+    (generate-serialize-vector-as-array member-type length source-form offset segment-source-form)))
 
 (defn register-new-struct-serialization [typename [_struct fields]]
   (let [typelist (typelist typename fields)
@@ -1946,7 +2001,7 @@
       (->> typelist
            (map-indexed
             (fn [index [offset [_ field-type]]]
-              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (+ global-offset offset) segment-source-form)))
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
            (concat [`let ['source-obj source-form]])))))
 
 (gen-interface
