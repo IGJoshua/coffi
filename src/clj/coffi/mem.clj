@@ -35,7 +35,8 @@
     ValueLayout$OfDouble)
    (java.lang.ref Cleaner)
    (java.util.function Consumer)
-   (java.nio ByteOrder)))
+   (java.nio ByteOrder))
+  (:refer-clojure :exclude [defstruct]))
 
 (set! *warn-on-reflection* true)
 
