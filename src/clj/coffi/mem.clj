@@ -2200,7 +2200,7 @@
          ~(invoke2)
 
          (~'asMap [~'this] ~'this)
-         (~'asVec [~'this] (VecWrap. ~'this)))
+         (~'asVec [~'this] (VecWrap. ~'this))))))
 
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
