@@ -2021,7 +2021,7 @@
 (for-each-fixed-length 15)
 (for-each-fixed-length 16)
 
-(deftype struct-vec-iterator [^coffi.mem.IStructImpl struct-obj ^int size ^{:volatile-mutable true :tag int} i]
+(deftype StructVecIterator [^coffi.mem.IStructImpl struct-obj ^int size ^{:volatile-mutable true :tag int} i]
   java.util.Iterator
   (forEachRemaining [this action]
     (case (- size i)
@@ -2145,7 +2145,7 @@
             (vec-cons      [] (list 'cons        ['this 'o]        (vec (cons 'o as-vec))))
             (vec-equiv     [] (list 'equiv       ['this 'o]        (list `= as-vec 'o)))
             (vec-empty     [] (list 'empty       ['this]           []))
-            (vec-iterator  [] (list 'iterator    ['this]           (list `struct-vec-iterator. 'this (count members) 0)))
+            (vec-iterator  [] (list 'iterator    ['this]           (list `StructVecIterator. 'this (count members) 0)))
             (vec-foreach   [] (concat ['forEach  ['this 'action]]  (partition 2 (interleave (repeat 'action) as-vec))))
             (vec-seq       [] (list 'seq         ['this]           (list `StructVecSeq. 'this 0)))
             (vec-rseq      [] (list 'rseq        ['this]           (list `seq (vec (reverse as-vec)))))
