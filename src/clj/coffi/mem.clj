@@ -1811,7 +1811,8 @@
 (defmethod generate-deserialize :coffi.mem/float    [_type offset segment-source-form] `(read-float   ~segment-source-form ~offset))
 (defmethod generate-deserialize :coffi.mem/double   [_type offset segment-source-form] `(read-double  ~segment-source-form ~offset))
 (defmethod generate-deserialize :coffi.mem/pointer  [_type offset segment-source-form] `(read-address ~segment-source-form ~offset))
-(defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form] (list `.getString (list `.reinterpret (list `.get (with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) `pointer-layout offset) `Integer/MAX_VALUE) 0))
+(defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form]
+  `(.getString (.reinterpret (.get ~(with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) pointer-layout ~offset) Integer/MAX_VALUE) 0))
 
 (defn- generate-deserialize-array-as-array-bulk [array-type n offset segment-source-form]
   (list (coffitype->array-read-fn array-type) segment-source-form n offset))
