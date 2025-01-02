@@ -1769,7 +1769,7 @@
                       ::c-string 'String}]
     (cond (and arr? raw?) (get array-types type 'objects)
           (and arr?)      `clojure.lang.IPersistentVector
-          :default        (get single-types type (keyword (str *ns*) (str type))))))
+          :default        (get single-types type type))))
 
 (defn- coffitype->array-fn [type]
   (get
