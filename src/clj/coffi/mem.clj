@@ -2185,16 +2185,22 @@
             (struct-methods [] [(s-count) (s-containsKey) (s-valAt) (s-valAt-2) (s-entryAt)])
             (prefix-methods [prefix ms] (map (fn [[method-name & tail]] (cons (with-meta (symbol (str prefix method-name)) (meta method-name)) tail)) ms))
             (impl-methods [] (concat (prefix-methods "map_" (map-methods)) (prefix-methods "vec_" (vec-methods)) (prefix-methods "struct_" (struct-methods))))]
-      (concat
-       [`deftype (symbol (name typename)) (vec typed-member-symbols) `coffi.mem.IStruct `coffi.mem.IStructImpl `clojure.lang.IPersistentMap `clojure.lang.MapEquivalence `java.util.Map `clojure.lang.IFn]
-       (struct-methods)
-       (map-methods)
-       (impl-methods)
-       [(s-nth-key)
-        (invoke1)
-        (invoke2)
-        (list 'asMap ['this] 'this)
-        (list 'asVec ['this] (list `VecWrap. 'this))]))))
+      `(deftype ~(symbol (name typename)) ~(vec typed-member-symbols)
+         coffi.mem.IStruct
+         ~@(struct-methods)
+         coffi.mem.IStructImpl
+         ~@(impl-methods)
+         clojure.lang.IPersistentMap
+         clojure.lang.MapEquivalence
+         java.util.Map
+         ~@(map-methods)
+         clojure.lang.IFn
+         ~(s-nth-key)
+         ~(invoke1)
+         ~(invoke2)
+
+         (~'asMap [~'this] ~'this)
+         (~'asVec [~'this] (VecWrap. ~'this)))
 
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
