@@ -1750,7 +1750,7 @@
     (assoc struct-spec 1 aligned-fields)))
 
 (defn- coffitype->typename [in]
-  (let [[arr _type n & {:keys [raw?] :as opts}] (if (vector? in) in [:- in])
+  (let [[arr type n & {:keys [raw?] :as opts}] (if (vector? in) in [:- in])
         arr? (= arr ::array)
         array-types  {::byte   'bytes
                       ::short  'shorts
@@ -1767,11 +1767,11 @@
                       ::float    'float
                       ::double   'double
                       ::c-string 'String}]
-    (cond (and arr? raw?) (get array-types _type 'objects)
+    (cond (and arr? raw?) (get array-types type 'objects)
           (and arr?)      `clojure.lang.IPersistentVector
-          :default        (get single-types _type (keyword (str *ns*) (str _type))))))
+          :default        (get single-types type (keyword (str *ns*) (str type))))))
 
-(defn- coffitype->array-fn [_type]
+(defn- coffitype->array-fn [type]
   (get
    {:coffi.mem/byte   `byte-array
     :coffi.mem/short  `short-array
@@ -1780,26 +1780,26 @@
     :coffi.mem/char   `char-array
     :coffi.mem/float  `float-array
     :coffi.mem/double `double-array}
-   _type
+   type
    `object-array))
 
-(defn- coffitype->array-write-fn [_type]
+(defn- coffitype->array-write-fn [type]
   ({:coffi.mem/byte   `write-bytes
     :coffi.mem/short  `write-shorts
     :coffi.mem/int    `write-ints
     :coffi.mem/long   `write-longs
     :coffi.mem/char   `write-chars
     :coffi.mem/float  `write-floats
-    :coffi.mem/double `write-doubles} _type))
+    :coffi.mem/double `write-doubles} type))
 
-(defn- coffitype->array-read-fn [_type]
+(defn- coffitype->array-read-fn [type]
   ({:coffi.mem/byte   `read-bytes
     :coffi.mem/short  `read-shorts
     :coffi.mem/int    `read-ints
     :coffi.mem/long   `read-longs
     :coffi.mem/char   `read-chars
     :coffi.mem/float  `read-floats
-    :coffi.mem/double `read-doubles} _type))
+    :coffi.mem/double `read-doubles} type))
 
 (defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
 
@@ -2214,7 +2214,7 @@
             typed-symbols (->>
                            members
                            (partition 2 2)
-                           (map (fn [[_type sym]] (with-meta sym {:tag (coffitype->typename _type)})))
+                           (map (fn [[type sym]] (with-meta sym {:tag (coffitype->typename type)})))
                            (vec))
             struct-layout-raw [::struct
                                (->>
