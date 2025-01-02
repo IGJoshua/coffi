@@ -1801,7 +1801,7 @@
     :coffi.mem/float  `read-floats
     :coffi.mem/double `read-doubles} type))
 
-(defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
+(defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (ffirst xs) (first xs))))
 
 (defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] `(read-byte    ~segment-source-form ~offset))
 (defmethod generate-deserialize :coffi.mem/short    [_type offset segment-source-form] `(read-short   ~segment-source-form ~offset))
@@ -1879,7 +1879,7 @@
               (generate-deserialize field-type (+ global-offset offset) segment-source-form)))
            (cons (symbol (str (name typename) ".")))))))
 
-(defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (first (first xs)) (first xs))))
+(defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (ffirst xs) (first xs))))
 
 (defmethod generate-serialize :coffi.mem/byte     [_type source-form offset segment-source-form] `(write-byte    ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/short    [_type source-form offset segment-source-form] `(write-short   ~segment-source-form ~offset ~source-form))
