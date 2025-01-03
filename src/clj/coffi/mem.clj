@@ -1842,9 +1842,6 @@
         (generate-deserialize-array-as-array-inline array-type n offset segment-source-form)
         (generate-deserialize-array-as-array-loop array-type n offset segment-source-form)))))
 
-(defn- generate-deserialize-array-as-vector-bulk [array-type n offset segment-source-form]
-  (list `vec (list (coffitype->array-read-fn array-type) segment-source-form n offset)))
-
 (defn- generate-deserialize-array-as-vector-loop [array-type n offset segment-source-form]
   (let [loop-deserialize (generate-deserialize array-type `(+ ~offset (* ~(size-of array-type) ~'i)) segment-source-form)]
     `(loop [~'i 0 ~'v (transient [])]
