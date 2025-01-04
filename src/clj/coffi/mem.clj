@@ -2227,13 +2227,18 @@
                                 (map vec)
                                 (vec))]
             struct-layout (with-c-layout struct-layout-raw)
-            segment-form (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment})]
+            segment-form (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment})
+            is-inside-mem-namespace? (= (str *ns*) "coffi.mem")
+            with-c-layout-impl (if is-inside-mem-namespace? `with-c-layout `coffi.layout/with-c-layout)]
         (if (resolve typename) (ns-unmap *ns* typename))
+        (defmethod c-layout coffi-typename [_] (c-layout struct-layout))
         (register-new-struct-deserialization coffi-typename struct-layout)
         (register-new-struct-serialization   coffi-typename struct-layout)
         `(do
            ~(generate-struct-type typename typed-symbols)
-           (defmethod c-layout ~coffi-typename [~'_] (c-layout ~struct-layout))
+           (defmethod c-layout ~coffi-typename [~'_] (c-layout (~with-c-layout-impl ~struct-layout-raw)))
+           (register-new-struct-deserialization ~coffi-typename (~with-c-layout-impl ~struct-layout-raw))
+           (register-new-struct-serialization   ~coffi-typename (~with-c-layout-impl ~struct-layout-raw))
            (defmethod deserialize-from ~coffi-typename ~[segment-form '_type]
              ~(generate-deserialize coffi-typename 0 segment-form))
            (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type segment-form '_]
