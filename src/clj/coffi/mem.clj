@@ -2200,7 +2200,7 @@
          (~'asVec [~'this] (VecWrap. ~'this))))))
 
 (defmacro defstruct
-  "Defines a struct type. all members need to be supplied in pairs of `coffi-type member-name`.
+  "Defines a struct type. all members need to be supplied in pairs of `member-name coffi-type`.
 
   This creates needed serialization and deserialization implementations for the new type.
 
@@ -2209,24 +2209,23 @@
   "
   {:style/indent [:defn]}
   [typename members]
-  (let [invalid-typenames (filter #(try (c-layout (first %)) nil (catch Exception e (first %))) (partition 2 members))]
+  (let [invalid-typenames (filter #(try (c-layout (second %)) nil (catch Exception e (second %))) (partition 2 members))]
     (cond
-      (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `typename member-name`. the typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`"))
+      (odd? (count members)) (throw (Exception. "uneven amount of members supplied. members have to be typed and are required to be supplied in the form of `member-name typename`. the typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`"))
       (seq invalid-typenames) (throw (Exception. (str "invalid typename/s " (print-str invalid-typenames) ". typename has to be coffi typename, like `:coffi.mem/int` or `[:coffi.mem/array :coffi.mem/byte 3]`. The type/s you referenced also might not be defined. In case of a custom type, ensure that you use the correctly namespaced keyword to refer to it.")))
       :else
       (let [coffi-typename (keyword (str *ns*) (str typename))
             typed-symbols (->>
                            members
                            (partition 2 2)
-                           (map (fn [[type sym]] (with-meta sym {:tag (coffitype->typename type)})))
+                           (map (fn [[sym type]] (with-meta sym {:tag (coffitype->typename type)})))
                            (vec))
             struct-layout-raw [::struct
                                (->>
                                 members
                                 (partition 2 2)
                                 (map vec)
-                                (map #(update % 1 keyword))
-                                (map reverse)
+                                (map #(update % 0 keyword))
                                 (map vec)
                                 (vec))]
             struct-layout (with-c-layout struct-layout-raw)
