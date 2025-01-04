@@ -1863,19 +1863,18 @@
     (generate-deserialize-array-as-array array-type n offset segment-source-form)
     (generate-deserialize-array-as-vector array-type n offset segment-source-form)))
 
-(defn- typelist [typename fields]
+(defn- typelist [fields]
   (->>
    (partition 2 2 (interleave (reductions + 0 (map (comp size-of second) fields)) fields))
    (filter (fn [[_ [_ field-type]]] (not (and (vector? field-type) (= "padding" (name (first field-type)))))))))
 
 (defn register-new-struct-deserialization [typename [_struct fields]]
-  (let [typelist (typelist typename fields)]
-    (defmethod generate-deserialize typename [_type global-offset segment-source-form]
-      (->> typelist
-           (map-indexed
-            (fn [index [offset [_ field-type]]]
-              (generate-deserialize field-type (+ global-offset offset) segment-source-form)))
-           (cons (symbol (str (name typename) ".")))))))
+  (defmethod generate-deserialize typename [_type global-offset segment-source-form]
+    (->> (typelist fields)
+         (map-indexed
+          (fn [index [offset [_ field-type]]]
+            (generate-deserialize field-type (+ global-offset offset) segment-source-form)))
+         (cons (symbol (str (name typename) "."))))))
 
 (defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (ffirst xs) (first xs))))
 
@@ -1944,10 +1943,9 @@
     (generate-serialize-vector-as-array member-type length source-form offset segment-source-form)))
 
 (defn register-new-struct-serialization [typename [_struct fields]]
-  (let [typelist (typelist typename fields)
-        fieldnames (filter #(not= "padding" (name %)) (map first fields))]
+  (let [fieldnames (filter #(not= "padding" (name %)) (map first fields))]
     (defmethod generate-serialize typename [_type source-form global-offset segment-source-form]
-      (->> typelist
+      (->> (typelist fields)
            (map-indexed
             (fn [index [offset [_ field-type]]]
               (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
