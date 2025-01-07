@@ -1722,33 +1722,6 @@
   :args (s/cat :new-type qualified-keyword?
                :aliased-type any?))
 
-(defn- with-c-layout
-  "Forces a struct specification to C layout rules.
-
-  This will add padding fields between fields to match C alignment
-  requirements."
-  [struct-spec]
-  (let [aligned-fields
-        (loop [offset 0
-               aligned-fields []
-               fields (nth struct-spec 1)]
-          (if (seq fields)
-            (let [[[_ type :as field] & fields] fields
-                  size (size-of type)
-                  align (align-of type)
-                  r (rem offset align)]
-              (recur (cond-> (+ offset size)
-                       (pos? r) (+ (- align r)))
-                     (cond-> aligned-fields
-                       (pos? r) (conj [:coffi.layout/padding [:coffi.mem/padding (- align r)]])
-                       :always (conj field))
-                     fields))
-            (let [strongest-alignment (reduce max (map (comp align-of second) (nth struct-spec 1)))
-                  r (rem offset strongest-alignment)]
-              (cond-> aligned-fields
-                (pos? r) (conj [:coffi.layout/padding [:coffi.mem/padding (- strongest-alignment r)]])))))]
-    (assoc struct-spec 1 aligned-fields)))
-
 (defn- coffitype->typename [in]
   (let [[arr type n & {:keys [raw?] :as opts}] (if (vector? in) in [:- in])
         arr? (= arr ::array)
@@ -2197,6 +2170,8 @@
          (~'asMap [~'this] ~'this)
          (~'asVec [~'this] (VecWrap. ~'this))))))
 
+(load-file "src/clj/coffi/layout.clj")
+
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `member-name coffi-type`.
 
@@ -2226,19 +2201,17 @@
                                 (map #(update % 0 keyword))
                                 (map vec)
                                 (vec))]
-            struct-layout (with-c-layout struct-layout-raw)
-            segment-form (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment})
-            is-inside-mem-namespace? (= (str *ns*) "coffi.mem")
-            with-c-layout-impl (if is-inside-mem-namespace? `with-c-layout `coffi.layout/with-c-layout)]
+            struct-layout (coffi.layout/with-c-layout struct-layout-raw)
+            segment-form (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment})]
         (if (resolve typename) (ns-unmap *ns* typename))
         (defmethod c-layout coffi-typename [_] (c-layout struct-layout))
         (register-new-struct-deserialization coffi-typename struct-layout)
         (register-new-struct-serialization   coffi-typename struct-layout)
         `(do
            ~(generate-struct-type typename typed-symbols)
-           (defmethod c-layout ~coffi-typename [~'_] (c-layout (~with-c-layout-impl ~struct-layout-raw)))
-           (register-new-struct-deserialization ~coffi-typename (~with-c-layout-impl ~struct-layout-raw))
-           (register-new-struct-serialization   ~coffi-typename (~with-c-layout-impl ~struct-layout-raw))
+           (defmethod c-layout ~coffi-typename [~'_] (c-layout (coffi.layout/with-c-layout ~struct-layout-raw)))
+           (register-new-struct-deserialization ~coffi-typename (coffi.layout/with-c-layout ~struct-layout-raw))
+           (register-new-struct-serialization   ~coffi-typename (coffi.layout/with-c-layout ~struct-layout-raw))
            (defmethod deserialize-from ~coffi-typename ~[segment-form '_type]
              ~(generate-deserialize coffi-typename 0 segment-form))
            (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type segment-form '_]
