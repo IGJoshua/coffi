@@ -2,7 +2,6 @@
   (:require
    [clojure.test :as t]
    [coffi.ffi :as ffi]
-   [coffi.layout :as layout]
    [coffi.mem :as mem])
   (:import
    (java.lang.foreign
