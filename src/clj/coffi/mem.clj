@@ -1846,7 +1846,7 @@
     (->> (typelist fields)
          (map-indexed
           (fn [index [offset [_ field-type]]]
-            (generate-deserialize field-type (+ global-offset offset) segment-source-form)))
+            (generate-deserialize field-type (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
          (cons (symbol (str (name typename) "."))))))
 
 (defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (ffirst xs) (first xs))))
