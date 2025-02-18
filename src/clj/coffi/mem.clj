@@ -2170,7 +2170,7 @@
          (~'asMap [~'this] ~'this)
          (~'asVec [~'this] (VecWrap. ~'this))))))
 
-(load-file "src/clj/coffi/layout.clj")
+(load "layout")
 
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `member-name coffi-type`.
