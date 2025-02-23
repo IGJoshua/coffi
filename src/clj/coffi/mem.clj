@@ -1723,8 +1723,9 @@
                :aliased-type any?))
 
 (defn- coffitype->typename [in]
-  (let [[arr type n & {:keys [raw?] :as opts}] (if (vector? in) in [:- in])
-        arr? (= arr ::array)
+  (let [[indirect-type type n & {:keys [raw?] :as opts}] (if (vector? in) in [:- in])
+        arr? (= indirect-type ::array)
+        ptr? (= indirect-type ::pointer)
         array-types  {::byte   'bytes
                       ::short  'shorts
                       ::int    'ints
@@ -1742,6 +1743,7 @@
                       ::c-string 'String}]
     (cond (and arr? raw?) (get array-types type 'objects)
           (and arr?)      `clojure.lang.IPersistentVector
+          (and ptr?)      `java.lang.foreign.MemorySegment
           :default        (get single-types type type))))
 
 (defn- coffitype->array-fn [type]
@@ -1858,7 +1860,7 @@
 (defmethod generate-serialize :coffi.mem/char     [_type source-form offset segment-source-form] `(write-char    ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/float    [_type source-form offset segment-source-form] `(write-float   ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/double   [_type source-form offset segment-source-form] `(write-double  ~segment-source-form ~offset ~source-form))
-(defmethod generate-serialize :coffi.mem/pointer  [_type source-form offset segment-source-form] `(write-pointer ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/pointer  [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/c-string [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
 
 (defn- generate-serialize-array-as-array-bulk [member-type length source-form offset segment-source-form]
