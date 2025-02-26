@@ -630,7 +630,9 @@
 (deftype StaticVariable [seg type meta]
   IDeref
   (deref [_]
-    (mem/deserialize-from seg type))
+    (if (identical? ::mem/pointer (mem/primitive-type type))
+      (mem/deserialize* seg type)
+      (mem/deserialize-from seg type)))
 
   IObj
   (withMeta [_ meta-map]
