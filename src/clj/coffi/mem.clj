@@ -895,6 +895,7 @@
 
   For any other type, this will serialize it as [[serialize*]] before writing
   the result value into the `segment`."
+  {:arglists '([obj type segment arena])}
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [obj type segment arena]
@@ -974,6 +975,7 @@
 
   For types that serialize to primitives, a default implementation will
   deserialize the primitive before calling [[deserialize*]]."
+  {:arglists '([segment type])}
   (fn
     #_{:clj-kondo/ignore [:unused-binding]}
     [segment type]
