@@ -11,7 +11,8 @@
   (t/is (not (nil? (ffi/find-symbol "add_numbers")))))
 
 (t/deftest can-fetch-constant
-  (t/is (= 42 (ffi/const "c" ::mem/int))))
+  (t/is (= 42 (ffi/const "c" ::mem/int)))
+  (t/is (= "Test string" (ffi/const "s" ::mem/c-string))))
 
 (t/deftest can-call-primitive-fns
   (t/is (= 5 ((ffi/cfn "add_numbers" [::mem/int ::mem/int] ::mem/int) 2 3))))
@@ -59,6 +60,11 @@
             :y 42.0})))
 
 (t/deftest static-variables-are-mutable
+  (let [mut-str (ffi/static-variable "mut_str" ::mem/c-string)]
+    (ffi/freset! mut-str nil)
+    (t/is (nil? @mut-str))
+    (ffi/freset! mut-str "Hello world!")
+    (t/is (= "Hello world!" @mut-str)))
   (ffi/freset! (ffi/static-variable "counter" ::mem/int) 1)
   (t/is (= ((ffi/cfn "get_string1" [] ::mem/c-string))
            "Goodbye friend.")))

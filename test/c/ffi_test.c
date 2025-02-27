@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 const int c = 42;
+const char *s = "Test string";
 
 int add_numbers(int a, int b) {
     return a + b;
@@ -33,6 +34,7 @@ int upcall_test2(int (*f)(void)) {
     return f();
 }
 
+char *mut_str = NULL;
 int counter = 0;
 
 static char* responses[] = { "Hello, world!", "Goodbye friend.", "co'oi prenu" };
