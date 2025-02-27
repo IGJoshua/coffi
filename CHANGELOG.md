@@ -5,9 +5,6 @@ All notable changes to this project will be documented in this file. This change
 ### Added
 - Support for named union members in c-layout (thanks to @jjttjj)
 
-### Fixed
-- Bug where `static-variable` with composite types with pointer primitive type carriers (e.g. c-string) would fail to deserialize
-
 ## [1.0.486] - 2024-10-04
 ### Fixed
 - Bug where one too many indirections is used when serializing/deserializing pointer types
