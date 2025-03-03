@@ -27,6 +27,7 @@
     SegmentAllocator
     ValueLayout
     ValueLayout$OfByte
+    ValueLayout$OfBoolean
     ValueLayout$OfShort
     ValueLayout$OfInt
     ValueLayout$OfLong
@@ -209,6 +210,10 @@
   "The [[MemoryLayout]] for a byte in [[native-endian]] [[ByteOrder]]."
   ValueLayout/JAVA_BYTE)
 
+(def ^ValueLayout$OfBoolean boolean-layout
+  "The [[MemoryLayout]] for a boolean in [[native-endian]] [[ByteOrder]]."
+  ValueLayout/JAVA_BOOLEAN)
+
 (def ^ValueLayout$OfShort short-layout
   "The [[MemoryLayout]] for a c-sized short in [[native-endian]] [[ByteOrder]]."
   ValueLayout/JAVA_SHORT)
@@ -237,6 +242,10 @@
   "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
   ValueLayout/ADDRESS)
 
+(def ^long boolean-size
+  "The size in bytes of a c-sized boolean."
+  (.byteSize boolean-layout))
+
 (def ^long short-size
   "The size in bytes of a c-sized short."
   (.byteSize short-layout))
@@ -260,6 +269,10 @@
 (def ^long pointer-size
   "The size in bytes of a c-sized pointer."
   (.byteSize pointer-layout))
+
+(def ^long boolean-alignment
+  "The alignment in bytes of a c-sized boolean."
+  (.byteAlignment boolean-layout))
 
 (def ^long short-alignment
   "The alignment in bytes of a c-sized short."
@@ -286,7 +299,7 @@
   (.byteAlignment pointer-layout))
 
 (def ^:private primitive-tag?
-  '#{byte bytes short shorts int ints long longs
+  '#{byte boolean bytes short shorts int ints long longs
      float floats double doubles
      bool bools char chars})
 
@@ -318,6 +331,31 @@
    (.get segment ^ValueLayout$OfByte byte-layout 0))
   ([^MemorySegment segment ^long offset]
    (.get segment ^ValueLayout$OfByte byte-layout offset)))
+
+(defn read-boolean
+  "Reads a [[boolean]] from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-boolean-inline
+     ([segment]
+      `(let [segment# ~segment]
+         (.get ^MemorySegment segment# ^ValueLayout$OfBoolean boolean-layout 0)))
+     ([segment offset]
+      `(let [segment# ~segment
+             offset# ~offset]
+         (.get ^MemorySegment segment# ^ValueLayout$OfBoolean boolean-layout offset#)))
+     ([segment offset byte-order]
+      `(let [segment# ~segment
+             offset# ~offset
+             byte-order# ~byte-order]
+         (.get ^MemorySegment segment# (.withOrder ^ValueLayout$OfBoolean boolean-layout ^ByteOrder byte-order#) offset#))))}
+  ([^MemorySegment segment]
+   (.get segment ^ValueLayout$OfBoolean boolean-layout 0))
+  ([^MemorySegment segment ^long offset]
+   (.get segment ^ValueLayout$OfBoolean boolean-layout offset))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (.get segment (.withOrder ^ValueLayout$OfBoolean boolean-layout byte-order) offset)))
 
 (defn read-short
   "Reads a [[short]] from the `segment`, at an optional `offset`.
@@ -491,6 +529,29 @@
   ([^MemorySegment segment ^long offset value]
    (.set segment ^ValueLayout$OfByte byte-layout offset ^byte value)))
 
+(defn write-boolean
+  "Writes a [[boolean]] to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-boolean-inline
+     ([segment value]
+      (once-only [^java.lang.foreign.MemorySegment segment ^boolean value]
+        `(.set ~segment ^ValueLayout$OfBoolean boolean-layout 0 ~value)))
+     ([segment offset value]
+      (once-only [^java.lang.foreign.MemorySegment segment ^long offset ^boolean value]
+        `(.set ~segment ^ValueLayout$OfBoolean boolean-layout ~offset ~value)))
+     ([segment offset byte-order value]
+      (once-only [^java.lang.foreign.MemorySegment segment ^long offset
+                  ^java.nio.ByteOrder byte-order ^boolean value]
+        `(.set ~segment (.withOrder ^ValueLayout$OfBoolean boolean-layout ~byte-order) ~offset ~value))))}
+  ([^MemorySegment segment value]
+   (.set segment ^ValueLayout$OfBoolean boolean-layout 0 ^boolean value))
+  ([^MemorySegment segment ^long offset value]
+   (.set segment ^ValueLayout$OfBoolean boolean-layout offset ^boolean value))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (.set segment (.withOrder ^ValueLayout$OfBoolean boolean-layout byte-order) offset ^boolean value)))
+
 (defn write-short
   "Writes a [[short]] to the `segment`, at an optional `offset`.
 
@@ -658,6 +719,23 @@
    (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout 0 ^int n))
   ([^MemorySegment segment n offset ^bytes value]
    (MemorySegment/copy value 0 segment ^ValueLayout$OfByte byte-layout ^long offset ^int n)))
+
+(defn write-booleans
+  "Writes n elements from a [[boolean]] array to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-boolean-inline
+     ([segment n value]
+      (once-only [^java.lang.foreign.MemorySegment segment ^booleans value]
+        `(MemorySegment/copy ~value 0 ~segment ^ValueLayout$OfBoolean boolean-layout 0 ~n)))
+     ([segment n offset value]
+      (once-only [^java.lang.foreign.MemorySegment segment ^long offset ^booleans value]
+        `(MemorySegment/copy ~value 0 ~segment ^ValueLayout$OfBoolean boolean-layout ~offset ~n))))}
+  ([^MemorySegment segment n ^booleans value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfBoolean boolean-layout 0 ^int n))
+  ([^MemorySegment segment n ^long offset ^booleans value]
+   (MemorySegment/copy value 0 segment ^ValueLayout$OfBoolean boolean-layout ^long offset ^int n)))
 
 (defn write-shorts
   "Writes n elements from a [[short]] array to the `segment`, at an optional `offset`.
@@ -1038,7 +1116,7 @@
 
 (def primitive-types
   "A set of all primitive types."
-  #{::byte ::short ::int ::long
+  #{::byte ::boolean ::short ::int ::long
     ::char ::float ::double ::pointer})
 
 (defn primitive?
@@ -1066,6 +1144,10 @@
 (defmethod primitive-type ::byte
   [_type]
   ::byte)
+
+(defmethod primitive-type ::boolean
+  [_type]
+  ::boolean)
 
 (defmethod primitive-type ::short
   [_type]
@@ -1116,6 +1198,12 @@
   [_type]
   byte-layout)
 
+(defmethod c-layout ::boolean
+  [type]
+  (if (sequential? type)
+    (.withOrder boolean-layout ^ByteOrder (second type))
+    boolean-layout))
+
 (defmethod c-layout ::short
   [type]
   (if (sequential? type)
@@ -1157,6 +1245,7 @@
 (def java-prim-layout
   "Map of primitive type names to the Java types for a method handle."
   {::byte Byte/TYPE
+   ::boolean Boolean/TYPE
    ::short Short/TYPE
    ::int Integer/TYPE
    ::long Long/TYPE
@@ -1216,6 +1305,10 @@
 (defmethod serialize* ::byte
   [obj _type _arena]
   (byte obj))
+
+(defmethod serialize* ::boolean
+  [obj _type _arena]
+  (boolean obj))
 
 (defmethod serialize* ::short
   [obj _type _arena]
@@ -1282,6 +1375,12 @@
 (defmethod serialize-into ::byte
   [obj _type segment _arena]
   (write-byte segment obj))
+
+(defmethod serialize-into ::boolean
+  [obj type segment _arena]
+  (if (sequential? type)
+    (write-boolean segment 0 (second type) (boolean obj))
+    (write-boolean segment (boolean obj))))
 
 (defmethod serialize-into ::short
   [obj type segment _arena]
@@ -1364,6 +1463,12 @@
   [segment _type]
   (read-byte segment))
 
+(defmethod deserialize-from ::boolean
+  [segment type]
+  (if (sequential? type)
+    (read-boolean segment 0 (second type))
+    (read-boolean segment)))
+
 (defmethod deserialize-from ::short
   [segment type]
   (if (sequential? type)
@@ -1420,6 +1525,10 @@
                    :segment obj})))
 
 (defmethod deserialize* ::byte
+  [obj _type]
+  obj)
+
+(defmethod deserialize* ::boolean
   [obj _type]
   obj)
 
@@ -1726,14 +1835,16 @@
   (let [[indirect-type type n & {:keys [raw?] :as opts}] (if (vector? in) in [:- in])
         arr? (= indirect-type ::array)
         ptr? (= indirect-type ::pointer)
-        array-types  {::byte   'bytes
-                      ::short  'shorts
-                      ::int    'ints
-                      ::long   'longs
-                      ::char   'chars
-                      ::float  'floats
-                      ::double 'doubles}
+        array-types  {::byte     'bytes
+                      ::boolean  'booleans
+                      ::short    'shorts
+                      ::int      'ints
+                      ::long     'longs
+                      ::char     'chars
+                      ::float    'floats
+                      ::double   'doubles}
         single-types {::byte     'byte
+                      ::boolean  'boolean
                       ::short    'short
                       ::int      'int
                       ::long     'long
@@ -1748,37 +1859,41 @@
 
 (defn- coffitype->array-fn [type]
   (get
-   {:coffi.mem/byte   `byte-array
-    :coffi.mem/short  `short-array
-    :coffi.mem/int    `int-array
-    :coffi.mem/long   `long-array
-    :coffi.mem/char   `char-array
-    :coffi.mem/float  `float-array
-    :coffi.mem/double `double-array}
+   {:coffi.mem/byte    `byte-array
+    :coffi.mem/boolean `boolean-array
+    :coffi.mem/short   `short-array
+    :coffi.mem/int     `int-array
+    :coffi.mem/long    `long-array
+    :coffi.mem/char    `char-array
+    :coffi.mem/float   `float-array
+    :coffi.mem/double  `double-array}
    type
    `object-array))
 
 (defn- coffitype->array-write-fn [type]
-  ({:coffi.mem/byte   `write-bytes
-    :coffi.mem/short  `write-shorts
-    :coffi.mem/int    `write-ints
-    :coffi.mem/long   `write-longs
-    :coffi.mem/char   `write-chars
-    :coffi.mem/float  `write-floats
-    :coffi.mem/double `write-doubles} type))
+  ({:coffi.mem/byte    `write-bytes
+    :coffi.mem/boolean `write-booleans
+    :coffi.mem/short   `write-shorts
+    :coffi.mem/int     `write-ints
+    :coffi.mem/long    `write-longs
+    :coffi.mem/char    `write-chars
+    :coffi.mem/float   `write-floats
+    :coffi.mem/double  `write-doubles} type))
 
 (defn- coffitype->array-read-fn [type]
-  ({:coffi.mem/byte   `read-bytes
-    :coffi.mem/short  `read-shorts
-    :coffi.mem/int    `read-ints
-    :coffi.mem/long   `read-longs
-    :coffi.mem/char   `read-chars
-    :coffi.mem/float  `read-floats
-    :coffi.mem/double `read-doubles} type))
+  ({:coffi.mem/byte    `read-bytes
+    :coffi.mem/boolean `read-shorts
+    :coffi.mem/short   `read-shorts
+    :coffi.mem/int     `read-ints
+    :coffi.mem/long    `read-longs
+    :coffi.mem/char    `read-chars
+    :coffi.mem/float   `read-floats
+    :coffi.mem/double  `read-doubles} type))
 
 (defmulti  generate-deserialize (fn [& xs] (if (vector? (first xs)) (ffirst xs) (first xs))))
 
 (defmethod generate-deserialize :coffi.mem/byte     [_type offset segment-source-form] `(read-byte    ~segment-source-form ~offset))
+(defmethod generate-deserialize :coffi.mem/boolean  [_type offset segment-source-form] `(read-boolean ~segment-source-form ~offset))
 (defmethod generate-deserialize :coffi.mem/short    [_type offset segment-source-form] `(read-short   ~segment-source-form ~offset))
 (defmethod generate-deserialize :coffi.mem/int      [_type offset segment-source-form] `(read-int     ~segment-source-form ~offset))
 (defmethod generate-deserialize :coffi.mem/long     [_type offset segment-source-form] `(read-long    ~segment-source-form ~offset))
@@ -1854,6 +1969,7 @@
 (defmulti  generate-serialize (fn [& xs] (if (vector? (first xs)) (ffirst xs) (first xs))))
 
 (defmethod generate-serialize :coffi.mem/byte     [_type source-form offset segment-source-form] `(write-byte    ~segment-source-form ~offset ~source-form))
+(defmethod generate-serialize :coffi.mem/boolean  [_type source-form offset segment-source-form] `(write-boolean ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/short    [_type source-form offset segment-source-form] `(write-short   ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/int      [_type source-form offset segment-source-form] `(write-int     ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/long     [_type source-form offset segment-source-form] `(write-long    ~segment-source-form ~offset ~source-form))
@@ -2220,5 +2336,3 @@
              ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0 segment-form))
            (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
            (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer)))))))
-
-
