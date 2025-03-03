@@ -21,11 +21,11 @@
               (recur (cond-> (+ offset size)
                        (pos? r) (+ (- align r)))
                      (cond-> aligned-fields
-                       (pos? r) (conj [::padding [::mem/padding (- align r)]])
+                       (pos? r) (conj [:coffi.layout/padding [:coffi.mem/padding (- align r)]])
                        :always (conj field))
                      fields))
             (let [strongest-alignment (reduce max (map (comp mem/align-of second) (nth struct-spec 1)))
                   r (rem offset strongest-alignment)]
               (cond-> aligned-fields
-                (pos? r) (conj [::padding [::mem/padding (- strongest-alignment r)]])))))]
+                (pos? r) (conj [:coffi.layout/padding [:coffi.mem/padding (- strongest-alignment r)]])))))]
     (assoc struct-spec 1 aligned-fields)))
