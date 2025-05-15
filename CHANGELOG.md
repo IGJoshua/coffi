@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [1.0.615] - 2025-05-15
 ### Added
-- New `coffi.mem/defstruct` macro to allow the definition of struct types with more performant serdes
+- New `coffi.mem/defstruct` macro to allow the definition of struct types with more performant serdes (thanks to @rutenkolk)
 - Support for named union members in c-layout (thanks to @jjttjj)
 
 ### Fixed
