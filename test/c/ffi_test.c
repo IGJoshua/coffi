@@ -121,3 +121,7 @@ ComplexType complexTypeTest(ComplexType a) {
     ret.w = "hello from c";
     return ret;
 }
+
+int is_42(int **arg) {
+    return **arg == 42;
+}

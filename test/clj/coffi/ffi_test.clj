@@ -1,7 +1,7 @@
 (ns coffi.ffi-test
   (:require
    [clojure.test :as t]
-   [coffi.ffi :as ffi]
+   [coffi.ffi :as ffi :refer [defcfn]]
    [coffi.layout :as layout]
    [coffi.mem :as mem]
    [clojure.pprint]))
@@ -134,3 +134,16 @@
                         (ComplexTypeWrapped. (Point. 2 3) 4 (int-array [5 6 7 8]) "hello from clojure"))))
     {:x {:x 3.0 :y 4.0} :y 3 :w "hello from c"} #(dissoc % :z)
     [5 6 7 8] (comp vec :z)))
+
+(defcfn is-42?
+  "is_42" [[::mem/pointer ::mem/pointer]] ::mem/int
+  native-is-42?
+  [number]
+  (with-open [arena (mem/confined-arena)]
+    (let [int-ptr (mem/alloc-instance ::mem/int arena)
+          _ (mem/serialize-into (int number) ::mem/int int-ptr arena)]
+      (native-is-42? int-ptr))))
+
+(t/deftest double-pointer-serialize
+  (t/is (not (zero? (is-42? 42))))
+  (t/is (zero? (is-42? 41))))
