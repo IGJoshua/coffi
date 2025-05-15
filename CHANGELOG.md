@@ -1,6 +1,8 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
 ## [1.0.615] - 2025-05-15
 ### Added
 - New `coffi.mem/defstruct` macro to allow the definition of struct types with more performant serdes
@@ -157,6 +159,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[Unreleased]: https://github.com/IGJoshua/coffi/compare/v1.0.615...develop
 [1.0.615]: https://github.com/IGJoshua/coffi/compare/v1.0.486...v1.0.615
 [1.0.486]: https://github.com/IGJoshua/coffi/compare/v1.0.472...v1.0.486
 [1.0.472]: https://github.com/IGJoshua/coffi/compare/v1.0.450...v1.0.472
