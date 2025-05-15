@@ -16,7 +16,8 @@
     in
       {
         devShells.${system}.default = pkgs.mkShell rec {
-          packages = [
+          packages = with pkgs; [
+            llvmPackages_latest.clang
           ];
 
           nativeBuildInputs = with pkgs; [
