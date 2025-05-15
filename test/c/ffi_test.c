@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+const int c = 42;
+const char *s = "Test string";
+
 int add_numbers(int a, int b) {
     return a + b;
 }
@@ -31,6 +34,7 @@ int upcall_test2(int (*f)(void)) {
     return f();
 }
 
+char *mut_str = NULL;
 int counter = 0;
 
 static char* responses[] = { "Hello, world!", "Goodbye friend.", "co'oi prenu" };
@@ -95,4 +99,29 @@ int get_variable_length_array(float **arr) {
 void free_variable_length_array(float *arr) {
     freed = 1;
     free(arr);
+}
+
+typedef struct complextype {
+    Point x;
+    char  y;
+    int   z[4];
+    char *w;
+} ComplexType;
+
+ComplexType complexTypeTest(ComplexType a) {
+    ComplexType ret = {};
+    ret.x = a.x;
+    ret.x.x++;
+    ret.x.y++;
+    ret.y = a.y-1;
+    ret.z[0] = a.z[0];
+    ret.z[1] = a.z[1];
+    ret.z[2] = a.z[2];
+    ret.z[3] = a.z[3];
+    ret.w = "hello from c";
+    return ret;
+}
+
+int is_42(int **arg) {
+    return **arg == 42;
 }

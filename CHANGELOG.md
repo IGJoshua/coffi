@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [1.0.615] - 2025-05-15
+### Added
+- New `coffi.mem/defstruct` macro to allow the definition of struct types with more performant serdes
+- Support for named union members in c-layout (thanks to @jjttjj)
+
+### Fixed
+- Bug where constants were deserialized incorrectly due to indirections
+
 ## [1.0.486] - 2024-10-04
 ### Fixed
 - Bug where one too many indirections is used when serializing/deserializing pointer types
@@ -149,6 +157,7 @@ All notable changes to this project will be documented in this file. This change
 - Support for serializing and deserializing arbitrary Clojure functions
 - Support for serializing and deserializing arbitrary Clojure data structures
 
+[1.0.615]: https://github.com/IGJoshua/coffi/compare/v1.0.486...v1.0.615
 [1.0.486]: https://github.com/IGJoshua/coffi/compare/v1.0.472...v1.0.486
 [1.0.472]: https://github.com/IGJoshua/coffi/compare/v1.0.450...v1.0.472
 [1.0.450]: https://github.com/IGJoshua/coffi/compare/v0.6.409...v1.0.450
