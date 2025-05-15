@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. This change
 - New `coffi.mem/defstruct` macro to allow the definition of struct types with more performant serdes
 - Support for named union members in c-layout (thanks to @jjttjj)
 
+### Fixed
+- Bug where constants were deserialized incorrectly due to indirections
+
 ## [1.0.486] - 2024-10-04
 ### Fixed
 - Bug where one too many indirections is used when serializing/deserializing pointer types
