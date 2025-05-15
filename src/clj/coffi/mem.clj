@@ -1977,8 +1977,8 @@
   [map_forEach [java.util.function.BiConsumer] void]])
 
 
-(defmacro for-each-fixed-length [n]
-  `(defn ~(symbol (str "for-each-fixed-" n)) ~[(with-meta 'offset {:tag int}) (with-meta 'action {:tag 'java.util.function.Consumer}) (with-meta 's {:tag 'coffi.mem.IStructImpl})]
+(defmacro ^:no-doc for-each-fixed-length [n]
+  `(defn ~(with-meta (symbol (str "for-each-fixed-" n)) {:no-doc true}) ~[(with-meta 'offset {:tag int}) (with-meta 'action {:tag 'java.util.function.Consumer}) (with-meta 's {:tag 'coffi.mem.IStructImpl})]
      ~(cons `do (map (fn [i] (list '.accept (with-meta 'action {:tag 'java.util.function.Consumer}) (list '.vec_nth (with-meta 's {:tag 'coffi.mem.IStructImpl}) i))) (range n)))))
 
 (for-each-fixed-length 1)
