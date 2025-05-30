@@ -147,12 +147,12 @@ These features are planned for future releases.
 - Header parsing tool for generating a data model? (maybe just work with [clong](https://github.com/phronmophobic/clong)?)
 - Generic type aliases
 - Unsigned integer types
-- Record-based struct types
 - Helper macro for out arguments
 - Improve error messages from defcfn macro
 - Mapped memory
-- Helper macros for custom serde implementations for composite data types (this is in progress [for structs](https://github.com/IGJoshua/coffi/issues/12)!)
+- Helper macros for custom serde implementations for more composite data types
 - Support for GraalVM Native Image (once their support for FFM becomes mature)
+- Helper functions for getting offsets of fields in structs to ease interacting with non-marshaled struct objects in segments
 
 ## License
 
