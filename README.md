@@ -140,6 +140,7 @@ release:
   Unable to find static field: ACC_OPEN in interface org.objectweb.asm.Opcodes
   ```
 - A cyclic dependency causes coffi to fail to load when requiring `coffi.layout` before `coffi.mem`, a common issue if your requires are sorted lexicographically. This has been fixed in 920471e930f30effb9931374d7e1f9bad7440181, but a temporary workaround is to require `coffi.mem` first
+- A missing require for `clojure.pprint` causes some codebases that use `coffi.mem/defstruct` to fail with a `ClassNotFoundException`. This has been fixed in 841dc77d881a1a91266dee7492c8130868f1f7c7, but a temporary workaround is to require `clojure.pprint` in namespaces that use `coffi.mem/defstruct`
 
 ## Future Plans
 These features are planned for future releases.
