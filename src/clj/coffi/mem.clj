@@ -2179,8 +2179,6 @@
          (~'asMap [~'this] ~'this)
          (~'asVec [~'this] (VecWrap. ~'this))))))
 
-(load "layout")
-
 (defmacro defstruct
   "Defines a struct type. all members need to be supplied in pairs of `member-name coffi-type`.
 
@@ -2210,7 +2208,7 @@
                                 (map #(update % 0 keyword))
                                 (map vec)
                                 (vec))]
-            struct-layout (coffi.layout/with-c-layout struct-layout-raw)
+            struct-layout ((requiring-resolve 'coffi.layout/with-c-layout) struct-layout-raw)
             segment-form (with-meta 'segment {:tag 'java.lang.foreign.MemorySegment})]
         (if (resolve typename) (ns-unmap *ns* typename))
         (defmethod c-layout coffi-typename [_] (c-layout struct-layout))
@@ -2218,9 +2216,9 @@
         (register-new-struct-serialization   coffi-typename struct-layout)
         `(do
            ~(generate-struct-type typename typed-symbols)
-           (defmethod c-layout ~coffi-typename [~'_] (c-layout (coffi.layout/with-c-layout ~struct-layout-raw)))
-           (register-new-struct-deserialization ~coffi-typename (coffi.layout/with-c-layout ~struct-layout-raw))
-           (register-new-struct-serialization   ~coffi-typename (coffi.layout/with-c-layout ~struct-layout-raw))
+           (defmethod c-layout ~coffi-typename [~'_] (c-layout ((requiring-resolve 'coffi.layout/with-c-layout) ~struct-layout-raw)))
+           (register-new-struct-deserialization ~coffi-typename ((requiring-resolve 'coffi.layout/with-c-layout) ~struct-layout-raw))
+           (register-new-struct-serialization   ~coffi-typename ((requiring-resolve 'coffi.layout/with-c-layout) ~struct-layout-raw))
            (defmethod deserialize-from ~coffi-typename ~[segment-form '_type]
              ~(generate-deserialize coffi-typename 0 segment-form))
            (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type segment-form '_]

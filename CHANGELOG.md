@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Fixed
+- Cyclic dependency when requiring coffi.layout before coffi.mem
 
 ## [1.0.615] - 2025-05-15
 ### Added
