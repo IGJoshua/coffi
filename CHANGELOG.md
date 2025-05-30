@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Added
-- Function for getting struct field offsets for use with reading/writing with unmarshaled segments that contain structs
+- Function `coffi.mem/struct-field-offset` for getting struct field offsets for use with reading/writing with unmarshaled segments that contain structs
 
 ### Fixed
 - Cyclic dependency when requiring `coffi.layout` before `coffi.mem`

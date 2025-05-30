@@ -1590,9 +1590,7 @@
                            type))))
       obj)))
 
-;; REVIEW(Joshua): Think about what the name of this function should be, and
-;; whether "offset-of" is a name which could see broader use than just structs.
-(defn offset-of
+(defn struct-field-offset
   "Given a `struct-def`, returns the byte offset of the `field`."
   [struct-def field]
   (let [layout ^MemoryLayout (c-layout struct-def)
