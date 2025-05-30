@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Added
+- Function for getting struct field offsets for use with reading/writing with unmarshaled segments that contain structs
+
 ### Fixed
 - Cyclic dependency when requiring `coffi.layout` before `coffi.mem`
 - Missing require for `clojure.pprint` used in impl of `coffi.mem/defstruct`
