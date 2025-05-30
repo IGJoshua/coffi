@@ -15,6 +15,7 @@
   overriden to allow marshaling values of the type into and out of memory
   segments."
   (:require
+   [clojure.pprint :as pprint]
    [clojure.set :as set]
    [clojure.spec.alpha :as s])
   (:import
@@ -2223,7 +2224,7 @@
              ~(generate-deserialize coffi-typename 0 segment-form))
            (defmethod serialize-into ~coffi-typename ~[(with-meta 'source-obj {:tag typename}) '_type segment-form '_]
              ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0 segment-form))
-           (defmethod clojure.pprint/simple-dispatch ~typename [~'obj] (clojure.pprint/simple-dispatch (into {} ~'obj)))
+           (defmethod pprint/simple-dispatch ~typename [~'obj] (pprint/simple-dispatch (into {} ~'obj)))
            (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer)))))))
 
 

@@ -3,7 +3,8 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 ### Fixed
-- Cyclic dependency when requiring coffi.layout before coffi.mem
+- Cyclic dependency when requiring `coffi.layout` before `coffi.mem`
+- Missing require for `clojure.pprint` used in impl of `coffi.mem/defstruct`
 
 ## [1.0.615] - 2025-05-15
 ### Added
