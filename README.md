@@ -139,6 +139,7 @@ release:
   ```
   Unable to find static field: ACC_OPEN in interface org.objectweb.asm.Opcodes
   ```
+- A cyclic dependency causes coffi to fail to load when requiring `coffi.layout` before `coffi.mem`, a common issue if your requires are sorted lexicographically. This has been fixed in 920471e930f30effb9931374d7e1f9bad7440181, but a temporary workaround is to require `coffi.mem` first
 
 ## Future Plans
 These features are planned for future releases.
