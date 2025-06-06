@@ -1630,11 +1630,23 @@
         (slice-segments (slice segment 0 (* count (size-of type)))
                         (size-of type)))))
 
+(def ^:private primitive-array-type
+  "Map from primitive types to the primitive array constructor function for that type."
+  {::byte byte-array
+   ::short short-array
+   ::int int-array
+   ::long long-array
+   ::float float-array
+   ::double double-array})
+
 (defmethod deserialize-from ::array
-  [segment [_array type count]]
-  (mapv #(deserialize-from % type)
-        (slice-segments (slice segment 0 (* count (size-of type)))
-                        (size-of type))))
+  [segment [_array type count & {:keys [raw?]}]]
+  (let [segments (slice-segments (slice segment 0 (* count (size-of type)))
+                                 (size-of type))]
+    (if raw?
+      ((primitive-array-type type object-array)
+       (sequence (map #(deserialize-from % type)) segments))
+      (mapv #(deserialize-from % type) segments))))
 
 ;;; Enum types
 

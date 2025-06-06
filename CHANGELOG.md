@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. This change
 ## [Unreleased]
 ### Added
 - Function `coffi.mem/struct-field-offset` for getting struct field offsets for use with reading/writing with unmarshaled segments that contain structs
+- Support for `:raw?` type flag for array serdes to deserialize to raw java arrays for feature parity with defstruct
 
 ### Fixed
 - Cyclic dependency when requiring `coffi.layout` before `coffi.mem`

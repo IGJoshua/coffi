@@ -152,7 +152,6 @@ These features are planned for future releases.
 - Mapped memory
 - Helper macros for custom serde implementations for more composite data types
 - Support for GraalVM Native Image (once their support for FFM becomes mature)
-- Support for raw array serdes, allowing creating and consuming java arrays
 
 ## License
 
