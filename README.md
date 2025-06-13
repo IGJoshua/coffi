@@ -3,7 +3,7 @@
 [![cljdoc badge](https://cljdoc.org/badge/org.suskalo/coffi)](https://cljdoc.org/d/org.suskalo/coffi)
 
 Coffi is a foreign function interface library for Clojure, using the [Foreign
-Function & Memory API](https://openjdk.org/jeps/454) in JDK 22 and later. This
+Function & Memory API](https://openjdk.org/jeps/454) (formerly called Project Panama) in JDK 22 and later. This
 allows calling native code directly from Clojure without the need for either
 Java or native code specific to the library, as e.g. the JNI does. Coffi focuses
 on ease of use, including functions and macros for creating wrappers to allow
