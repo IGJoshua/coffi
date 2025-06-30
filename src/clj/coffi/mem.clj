@@ -1967,7 +1967,7 @@
       (->> (typelist fields)
            (map-indexed
             (fn [index [offset [_ field-type]]]
-              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) (with-meta 'source-obj {:tag (symbol (str (namespace typename) "." (name typename)))})) (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
            (concat [`let ['source-obj source-form]])))))
 
 (gen-interface
