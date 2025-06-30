@@ -1176,19 +1176,32 @@
   ^Class [type]
   (java-prim-layout (or (primitive-type type) type) MemorySegment))
 
-(defn size-of
+(defn- size-of-impl
   "The size in bytes of the given `type`."
   ^long [type]
   (let [t (cond-> type
             (not (instance? MemoryLayout type)) c-layout)]
     (.byteSize ^MemoryLayout t)))
 
-(defn align-of
+(def ^:private size-of-impl-memoized (memoize size-of-impl))
+
+(defn size-of "The size in bytes of the given `type`."
+  ^long [type]
+  (size-of-impl-memoized type))
+
+(defn- align-of-impl
   "The alignment in bytes of the given `type`."
   ^long [type]
   (let [t (cond-> type
             (not (instance? MemoryLayout type)) c-layout)]
     (.byteAlignment ^MemoryLayout t)))
+
+(def ^:private align-of-impl-memoized (memoize align-of-impl))
+
+(defn align-of
+  "The alignment in bytes of the given `type`."
+  ^long [type]
+  (align-of-impl-memoized type))
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
