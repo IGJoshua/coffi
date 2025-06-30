@@ -315,7 +315,7 @@
                  `(mem/serialize* ~sym ~type-sym ~arena)
 
                  :else
-                 `(let [alloc# (mem/alloc-instance ~type-sym)]
+                 `(let [alloc# (mem/alloc ~(mem/size-of type) ~(mem/align-of type) ~arena)]
                     (mem/serialize-into ~sym ~type-sym alloc# ~arena)
                     alloc#))
                (list sym)))
