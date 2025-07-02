@@ -1176,19 +1176,32 @@
   ^Class [type]
   (java-prim-layout (or (primitive-type type) type) MemorySegment))
 
-(defn size-of
+(defn- size-of-impl
   "The size in bytes of the given `type`."
   ^long [type]
-  (let [t (cond-> type
-            (not (instance? MemoryLayout type)) c-layout)]
-    (.byteSize ^MemoryLayout t)))
+  (.byteSize ^MemoryLayout (c-layout type)))
+
+(def ^:private size-of-impl-memoized (memoize size-of-impl))
+
+(defn size-of "The size in bytes of the given `type`."
+  ^long [type]
+  (if (instance? MemoryLayout type)
+    (.byteSize ^MemoryLayout type)
+    (size-of-impl-memoized type)))
+
+(defn- align-of-impl
+  "The alignment in bytes of the given `type`."
+  ^long [type]
+  (.byteAlignment ^MemoryLayout (c-layout type)))
+
+(def ^:private align-of-impl-memoized (memoize align-of-impl))
 
 (defn align-of
   "The alignment in bytes of the given `type`."
   ^long [type]
-  (let [t (cond-> type
-            (not (instance? MemoryLayout type)) c-layout)]
-    (.byteAlignment ^MemoryLayout t)))
+  (if (instance? MemoryLayout type)
+    (.byteAlignment ^MemoryLayout type)
+    (align-of-impl-memoized type)))
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
@@ -1954,7 +1967,7 @@
       (->> (typelist fields)
            (map-indexed
             (fn [index [offset [_ field-type]]]
-              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) 'source-obj) (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
+              (generate-serialize field-type (list (symbol (str "." (name (nth fieldnames index)))) (with-meta 'source-obj {:tag (symbol (str (namespace typename) "." (name typename)))})) (if (number? global-offset) (+ global-offset offset) `(+ ~global-offset ~offset)) segment-source-form)))
            (concat [`let ['source-obj source-form]])))))
 
 (gen-interface

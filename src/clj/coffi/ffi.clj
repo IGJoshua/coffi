@@ -315,9 +315,12 @@
                  `(mem/serialize* ~sym ~type-sym ~arena)
 
                  :else
-                 `(let [alloc# (mem/alloc-instance ~type-sym)]
-                    (mem/serialize-into ~sym ~type-sym alloc# ~arena)
-                    alloc#))
+                 (let [alloc-sym (with-meta (gensym "alloc") {:tag 'java.lang.foreign.MemorySegment})]
+                   `(let [~alloc-sym (mem/alloc ~(mem/size-of type) ~(mem/align-of type) ~arena)]
+                      ~(if (get-method mem/generate-serialize type)
+                         (mem/generate-serialize type sym 0 alloc-sym)
+                         `(mem/serialize-into ~sym ~type ~alloc-sym ~arena))
+                      ~alloc-sym)))
                (list sym)))
 
             arg-serializers
