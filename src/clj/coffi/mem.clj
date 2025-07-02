@@ -1179,29 +1179,29 @@
 (defn- size-of-impl
   "The size in bytes of the given `type`."
   ^long [type]
-  (let [t (cond-> type
-            (not (instance? MemoryLayout type)) c-layout)]
-    (.byteSize ^MemoryLayout t)))
+  (.byteSize ^MemoryLayout (c-layout type)))
 
 (def ^:private size-of-impl-memoized (memoize size-of-impl))
 
 (defn size-of "The size in bytes of the given `type`."
   ^long [type]
-  (size-of-impl-memoized type))
+  (if (instance? MemoryLayout type)
+    (.byteSize ^MemoryLayout type)
+    (size-of-impl-memoized type)))
 
 (defn- align-of-impl
   "The alignment in bytes of the given `type`."
   ^long [type]
-  (let [t (cond-> type
-            (not (instance? MemoryLayout type)) c-layout)]
-    (.byteAlignment ^MemoryLayout t)))
+  (.byteAlignment ^MemoryLayout (c-layout type)))
 
 (def ^:private align-of-impl-memoized (memoize align-of-impl))
 
 (defn align-of
   "The alignment in bytes of the given `type`."
   ^long [type]
-  (align-of-impl-memoized type))
+  (if (instance? MemoryLayout type)
+    (.byteAlignment ^MemoryLayout type)
+    (align-of-impl-memoized type)))
 
 (defn alloc-instance
   "Allocates a memory segment for the given `type`."
