@@ -312,12 +312,20 @@
                  `(or ~sym mem/null)
 
                  (mem/primitive-type type)
-                 `(mem/serialize* ~sym ~type-sym ~arena)
+                 (if (get-method mem/serialize* type)
+                   `(~(get-method mem/serialize* type) ~sym ~type-sym ~arena)
+                   `(mem/serialize* ~sym ~type-sym ~arena))
 
+                 ;; type is a valid ::mem/type at macroexpansion time, which should make it safe to use it in size-of and align-of. however, the spec is not perfect, and c-layout might not be defined for type at macroexpansion time so we'll conditionally try to obtain size and align of the type to be safe
                  :else
-                 `(let [alloc# (mem/alloc-instance ~type-sym)]
-                    (mem/serialize-into ~sym ~type-sym alloc# ~arena)
-                    alloc#))
+                 (let [alloc-sym (with-meta (gensym "alloc") {:tag 'java.lang.foreign.MemorySegment})
+                       size-of  (if-some [v (try (mem/size-of type) (catch Exception _ nil))] v `(mem/size-of ~type))
+                       align-of (if-some [v (try (mem/align-of type) (catch Exception _ nil))] v `(mem/align-of ~type))]
+                   `(let [~alloc-sym (mem/alloc ~size-of ~align-of ~arena)]
+                      ~(if (get-method mem/generate-serialize type)
+                         (mem/generate-serialize type sym 0 alloc-sym)
+                         `(mem/serialize-into ~sym ~type ~alloc-sym ~arena))
+                      ~alloc-sym)))
                (list sym)))
 
             arg-serializers
@@ -359,9 +367,13 @@
                             wrap-serialize))
 
             deserialize-prim (fn [expr]
-                               `(mem/deserialize* ~expr ~ret-type-sym))
+                               (if (get-method mem/deserialize* ret-type)
+                                 `(~(get-method mem/deserialize* ret-type) ~expr ~ret-type-sym)
+                                 `(mem/deserialize* ~expr ~ret-type-sym)))
             deserialize-segment (fn [expr]
-                                  `(mem/deserialize-from ~expr ~ret-type-sym))
+                                  (if (get-method mem/deserialize-from ret-type)
+                                    `(~(get-method mem/deserialize-from ret-type) ~expr ~ret-type-sym)
+                                    `(mem/deserialize-from ~expr ~ret-type-sym)))
             deserialize-ret (fn [expr]
                               (cond
                                 (and (or (mem/primitive? ret-type)
@@ -372,11 +384,16 @@
                                 (mem/primitive-type ret-type)
                                 (deserialize-prim expr)
 
+                                (get-method mem/generate-deserialize ret-type)
+                                (let [return-segment (with-meta (gensym "return-segment") {:tag 'java.lang.foreign.MemorySegment})]
+                                  `(let [~return-segment ~expr]
+                                     ~(mem/generate-deserialize ret-type 0 return-segment)))
+
                                 :else
                                 (deserialize-segment expr)))
 
             wrap-arena (fn [expr]
-                           `(with-open [~arena (mem/confined-arena)]
+                           `(with-open [~arena (mem/thread-local-arena)]
                               ~expr))
             wrap-fn (fn [call needs-arena?]
                       `(fn [~@(if const-args? arg-syms ['& args-sym])]
@@ -412,12 +429,12 @@
   [downcall arg-types ret-type]
   (if (mem/primitive-type ret-type)
     (fn native-fn [& args]
-      (with-open [arena (mem/confined-arena)]
+      (with-open [arena (mem/thread-local-arena)]
         (mem/deserialize*
          (apply downcall (map #(mem/serialize %1 %2 arena) args arg-types))
          ret-type)))
     (fn native-fn [& args]
-      (with-open [arena (mem/confined-arena)]
+      (with-open [arena (mem/thread-local-arena)]
         (mem/deserialize-from
          (apply downcall (mem/arena-allocator arena)
                 (map #(mem/serialize %1 %2 arena) args arg-types))
