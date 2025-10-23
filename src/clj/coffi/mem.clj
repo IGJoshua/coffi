@@ -29,6 +29,7 @@
     SegmentAllocator
     ValueLayout
     ValueLayout$OfByte
+    ValueLayout$OfBoolean
     ValueLayout$OfShort
     ValueLayout$OfInt
     ValueLayout$OfLong
@@ -211,6 +212,10 @@
   "The [[MemoryLayout]] for a byte in [[native-endian]] [[ByteOrder]]."
   ValueLayout/JAVA_BYTE)
 
+(def ^ValueLayout$OfBoolean boolean-layout
+  "The [[MemoryLayout]] for a boolean in [[native-endian]] [[ByteOrder]]."
+  ValueLayout/JAVA_BOOLEAN)
+
 (def ^ValueLayout$OfShort short-layout
   "The [[MemoryLayout]] for a c-sized short in [[native-endian]] [[ByteOrder]]."
   ValueLayout/JAVA_SHORT)
@@ -239,6 +244,10 @@
   "The [[MemoryLayout]] for a native pointer in [[native-endian]] [[ByteOrder]]."
   ValueLayout/ADDRESS)
 
+(def ^long boolean-size
+  "The size in bytes of the layout of a java boolean."
+  (.byteSize boolean-layout))
+
 (def ^long short-size
   "The size in bytes of a c-sized short."
   (.byteSize short-layout))
@@ -262,6 +271,10 @@
 (def ^long pointer-size
   "The size in bytes of a c-sized pointer."
   (.byteSize pointer-layout))
+
+(def ^long boolean-alignment
+  "The alignment in bytes of a c-sized boolean."
+  (.byteAlignment boolean-layout))
 
 (def ^long short-alignment
   "The alignment in bytes of a c-sized short."
@@ -396,6 +409,72 @@
   (^long [^MemorySegment segment ^long offset ^ByteOrder byte-order]
    (.get segment (.withOrder ^ValueLayout$OfLong long-layout byte-order) offset)))
 
+(defn read-bool-8
+  "Reads a [[bool]] of 8 bits (byte size of 1) from the `segment`, at an optional `offset`."
+  {:inline
+   (fn read-bool-8-inline
+     ([segment] `(not (zero? (read-byte ~segment))))
+     ([segment offset] `(not (zero? (read-byte ~segment ~offset)))))}
+  ([^MemorySegment segment] (not (zero? (read-byte segment))))
+  ([^MemorySegment segment ^long offset] (not (zero? (read-byte segment offset)))))
+
+(defn read-bool-16
+  "Reads a [[bool]] of 16 bits (byte size of 2) from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-read-bool-16-inline
+     ([segment]
+      `(not (zero? (read-short ~segment))))
+     ([segment offset]
+      `(not (zero? (read-short ~segment ~offset))))
+     ([segment offset byte-order]
+      `(not (zero? (read-short ~segment ~offset ~byte-order)))))}
+  ([^MemorySegment segment]
+   (not (zero? (read-short segment))))
+  ([^MemorySegment segment ^long offset]
+   (not (zero? (read-short segment offset))))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (not (zero? (read-short segment offset byte-order)))))
+
+(defn read-bool-32
+  "Reads a [[bool]] of 32 bits (byte size of 4) from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-read-bool-32-inline
+     ([segment]
+      `(not (zero? (read-int ~segment))))
+     ([segment offset]
+      `(not (zero? (read-int ~segment ~offset))))
+     ([segment offset byte-order]
+      `(not (zero? (read-int ~segment ~offset ~byte-order)))))}
+  ([^MemorySegment segment]
+   (not (zero? (read-int segment))))
+  ([^MemorySegment segment ^long offset]
+   (not (zero? (read-int segment offset))))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (not (zero? (read-int segment offset byte-order)))))
+
+(defn read-bool-64
+  "Reads a [[bool]] of 64 bits (byte size of 8) from the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn read-read-bool-64-inline
+     ([segment]
+      `(not (zero? (read-long ~segment))))
+     ([segment offset]
+      `(not (zero? (read-long ~segment ~offset))))
+     ([segment offset byte-order]
+      `(not (zero? (read-long ~segment ~offset ~byte-order)))))}
+  ([^MemorySegment segment]
+   (not (zero? (read-long segment))))
+  ([^MemorySegment segment ^long offset]
+   (not (zero? (read-long segment offset))))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order]
+   (not (zero? (read-long segment offset byte-order)))))
+
 (defn read-char
   "Reads a [[char]] from the `segment`, at an optional `offset`."
   {:inline
@@ -516,6 +595,7 @@
   ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
    (.set segment (.withOrder ^ValueLayout$OfShort short-layout byte-order) offset ^short value)))
 
+
 (defn write-int
   "Writes a [[int]] to the `segment`, at an optional `offset`.
 
@@ -561,6 +641,78 @@
    (.set segment ^ValueLayout$OfLong long-layout offset value))
   (^long [^MemorySegment segment ^long offset ^ByteOrder byte-order ^long value]
    (.set segment (.withOrder ^ValueLayout$OfLong long-layout byte-order) offset value)))
+
+(defn write-bool-8
+  "Writes a [[bool]] of 8 bits (byte size 1) to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-bool-8-inline
+     ([segment value]
+      `(write-byte ~segment (if ~value -1 0)))
+     ([segment offset value]
+      `(write-byte ~segment ~offset (if ~value -1 0))))}
+  ([^MemorySegment segment value]
+   (write-byte segment (if value -1 0)))
+  ([^MemorySegment segment ^long offset value]
+   (write-byte segment offset (if value -1 0))))
+
+(defn write-bool-16
+  "Writes a [[bool]] of 16 bits (byte size 2) to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-bool-16-inline
+     ([segment value]
+      `(write-short ~segment (if ~value -1 0)))
+     ([segment offset value]
+      `(write-short ~segment ~offset (if ~value -1 0)))
+     ([segment value offset byte-order value]
+      `(write-short ~segment ~offset ~byte-order (if ~value -1 0))))}
+  ([^MemorySegment segment value]
+   (write-short segment (if value -1 0)))
+  ([^MemorySegment segment ^long offset value]
+   (write-short segment offset (if value -1 0)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (write-short segment offset byte-order (if value -1 0))))
+
+(defn write-bool-32
+  "Writes a [[bool]] of 32 bits (byte size 4) to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-bool-32-inline
+     ([segment value]
+      `(write-int ~segment (if ~value -1 0)))
+     ([segment offset value]
+      `(write-int ~segment ~offset (if ~value -1 0)))
+     ([segment value offset byte-order value]
+      `(write-int ~segment ~offset ~byte-order (if ~value -1 0))))}
+  ([^MemorySegment segment value]
+   (write-int segment (if value -1 0)))
+  ([^MemorySegment segment ^long offset value]
+   (write-int segment offset (if value -1 0)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (write-int segment offset byte-order (if value -1 0))))
+
+(defn write-bool-64
+  "Writes a [[bool]] of 64 bits (byte size 8) to the `segment`, at an optional `offset`.
+
+  If `byte-order` is not provided, it defaults to [[native-endian]]."
+  {:inline
+   (fn write-bool-64inline
+     ([segment value]
+      `(write-long ~segment (if ~value -1 0)))
+     ([segment offset value]
+      `(write-long ~segment ~offset (if ~value -1 0)))
+     ([segment value offset byte-order value]
+      `(write-long ~segment ~offset ~byte-order (if ~value -1 0))))}
+  ([^MemorySegment segment value]
+   (write-long segment (if value -1 0)))
+  ([^MemorySegment segment ^long offset value]
+   (write-long segment offset (if value -1 0)))
+  ([^MemorySegment segment ^long offset ^ByteOrder byte-order value]
+   (write-long segment offset byte-order (if value -1 0))))
 
 (defn write-char
   "Writes a [[char]] to the `segment`, at an optional `offset`."
@@ -1040,13 +1192,15 @@
 
 (def primitive-types
   "A set of all primitive types."
-  #{::byte ::short ::int ::long
+  #{::byte ::bool ::short ::int ::long
     ::char ::float ::double ::pointer})
 
 (defn primitive?
   "A predicate to determine if a given type is primitive."
   [type]
   (contains? primitive-types (type-dispatch type)))
+
+(defn- throw-illegal-bool! [] (throw (IllegalArgumentException. "encountered bool type without explicit size! use e.g. [::mem/bool 8] or [::mem/bool 32] instead.")))
 
 (defmulti primitive-type
   "Gets the primitive type that is used to pass as an argument for the `type`.
@@ -1068,6 +1222,11 @@
 (defmethod primitive-type ::byte
   [_type]
   ::byte)
+
+(defmethod primitive-type ::bool [type]
+  (if (sequential? type)
+    (case (long (second type)) 8 ::byte 16 ::short 32 ::int 64 ::long)
+    (throw-illegal-bool!)))
 
 (defmethod primitive-type ::short
   [_type]
@@ -1118,6 +1277,11 @@
   [_type]
   byte-layout)
 
+(defmethod c-layout ::bool [type]
+  (if (sequential? type)
+    (case (long (second type)) 8 byte-layout 16 short-layout 32 int-layout 64 long-layout)
+    (throw-illegal-bool!)))
+
 (defmethod c-layout ::short
   [type]
   (if (sequential? type)
@@ -1162,6 +1326,10 @@
    ::short Short/TYPE
    ::int Integer/TYPE
    ::long Long/TYPE
+   [::bool 8] Byte/TYPE
+   [::bool 16] Short/TYPE
+   [::bool 32] Integer/TYPE
+   [::bool 64] Long/TYPE
    ::char Byte/TYPE
    ::float Float/TYPE
    ::double Double/TYPE
@@ -1218,6 +1386,13 @@
 (defmethod serialize* ::byte
   [obj _type _arena]
   (byte obj))
+
+(defmethod serialize* ::bool
+  [obj type _arena]
+  (let [v (if obj -1 0)]
+    (if (sequential? type)
+      (case (long (second type)) 8 (byte v) 16 (short v) 32 (int v) 64 (long v))
+      (throw-illegal-bool!))))
 
 (defmethod serialize* ::short
   [obj _type _arena]
@@ -1285,6 +1460,16 @@
 (defmethod serialize-into ::byte
   [obj _type segment _arena]
   (write-byte segment obj))
+
+(defmethod serialize-into ::bool
+  [obj type segment _arena]
+  (if (sequential? type)
+    (case (long (second type))
+      8  (write-bool-8 segment obj)
+      16 (write-bool-16 segment obj)
+      32 (write-bool-32 segment obj)
+      64 (write-bool-64 segment obj))
+    (throw-illegal-bool!)))
 
 (defmethod serialize-into ::short
   [obj type segment _arena]
@@ -1368,6 +1553,16 @@
   [segment _type]
   (read-byte segment))
 
+(defmethod deserialize-from ::bool
+  [segment type]
+  (if (sequential? type)
+    (case (long (second type))
+      8 (read-bool-8 segment)
+      16 (read-bool-16 segment)
+      32 (read-bool-32 segment)
+      64 (read-bool-64 segment))
+    (throw-illegal-bool!)))
+
 (defmethod deserialize-from ::short
   [segment type]
   (if (sequential? type)
@@ -1426,6 +1621,10 @@
 (defmethod deserialize* ::byte
   [obj _type]
   obj)
+
+(defmethod deserialize* ::bool
+  [obj _type]
+  (not (zero? obj)))
 
 (defmethod deserialize* ::short
   [obj _type]
@@ -1759,21 +1958,29 @@
   (let [[indirect-type type n & {:keys [raw?] :as opts}] (if (vector? in) in [:- in])
         arr? (= indirect-type ::array)
         ptr? (= indirect-type ::pointer)
-        array-types  {::byte   'bytes
-                      ::short  'shorts
-                      ::int    'ints
-                      ::long   'longs
-                      ::char   'chars
-                      ::float  'floats
-                      ::double 'doubles}
-        single-types {::byte     'byte
-                      ::short    'short
-                      ::int      'int
-                      ::long     'long
-                      ::char     'char
-                      ::float    'float
-                      ::double   'double
-                      ::c-string 'String}]
+        array-types  {::byte      'bytes
+                      [::bool 8]  'booleans
+                      [::bool 16] 'booleans
+                      [::bool 32] 'booleans
+                      [::bool 64] 'booleans
+                      ::short     'shorts
+                      ::int       'ints
+                      ::long      'longs
+                      ::char      'chars
+                      ::float     'floats
+                      ::double    'doubles}
+        single-types {::byte      'byte
+                      [::bool 8]  'boolean
+                      [::bool 16] 'boolean
+                      [::bool 32] 'boolean
+                      [::bool 64] 'boolean
+                      ::short     'short
+                      ::int       'int
+                      ::long      'long
+                      ::char      'char
+                      ::float     'float
+                      ::double    'double
+                      ::c-string  'String}]
     (cond (and arr? raw?) (get array-types type 'objects)
           (and arr?)      `clojure.lang.IPersistentVector
           (and ptr?)      `java.lang.foreign.MemorySegment
@@ -1782,6 +1989,10 @@
 (defn- coffitype->array-fn [type]
   (get
    {:coffi.mem/byte   `byte-array
+    [::bool 8]        `boolean-array
+    [::bool 16]       `boolean-array
+    [::bool 32]       `boolean-array
+    [::bool 64]       `boolean-array
     :coffi.mem/short  `short-array
     :coffi.mem/int    `int-array
     :coffi.mem/long   `long-array
@@ -1821,6 +2032,13 @@
 (defmethod generate-deserialize :coffi.mem/pointer  [_type offset segment-source-form] `(read-address ~segment-source-form ~offset))
 (defmethod generate-deserialize :coffi.mem/c-string [_type offset segment-source-form]
   `(.getString (.reinterpret (.get ~(with-meta segment-source-form {:tag 'java.lang.foreign.MemorySegment}) pointer-layout ~offset) Integer/MAX_VALUE) 0))
+
+(defmethod generate-deserialize ::bool [type offset segment-source-form]
+  (if (sequential? type)
+    `(~(case (long (second type)) 8 `read-bool-8 16 `read-bool-16 32 `read-bool-32 64 `read-bool-64)
+      ~segment-source-form
+      ~offset)
+    (throw-illegal-bool!)))
 
 (defn- generate-deserialize-array-as-array-bulk [array-type n offset segment-source-form]
   (list (coffitype->array-read-fn array-type) segment-source-form n offset))
@@ -1895,6 +2113,14 @@
 (defmethod generate-serialize :coffi.mem/double   [_type source-form offset segment-source-form] `(write-double  ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/pointer  [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset ~source-form))
 (defmethod generate-serialize :coffi.mem/c-string [_type source-form offset segment-source-form] `(write-address ~segment-source-form ~offset (.allocateFrom (Arena/ofAuto) ~source-form)))
+
+(defmethod generate-serialize ::bool [type source-form offset segment-source-form]
+  (if (sequential? type)
+    `(~(case (long (second type)) 8 `write-bool-8 16 `write-bool-16 32 `write-bool-32 64 `write-bool-64)
+      ~segment-source-form
+      ~offset
+      ~source-form)
+    (throw-illegal-bool!)))
 
 (defn- generate-serialize-array-as-array-bulk [member-type length source-form offset segment-source-form]
   (list (coffitype->array-write-fn member-type) segment-source-form length offset source-form))
@@ -2251,5 +2477,3 @@
              ~(generate-serialize coffi-typename (with-meta 'source-obj {:tag typename}) 0 segment-form))
            (defmethod pprint/simple-dispatch ~typename [~'obj] (pprint/simple-dispatch (into {} ~'obj)))
            (defmethod clojure.core/print-method ~typename [~'obj ~'writer] (print-simple (into {} ~'obj) ~'writer)))))))
-
-

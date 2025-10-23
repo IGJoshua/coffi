@@ -467,6 +467,10 @@
 (def ^:private return-for-type
   "Map from type name to the return instruction for that type."
   {::mem/byte :breturn
+   [::mem/bool 8] :ireturn
+   [::mem/bool 16] :ireturn
+   [::mem/bool 32] :ireturn
+   [::mem/bool 64] :lreturn
    ::mem/short :sreturn
    ::mem/int :ireturn
    ::mem/long :lreturn

@@ -18,6 +18,21 @@
 (t/deftest can-call-primitive-fns
   (t/is (= 5 ((ffi/cfn "add_numbers" [::mem/int ::mem/int] ::mem/int) 2 3))))
 
+(t/deftest can-call-with-bool-argument
+  (t/is (= 1 ((ffi/cfn "add_numbers" [::mem/int [::mem/bool 32]] ::mem/int) 2 :truthy))))
+
+(t/deftest can-call-with-bool-return
+  (t/is
+   (and
+    (= true ((ffi/cfn "add_numbers" [::mem/int ::mem/int] [::mem/bool 32]) 2 2))
+    (= false ((ffi/cfn "add_numbers" [::mem/int ::mem/int] [::mem/bool 32]) 2 -2)))))
+
+(t/deftest unsized-bool-function-throws
+  (t/is
+   (and
+    (try ((ffi/cfn "add_numbers" [::mem/int ::mem/bool] ::mem/int) 2 :truthy) false (catch Exception _ true))
+    (try ((ffi/cfn "add_numbers" [::mem/int ::mem/int] ::mem/bool) 2 2) false (catch Exception _ true)))))
+
 (mem/defalias ::point
   [::mem/struct
    [[:x ::mem/float]

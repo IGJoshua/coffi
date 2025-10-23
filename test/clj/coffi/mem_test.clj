@@ -1,6 +1,7 @@
 (ns coffi.mem-test
   (:require
    [clojure.test :as t]
+   [clojure.set :as s]
    [coffi.ffi :as ffi]
    [coffi.mem :as mem])
   (:import
@@ -132,4 +133,73 @@
       (ComplexTestTypeWrapped. x y z w)
       (mem/serialize ::ComplexTestTypeWrapped)
       (mem/deserialize ::ComplexTestTypeWrapped)))))
+
+(t/deftest can-serialize-false-to-bool
+  (t/is
+   (= 0
+      (mem/serialize nil [::mem/bool 8])
+      (mem/serialize false [::mem/bool 16])
+      (mem/serialize nil [::mem/bool 32])
+      (mem/serialize false [::mem/bool 64]))))
+
+(t/deftest can-serialize-true-to-bool
+  (t/is
+   (= -1
+      (mem/serialize :true [::mem/bool 8])
+      (mem/serialize true [::mem/bool 16])
+      (mem/serialize 1000 [::mem/bool 32])
+      (mem/serialize "str" [::mem/bool 64]))))
+
+(t/deftest can-serialize-into-bool
+  (t/is
+   (let [bool-8-segment (mem/alloc-instance [::mem/bool 8])
+         bool-16-segment (mem/alloc-instance [::mem/bool 16])
+         bool-32-segment (mem/alloc-instance [::mem/bool 32])
+         bool-64-segment (mem/alloc-instance [::mem/bool 64])
+
+         _ (mem/serialize-into :true [::mem/bool 8]  bool-8-segment  nil)
+         _ (mem/serialize-into true  [::mem/bool 16] bool-16-segment nil)
+         _ (mem/serialize-into 1000  [::mem/bool 32] bool-32-segment nil)
+         _ (mem/serialize-into "str" [::mem/bool 64] bool-64-segment nil)
+         ]
+     (= -1
+        (mem/read-byte bool-8-segment)
+        (mem/read-short bool-16-segment)
+        (mem/read-int bool-32-segment)
+        (mem/read-long bool-64-segment)))))
+
+(t/deftest can-deserialize-from-bool
+  (t/is
+   (let [bool-8-segment (mem/alloc-instance [::mem/bool 8])
+         bool-16-segment (mem/alloc-instance [::mem/bool 16])
+         bool-32-segment (mem/alloc-instance [::mem/bool 32])
+         bool-64-segment (mem/alloc-instance [::mem/bool 64])
+
+         _ (mem/write-byte bool-8-segment 1)
+         _ (mem/write-short bool-16-segment -1)
+         _ (mem/write-int bool-32-segment 0)
+         _ (mem/write-long bool-64-segment 42)]
+     (= true
+        (mem/deserialize-from bool-8-segment [::mem/bool 8])
+        (mem/deserialize-from bool-16-segment [::mem/bool 16])
+        (not (mem/deserialize-from bool-32-segment [::mem/bool 32]))
+        (mem/deserialize-from bool-64-segment [::mem/bool 64])))))
+
+(t/deftest bool-array-serializes
+  (t/is
+   (and
+    (= (s/union (set (range 0 8)) (set (range 16 24)))
+       (mem/deserialize-from
+        (mem/serialize [true false true false] [::mem/array [::mem/bool 8] 4])
+        [::mem/flagset (vec (range 32))]))
+    (= (set (range 16 32))
+       (mem/deserialize-from
+        (mem/serialize [false true] [::mem/array [::mem/bool 16] 2])
+        [::mem/flagset (vec (range 32))])))))
+
+(t/deftest unsized-bool-throws
+  (t/is
+   (and
+    (try (mem/alloc-instance ::mem/bool) false (catch Exception _ true))
+    (try (mem/serialize :test ::mem/bool) false (catch Exception _ true)))))
 
