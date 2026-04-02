@@ -9,7 +9,7 @@
         inherit system;
         overlays = [
           (final: prev: {
-            clojure = prev.clojure.override { jdk = final.jdk22; };
+            clojure = prev.clojure.override { jdk = final.jdk25; };
           })
         ];
       };
