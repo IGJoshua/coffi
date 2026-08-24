@@ -60,11 +60,11 @@
 
 (def ^:private load-instructions
   "Mapping from primitive types to the instruction used to load them onto the stack."
-  {::mem/byte :bload
-   ::mem/short :sload
+  {::mem/byte :iload
+   ::mem/short :iload
    ::mem/int :iload
    ::mem/long :lload
-   ::mem/char :cload
+   ::mem/char :iload
    ::mem/float :fload
    ::mem/double :dload
    ::mem/pointer :aload})
@@ -466,11 +466,11 @@
 
 (def ^:private return-for-type
   "Map from type name to the return instruction for that type."
-  {::mem/byte :breturn
-   ::mem/short :sreturn
+  {::mem/byte :ireturn
+   ::mem/short :ireturn
    ::mem/int :ireturn
    ::mem/long :lreturn
-   ::mem/char :creturn
+   ::mem/char :ireturn
    ::mem/float :freturn
    ::mem/double :dreturn
    ::mem/void :return})

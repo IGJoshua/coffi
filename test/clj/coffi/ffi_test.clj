@@ -42,6 +42,14 @@
             (fn [] 5))
            5)))
 
+(t/deftest can-make-byte-upcall
+  (t/is (= ((ffi/cfn "upcall_test_byte"
+                     [[::ffi/fn [::mem/byte] ::mem/byte] ::mem/byte]
+                     ::mem/byte)
+            (fn [value] (unchecked-byte (inc value)))
+            (byte 41))
+           (byte 42))))
+
 (t/deftest can-make-upcall-int-fn-string-ret
   (t/is (= ((ffi/cfn "upcall_test_int_fn_string_ret" [[::ffi/fn [] ::mem/int]] ::mem/c-string)
             (fn [] 2))

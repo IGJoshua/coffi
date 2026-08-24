@@ -34,6 +34,10 @@ int upcall_test2(int (*f)(void)) {
     return f();
 }
 
+signed char upcall_test_byte(signed char (*f)(signed char), signed char value) {
+    return f(value);
+}
+
 char *mut_str = NULL;
 int counter = 0;
 
