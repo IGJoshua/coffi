@@ -590,7 +590,7 @@
      (make-array Linker$Option 0))))
 
 (defmethod mem/deserialize* ::fn
-  [addr [_fn arg-types ret-type & {:keys [raw-fn?] :as typ}]]
+  [addr [_fn arg-types ret-type & {:keys [raw-fn?]} :as typ]]
   (when-not (mem/null? addr)
     (vary-meta
       (-> ^MemorySegment addr

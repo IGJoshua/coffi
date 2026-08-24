@@ -32,6 +32,14 @@
            (((ffi/cfn "get_downcall" [::mem/int] [::ffi/fn [] ::mem/c-string])
              1)))))
 
+(t/deftest can-reserialize-deserialized-fn-pointers
+  (let [factory ((ffi/cfn "get_downcall"
+                          [::mem/int] [::ffi/fn [] ::mem/c-string]) 1)]
+    (t/is (= "Alternate string"
+             ((ffi/cfn "upcall_test"
+                       [[::ffi/fn [] ::mem/c-string]] ::mem/c-string)
+              factory)))))
+
 (t/deftest can-make-upcall
   (t/is (= ((ffi/cfn "upcall_test" [[::ffi/fn [] ::mem/c-string]] ::mem/c-string)
             (fn [] "hello from clojure from c from clojure"))
