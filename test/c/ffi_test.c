@@ -38,6 +38,18 @@ signed char upcall_test_byte(signed char (*f)(signed char), signed char value) {
     return f(value);
 }
 
+short upcall_test_short(short (*f)(short), short value) {
+    return f(value);
+}
+
+unsigned char upcall_test_char(unsigned char (*f)(unsigned char), unsigned char value) {
+    return f(value);
+}
+
+unsigned char return_char(unsigned char value) {
+    return value;
+}
+
 char *mut_str = NULL;
 int counter = 0;
 

@@ -58,6 +58,24 @@
             (byte 41))
            (byte 42))))
 
+(t/deftest can-make-short-upcall
+  (t/is (= ((ffi/cfn "upcall_test_short"
+                     [[::ffi/fn [::mem/short] ::mem/short] ::mem/short]
+                     ::mem/short)
+            (fn [value] (unchecked-short (inc value)))
+            (short 32766))
+           (short 32767))))
+
+(t/deftest c-char-uses-a-byte-carrier-and-unsigned-clojure-value
+  (t/is (= ((ffi/cfn "return_char" [::mem/char] ::mem/char) (char 255))
+           (char 255)))
+  (t/is (= ((ffi/cfn "upcall_test_char"
+                     [[::ffi/fn [::mem/char] ::mem/char] ::mem/char]
+                     ::mem/char)
+            identity
+            (char 255))
+           (char 255))))
+
 (t/deftest can-make-upcall-int-fn-string-ret
   (t/is (= ((ffi/cfn "upcall_test_int_fn_string_ret" [[::ffi/fn [] ::mem/int]] ::mem/c-string)
             (fn [] 2))
