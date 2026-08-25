@@ -60,11 +60,11 @@
 
 (def ^:private load-instructions
   "Mapping from primitive types to the instruction used to load them onto the stack."
-  {::mem/byte :bload
-   ::mem/short :sload
+  {::mem/byte :iload
+   ::mem/short :iload
    ::mem/int :iload
    ::mem/long :lload
-   ::mem/char :cload
+   ::mem/char :iload
    ::mem/float :fload
    ::mem/double :dload
    ::mem/pointer :aload})
@@ -92,7 +92,10 @@
     (let [prim-type (some-> type mem/primitive-type)]
       (if-some [prim  (some-> prim-type name keyword)]
        ;; Box primitive
-       [:invokestatic (prim-classes prim-type) "valueOf" [prim (prim-classes prim-type)]]
+       [(when (identical? ::mem/char prim-type)
+          [[:ldc 0xff]
+           [:iand]])
+        [:invokestatic (prim-classes prim-type) "valueOf" [prim (prim-classes prim-type)]]]
        ;; Return object without change
        []))))
 
@@ -101,7 +104,13 @@
   [type]
   (or (when-some [prim (mem/primitive-type type)]
         (when (not= prim ::mem/pointer)
-          (keyword (name prim))))
+          ;; Coffi exposes an unsigned C char as a Clojure Character, but the
+          ;; one-byte FFM layout's method-handle carrier is Java byte.  The
+          ;; generated invokeExact/upcall descriptor must describe the carrier;
+          ;; to-object-asm performs the unsigned widening at the Clojure edge.
+          (if (identical? prim ::mem/char)
+            (mem/java-layout type)
+            (keyword (name prim)))))
       (mem/java-layout type)))
 
 (def ^:private unbox-fn-for-type
@@ -466,11 +475,11 @@
 
 (def ^:private return-for-type
   "Map from type name to the return instruction for that type."
-  {::mem/byte :breturn
-   ::mem/short :sreturn
+  {::mem/byte :ireturn
+   ::mem/short :ireturn
    ::mem/int :ireturn
    ::mem/long :lreturn
-   ::mem/char :creturn
+   ::mem/char :ireturn
    ::mem/float :freturn
    ::mem/double :dreturn
    ::mem/void :return})
@@ -590,7 +599,7 @@
      (make-array Linker$Option 0))))
 
 (defmethod mem/deserialize* ::fn
-  [addr [_fn arg-types ret-type & {:keys [raw-fn?] :as typ}]]
+  [addr [_fn arg-types ret-type & {:keys [raw-fn?]} :as typ]]
   (when-not (mem/null? addr)
     (vary-meta
       (-> ^MemorySegment addr

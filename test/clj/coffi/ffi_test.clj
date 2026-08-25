@@ -32,6 +32,14 @@
            (((ffi/cfn "get_downcall" [::mem/int] [::ffi/fn [] ::mem/c-string])
              1)))))
 
+(t/deftest can-reserialize-deserialized-fn-pointers
+  (let [factory ((ffi/cfn "get_downcall"
+                          [::mem/int] [::ffi/fn [] ::mem/c-string]) 1)]
+    (t/is (= "Alternate string"
+             ((ffi/cfn "upcall_test"
+                       [[::ffi/fn [] ::mem/c-string]] ::mem/c-string)
+              factory)))))
+
 (t/deftest can-make-upcall
   (t/is (= ((ffi/cfn "upcall_test" [[::ffi/fn [] ::mem/c-string]] ::mem/c-string)
             (fn [] "hello from clojure from c from clojure"))
@@ -41,6 +49,32 @@
   (t/is (= ((ffi/cfn "upcall_test2" [[::ffi/fn [] ::mem/int]] ::mem/int)
             (fn [] 5))
            5)))
+
+(t/deftest can-make-byte-upcall
+  (t/is (= ((ffi/cfn "upcall_test_byte"
+                     [[::ffi/fn [::mem/byte] ::mem/byte] ::mem/byte]
+                     ::mem/byte)
+            (fn [value] (unchecked-byte (inc value)))
+            (byte 41))
+           (byte 42))))
+
+(t/deftest can-make-short-upcall
+  (t/is (= ((ffi/cfn "upcall_test_short"
+                     [[::ffi/fn [::mem/short] ::mem/short] ::mem/short]
+                     ::mem/short)
+            (fn [value] (unchecked-short (inc value)))
+            (short 32766))
+           (short 32767))))
+
+(t/deftest c-char-uses-a-byte-carrier-and-unsigned-clojure-value
+  (t/is (= ((ffi/cfn "return_char" [::mem/char] ::mem/char) (char 255))
+           (char 255)))
+  (t/is (= ((ffi/cfn "upcall_test_char"
+                     [[::ffi/fn [::mem/char] ::mem/char] ::mem/char]
+                     ::mem/char)
+            identity
+            (char 255))
+           (char 255))))
 
 (t/deftest can-make-upcall-int-fn-string-ret
   (t/is (= ((ffi/cfn "upcall_test_int_fn_string_ret" [[::ffi/fn [] ::mem/int]] ::mem/c-string)
